@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { C } from "./theme";
 import { supabase } from "./lib/supabaseClient";
 import { mapProfileToSession } from "./lib/session";
@@ -24,6 +24,12 @@ export default function App() {
     if (!authSession) { setStage("landing"); return; }
     const { data: profile } = await supabase.from("profiles").select("*").eq("id", authSession.user.id).single();
     if (!profile) { setStage("landing"); return; }
+    if (!profile.active) {
+      await supabase.auth.signOut();
+      setToast("This account has been deactivated. Contact support if you believe this is a mistake.");
+      setStage("landing");
+      return;
+    }
     const mapped = mapProfileToSession(profile);
     setSession(mapped);
     setPage(mapped.role === "admin" ? "admin" : "jobs");
@@ -32,9 +38,17 @@ export default function App() {
 
   useEffect(() => { restoreSession(); }, [restoreSession]);
 
+  // AuthForm signs itself out mid-validation (wrong role, deactivated account) and shows its
+  // own error on the auth screen — it doesn't want to be yanked back to landing when that
+  // happens. This listener should only react to a session dying while actively in the app
+  // (e.g. an expired/revoked token), so it checks a ref rather than "stage" directly to avoid
+  // acting on a stale closure value from when the effect first ran.
+  const stageRef = useRef(stage);
+  useEffect(() => { stageRef.current = stage; }, [stage]);
+
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
+      if (event === "SIGNED_OUT" && stageRef.current === "app") {
         setSession(null);
         setActiveChatId(null);
         setStage("landing");
@@ -76,7 +90,7 @@ export default function App() {
       {stage === "app" && session && (
         <div style={{ minHeight: "100vh", background: C.sand }}>
           <TopBar session={session} onLogout={logout} onNav={(p) => { setPage(p); setActiveChatId(null); }} page={page} />
-          {session.role === "admin" && page === "admin" && <AdminDashboard />}
+          {session.role === "admin" && page === "admin" && <AdminDashboard setToast={setToast} />}
           {session.role !== "admin" && page === "jobs" && (
             <JobsPage session={session} setToast={setToast} onOpenChat={(id) => { setActiveChatId(id); setPage("chats"); }} />
           )}

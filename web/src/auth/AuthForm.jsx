@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { mapProfileToSession } from "../lib/session";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
+import { TermsAgreement } from "./TermsAgreement";
 
 async function fetchProfile(userId) {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -29,6 +30,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
 
   // admin
   const [adminPass, setAdminPass] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   async function handleAdminLogin() {
     setError("");
@@ -60,6 +62,11 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       setError(`This account is registered as a ${profile.role}. Pick "${profile.role === "customer" ? "I'm a customer" : "I'm a hauler"}" instead.`);
       return;
     }
+    if (!profile.active) {
+      await supabase.auth.signOut();
+      setError("This account has been deactivated. Contact support if you believe this is a mistake.");
+      return;
+    }
     onAuthed(mapProfileToSession(profile));
   }
 
@@ -71,6 +78,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       if (!businessName.trim() || !contactName.trim() || !email.trim() || !passcode.trim() || !serviceZip.trim()) { setError("Fill in all fields."); return; }
     }
     if (passcode.trim().length < 6) { setError("Passcode must be at least 6 characters."); return; }
+    if (!agreedToTerms) { setError("You must agree to the Terms of Service to continue."); return; }
 
     setLoading(true);
     const { data, error: authError } = await supabase.auth.signUp({ email: email.trim(), password: passcode.trim() });
@@ -135,6 +143,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" required />
           <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />
           <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 6 characters" required hint="At least 6 characters." />
+          <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Create account"}</Btn>
         </>
@@ -147,6 +156,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Business email" value={email} onChange={setEmail} type="email" placeholder="jake@capitalcityhaul.com" required />
           <Field label="Primary service ZIP" value={serviceZip} onChange={setServiceZip} placeholder="60491" required />
           <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 6 characters" required hint="At least 6 characters." />
+          <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Apply as a hauler"}</Btn>
         </>

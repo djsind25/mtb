@@ -6,6 +6,15 @@ export async function loadUsers() {
   return data;
 }
 
+// Admin bypasses RLS via is_admin() in the profiles_update_own policy, so this can update
+// any user's row. Only the fields listed here are ever sent — role and email are deliberately
+// not editable from this form (role changes ripple into business logic; email is the auth
+// identity and needs its own admin-API flow).
+export async function updateUserProfile(userId, fields) {
+  const { error } = await supabase.from("profiles").update(fields).eq("id", userId);
+  if (error) throw error;
+}
+
 export async function loadJobsWithBids() {
   const { data: jobs, error } = await supabase.from("jobs").select("*").order("created_at", { ascending: false });
   if (error) throw error;
@@ -23,9 +32,17 @@ export async function loadJobsWithBids() {
   if (peopleError) throw peopleError;
   const nameById = Object.fromEntries(people.map(p => [p.id, p.business_name || p.name]));
 
+  const bookedJobIds = jobs.filter(j => j.status === "booked").map(j => j.id);
+  const { data: chats, error: chatsError } = bookedJobIds.length
+    ? await supabase.from("chats").select("id, job_id").in("job_id", bookedJobIds)
+    : { data: [], error: null };
+  if (chatsError) throw chatsError;
+  const chatIdByJobId = Object.fromEntries(chats.map(c => [c.job_id, c.id]));
+
   return jobs.map(j => ({
     ...j,
     customerName: nameById[j.customer_id],
+    chatId: chatIdByJobId[j.id],
     bids: bids.filter(b => b.job_id === j.id).map(b => ({ ...b, businessName: nameById[b.hauler_id] })),
   }));
 }
@@ -60,6 +77,16 @@ export async function loadFlaggedMessages() {
       senderName: senderId ? nameById[senderId] : undefined,
     };
   });
+}
+
+export async function setFlagReviewed(messageId, reviewed) {
+  const { error } = await supabase.from("messages").update({ flag_reviewed: reviewed }).eq("id", messageId);
+  if (error) throw error;
+}
+
+export async function setOverdueReviewed(jobId, reviewed) {
+  const { error } = await supabase.from("jobs").update({ overdue_reviewed: reviewed }).eq("id", jobId);
+  if (error) throw error;
 }
 
 export async function loadOverdueJobs() {

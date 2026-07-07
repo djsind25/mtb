@@ -1,20 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif, mono, expiryLabel, isExpired, COMMISSION_RATE } from "../theme";
-import { Badge, Avatar, CenteredNote } from "../ui/Primitives";
+import { CenteredNote, Field } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs } from "./data";
 import { Stat } from "./Stat";
 import { Panel } from "./Panel";
 import { JobRow, JobRowExpanded } from "./JobRow";
 import { FlagRow } from "./FlagRow";
 import { OverdueJobRow } from "./OverdueJobRow";
+import { EditUserModal } from "./EditUserModal";
+import { UserRow } from "./UserRow";
 
-export function AdminDashboard() {
+export function AdminDashboard({ setToast }) {
   const [tab, setTab] = useState("overview");
   const [users, setUsers] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [flags, setFlags] = useState([]);
   const [overdue, setOverdue] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [hideReviewedFlags, setHideReviewedFlags] = useState(false);
+  const [hideReviewedOverdue, setHideReviewedOverdue] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -29,6 +35,12 @@ export function AdminDashboard() {
 
   const customers = users.filter(u => u.role === "customer");
   const haulers = users.filter(u => u.role === "hauler");
+
+  const searchQuery = userSearch.trim().toLowerCase();
+  const matchesSearch = (u) => !searchQuery || [u.name, u.business_name, u.email, u.zip]
+    .some(field => (field || "").toLowerCase().includes(searchQuery));
+  const filteredCustomers = customers.filter(matchesSearch);
+  const filteredHaulers = haulers.filter(matchesSearch);
   const bookedJobs = jobs.filter(j => j.status === "booked");
   const totalGMV = bookedJobs.reduce((sum, j) => {
     const bid = (j.bids || []).find(b => b.id === j.accepted_bid_id);
@@ -36,6 +48,16 @@ export function AdminDashboard() {
   }, 0);
   const depositCollected = +(totalGMV * COMMISSION_RATE).toFixed(2);
   const haulerDirectVolume = +(totalGMV * (1 - COMMISSION_RATE)).toFixed(2);
+
+  // Unreviewed-first (stable sort keeps each group in its original, most-recent-first order),
+  // with an optional toggle to hide anything already checked off.
+  const sortedFlags = [...flags].sort((a, b) => (a.flag_reviewed === b.flag_reviewed ? 0 : a.flag_reviewed ? 1 : -1));
+  const visibleFlags = hideReviewedFlags ? sortedFlags.filter(f => !f.flag_reviewed) : sortedFlags;
+  const unreviewedFlagCount = flags.filter(f => !f.flag_reviewed).length;
+
+  const sortedOverdue = [...overdue].sort((a, b) => (a.overdue_reviewed === b.overdue_reviewed ? 0 : a.overdue_reviewed ? 1 : -1));
+  const visibleOverdue = hideReviewedOverdue ? sortedOverdue.filter(j => !j.overdue_reviewed) : sortedOverdue;
+  const unreviewedOverdueCount = overdue.filter(j => !j.overdue_reviewed).length;
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
@@ -70,10 +92,11 @@ export function AdminDashboard() {
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
         {[
           { id: "overview", label: "Overview" },
-          { id: "users", label: `Users (${users.length})` },
+          { id: "customers", label: `Customers (${customers.length})` },
+          { id: "haulers", label: `Haulers (${haulers.length})` },
           { id: "jobs", label: `Jobs & bids (${jobs.length})` },
-          { id: "flags", label: `Flagged messages (${flags.length})` },
-          { id: "overdue", label: `Overdue completions (${overdue.length})` },
+          { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
+          { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             background: tab === t.id ? C.pine : C.paper, color: tab === t.id ? C.paper : C.ink,
@@ -91,29 +114,37 @@ export function AdminDashboard() {
           </Panel>
           {overdue.length > 0 && (
             <Panel title={`⚠ Overdue completions (${overdue.length})`}>
-              {overdue.map(j => <OverdueJobRow key={j.id} job={j} />)}
+              {sortedOverdue.map(j => <OverdueJobRow key={j.id} job={j} onChanged={loadAll} />)}
             </Panel>
           )}
           <Panel title="Recent flags">
-            {flags.slice(0, 5).map(f => <FlagRow key={f.id} flag={f} />)}
+            {sortedFlags.slice(0, 5).map(f => <FlagRow key={f.id} flag={f} onChanged={loadAll} />)}
             {flags.length === 0 && <CenteredNote>No flagged messages yet.</CenteredNote>}
           </Panel>
         </div>
       )}
 
-      {tab === "users" && (
-        <Panel title="All accounts">
+      {tab === "customers" && (
+        <Panel title="Customers">
+          <Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" />
           <div style={{ display: "grid", gap: 8 }}>
-            {users.length === 0 && <CenteredNote>No accounts yet.</CenteredNote>}
-            {users.map(u => (
-              <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: `1px solid ${C.line}`, borderRadius: 10 }}>
-                <Avatar emoji={u.role === "customer" ? "👤" : u.role === "hauler" ? "🚛" : "🛡️"} size={32} bg={u.role === "customer" ? C.sandWarm : C.tealLight} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>{u.role === "customer" ? u.name : (u.business_name || u.name)}</div>
-                  <div style={{ fontSize: 11.5, color: C.gray }}>{u.email} · ZIP {u.zip || "—"} · joined {new Date(u.created_at).toLocaleDateString()}</div>
-                </div>
-                <Badge color={u.role === "customer" ? C.gray : C.teal} bg={u.role === "customer" ? C.grayLight : C.tealLight}>{u.role}</Badge>
-              </div>
+            {customers.length === 0 && <CenteredNote>No customer accounts yet.</CenteredNote>}
+            {customers.length > 0 && filteredCustomers.length === 0 && <CenteredNote>No customers match "{userSearch}".</CenteredNote>}
+            {filteredCustomers.map(u => (
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} />
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {tab === "haulers" && (
+        <Panel title="Haulers">
+          <Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" />
+          <div style={{ display: "grid", gap: 8 }}>
+            {haulers.length === 0 && <CenteredNote>No hauler accounts yet.</CenteredNote>}
+            {haulers.length > 0 && filteredHaulers.length === 0 && <CenteredNote>No haulers match "{userSearch}".</CenteredNote>}
+            {filteredHaulers.map(u => (
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} />
             ))}
           </div>
         </Panel>
@@ -130,20 +161,39 @@ export function AdminDashboard() {
 
       {tab === "flags" && (
         <Panel title="Flagged messages (Trust & Safety queue)">
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.gray, marginBottom: 12, cursor: "pointer" }}>
+            <input type="checkbox" checked={hideReviewedFlags} onChange={e => setHideReviewedFlags(e.target.checked)} />
+            Hide reviewed ({unreviewedFlagCount} unreviewed of {flags.length})
+          </label>
           <div style={{ display: "grid", gap: 8 }}>
             {flags.length === 0 && <CenteredNote>No flagged messages yet.</CenteredNote>}
-            {flags.map(f => <FlagRow key={f.id} flag={f} expanded />)}
+            {flags.length > 0 && visibleFlags.length === 0 && <CenteredNote>All flags reviewed. 🎉</CenteredNote>}
+            {visibleFlags.map(f => <FlagRow key={f.id} flag={f} expanded onChanged={loadAll} />)}
           </div>
         </Panel>
       )}
 
       {tab === "overdue" && (
         <Panel title="Jobs past the 30-day completion window">
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: C.gray, marginBottom: 12, cursor: "pointer" }}>
+            <input type="checkbox" checked={hideReviewedOverdue} onChange={e => setHideReviewedOverdue(e.target.checked)} />
+            Hide reviewed ({unreviewedOverdueCount} unreviewed of {overdue.length})
+          </label>
           <div style={{ display: "grid", gap: 8 }}>
             {overdue.length === 0 && <CenteredNote>Nothing overdue right now.</CenteredNote>}
-            {overdue.map(j => <OverdueJobRow key={j.id} job={j} expanded />)}
+            {overdue.length > 0 && visibleOverdue.length === 0 && <CenteredNote>All overdue jobs reviewed. 🎉</CenteredNote>}
+            {visibleOverdue.map(j => <OverdueJobRow key={j.id} job={j} expanded onChanged={loadAll} />)}
           </div>
         </Panel>
+      )}
+
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => { setEditingUser(null); loadAll(); }}
+          setToast={setToast}
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { C, mono, expiryLabel, isExpired } from "../theme";
-import { Badge } from "../ui/Primitives";
+import { Badge, Btn } from "../ui/Primitives";
+import { AdminChatViewer } from "./AdminChatViewer";
 
 export function JobRow({ job }) {
   return (
@@ -13,6 +14,7 @@ export function JobRow({ job }) {
 
 export function JobRowExpanded({ job }) {
   const [open, setOpen] = useState(false);
+  const [viewingChat, setViewingChat] = useState(false);
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   return (
     <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
@@ -28,6 +30,11 @@ export function JobRowExpanded({ job }) {
       </button>
       {open && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 14px" }}>
+          {job.status === "booked" && job.chatId && (
+            <div style={{ marginBottom: 10 }}>
+              <Btn size="sm" full={false} variant="teal" onClick={() => setViewingChat(true)}>💬 View conversation</Btn>
+            </div>
+          )}
           {(job.bids || []).length === 0 && <div style={{ fontSize: 12, color: C.gray }}>No bids yet.</div>}
           {(job.bids || []).map(b => (
             <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
@@ -37,6 +44,7 @@ export function JobRowExpanded({ job }) {
           ))}
         </div>
       )}
+      {viewingChat && <AdminChatViewer chatId={job.chatId} onClose={() => setViewingChat(false)} />}
     </div>
   );
 }

@@ -12,5 +12,6 @@ export function mapProfileToSession(profile) {
     verified: profile.verified,
     rating: profile.rating,
     notificationPrefs: profile.notification_prefs,
+    active: profile.active,
   };
 }
