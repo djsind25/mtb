@@ -1,0 +1,105 @@
+import { supabase } from "../lib/supabaseClient";
+
+// Attaches { businessName } to each bid by looking up haulers via the public_profiles view
+// (profiles itself is RLS-locked to your own row — public_profiles exposes just the safe subset).
+async function attachHaulerNames(bids) {
+  const haulerIds = [...new Set(bids.map(b => b.hauler_id))];
+  if (haulerIds.length === 0) return bids;
+  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name").in("id", haulerIds);
+  const byId = Object.fromEntries((haulers || []).map(h => [h.id, h.business_name]));
+  return bids.map(b => ({ ...b, businessName: byId[b.hauler_id] }));
+}
+
+async function attachChatIds(jobs) {
+  const jobIds = jobs.map(j => j.id);
+  if (jobIds.length === 0) return jobs;
+  const { data: chats, error } = await supabase.from("chats").select("id, job_id").in("job_id", jobIds);
+  if (error) throw error;
+  const byJobId = Object.fromEntries((chats || []).map(c => [c.job_id, c.id]));
+  return jobs.map(j => ({ ...j, chatId: byJobId[j.id] }));
+}
+
+export async function loadCustomerJobs(customerId) {
+  const { data: jobs, error } = await supabase.from("jobs").select("*").eq("customer_id", customerId).order("created_at", { ascending: false });
+  if (error) throw error;
+  const jobIds = jobs.map(j => j.id);
+  let bids = [];
+  if (jobIds.length) {
+    const { data, error: bidsError } = await supabase.from("bids").select("*").in("job_id", jobIds);
+    if (bidsError) throw bidsError;
+    bids = await attachHaulerNames(data);
+  }
+  const withBids = jobs.map(j => ({ ...j, bids: bids.filter(b => b.job_id === j.id) }));
+  return attachChatIds(withBids);
+}
+
+export async function loadOpenJobsForHauler() {
+  const { data, error } = await supabase.rpc("list_open_jobs_for_hauler");
+  if (error) throw error;
+  return data;
+}
+
+export async function loadMyBidJobs(haulerId) {
+  const { data: myBids, error } = await supabase.from("bids").select("*").eq("hauler_id", haulerId);
+  if (error) throw error;
+  if (myBids.length === 0) return [];
+  const jobIds = myBids.map(b => b.job_id);
+  const { data: jobs, error: jobsError } = await supabase.from("jobs").select("*").in("id", jobIds);
+  if (jobsError) throw jobsError;
+  const withBids = jobs.map(j => ({ ...j, myBid: myBids.find(b => b.job_id === j.id) }));
+  return attachChatIds(withBids);
+}
+
+export async function loadJobPhotos(jobId) {
+  const { data: rows, error } = await supabase.from("job_photos").select("*").eq("job_id", jobId);
+  if (error) throw error;
+  const withUrls = await Promise.all(rows.map(async (r) => {
+    const { data } = await supabase.storage.from("job-photos").createSignedUrl(r.storage_path, 3600);
+    return { ...r, url: data?.signedUrl };
+  }));
+  return withUrls;
+}
+
+export async function postJob({ customerId, title, description, zip, photos }) {
+  const { data: job, error } = await supabase.from("jobs").insert({ customer_id: customerId, title, description, zip }).select().single();
+  if (error) throw error;
+
+  for (const file of photos) {
+    const path = `${job.id}/${crypto.randomUUID()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("job-photos").upload(path, file);
+    if (uploadError) throw uploadError;
+    const { error: photoRowError } = await supabase.from("job_photos").insert({ job_id: job.id, storage_path: path, original_name: file.name });
+    if (photoRowError) throw photoRowError;
+  }
+  return job;
+}
+
+export async function submitBid({ jobId, haulerId, amount, note }) {
+  const { error } = await supabase.from("bids").insert({ job_id: jobId, hauler_id: haulerId, amount: Number(amount), note });
+  if (error) throw error;
+}
+
+export async function renewJob(jobId) {
+  const { error } = await supabase.rpc("renew_job", { p_job_id: jobId });
+  if (error) throw error;
+}
+
+export async function renewBid(bidId) {
+  const { error } = await supabase.rpc("renew_bid", { p_bid_id: bidId });
+  if (error) throw error;
+}
+
+export async function acceptBid({ jobId, bidId }) {
+  const { data, error } = await supabase.functions.invoke("create-deposit-intent", { body: { jobId, bidId } });
+  if (error) {
+    // supabase-js only exposes the parsed body on FunctionsHttpError via .context
+    const message = error.context?.body ? (await error.context.json?.().catch(() => null))?.message : null;
+    throw new Error(message || error.message || "Could not start payment.");
+  }
+  return data; // { clientSecret, chatId, deposit, balanceDue, commission, bidAmount }
+}
+
+export async function confirmJobComplete(jobId) {
+  const { error } = await supabase.rpc("confirm_job_complete", { p_job_id: jobId });
+  if (error) throw error;
+}

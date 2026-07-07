@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+.DS_Store
+
+# Supabase local dev secrets — never commit real keys
+supabase/.env
+supabase/.branches
+supabase/.temp
+
+# Web app env
+web/.env
+web/.env.local
+
+# Local Claude Code permission grants (machine-specific, not project config)
+.claude/settings.local.json
