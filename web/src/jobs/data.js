@@ -1,13 +1,19 @@
 import { supabase } from "../lib/supabaseClient";
 
-// Attaches { businessName } to each bid by looking up haulers via the public_profiles view
-// (profiles itself is RLS-locked to your own row — public_profiles exposes just the safe subset).
+// Attaches { businessName, rating, ratingCount } to each bid by looking up haulers via the
+// public_profiles view (profiles itself is RLS-locked to your own row — public_profiles exposes
+// just the safe subset, including the aggregate rating the reviews trigger maintains).
 async function attachHaulerNames(bids) {
   const haulerIds = [...new Set(bids.map(b => b.hauler_id))];
   if (haulerIds.length === 0) return bids;
-  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name").in("id", haulerIds);
-  const byId = Object.fromEntries((haulers || []).map(h => [h.id, h.business_name]));
-  return bids.map(b => ({ ...b, businessName: byId[b.hauler_id] }));
+  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name, rating, rating_count").in("id", haulerIds);
+  const byId = Object.fromEntries((haulers || []).map(h => [h.id, h]));
+  return bids.map(b => ({
+    ...b,
+    businessName: byId[b.hauler_id]?.business_name,
+    rating: byId[b.hauler_id]?.rating,
+    ratingCount: byId[b.hauler_id]?.rating_count,
+  }));
 }
 
 async function attachChatIds(jobs) {
@@ -60,11 +66,18 @@ export async function loadJobPhotos(jobId) {
   return withUrls;
 }
 
-export async function postJob({ customerId, title, description, zip, photos }) {
-  const { data: job, error } = await supabase.from("jobs").insert({ customer_id: customerId, title, description, zip }).select().single();
+export async function postJob({ customerId, title, description, zip, photos, serviceType, dumpsterType, rentalStartDate, rentalEndDate }) {
+  const row = { customer_id: customerId, title, description, zip };
+  if (serviceType === "rental") {
+    row.service_type = "rental";
+    row.dumpster_type = dumpsterType;
+    row.rental_start_date = rentalStartDate;
+    row.rental_end_date = rentalEndDate;
+  }
+  const { data: job, error } = await supabase.from("jobs").insert(row).select().single();
   if (error) throw error;
 
-  for (const file of photos) {
+  for (const file of photos || []) {
     const path = `${job.id}/${crypto.randomUUID()}-${file.name}`;
     const { error: uploadError } = await supabase.storage.from("job-photos").upload(path, file);
     if (uploadError) throw uploadError;

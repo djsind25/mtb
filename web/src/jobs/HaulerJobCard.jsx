@@ -3,11 +3,17 @@ import { C, expiryLabel } from "../theme";
 import { Badge, Field, Btn } from "../ui/Primitives";
 import { JobPhotos } from "./JobPhotos";
 
+function formatDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 export function HaulerJobCard({ job, alreadyBid, onBid }) {
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const isRental = job.service_type === "rental";
 
   async function submit() {
     setSubmitting(true);
@@ -22,6 +28,7 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
           <div>
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.pineDeep, marginBottom: 4 }}>{job.title}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              {isRental && <Badge color={C.teal} bg={C.tealLight}>🗑️ {job.dumpster_type === "trailer" ? "Trailer" : "Roll-off"} rental</Badge>}
               <span style={{ fontSize: 11.5, color: C.gray }}>📍 ZIP {job.zip} · {job.bid_count} bids so far</span>
               <Badge color={C.gray} bg={C.grayLight}>{expiryLabel(job.expires_at)}</Badge>
               {typeof job.distance_mi === "number" && <Badge color={C.teal} bg={C.tealLight}>📏 {job.distance_mi < 1 ? "<1" : Math.round(job.distance_mi)} mi away</Badge>}
@@ -35,7 +42,14 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
       {expanded && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
           <JobPhotos jobId={job.id} />
-          <p style={{ fontSize: 13, color: C.gray, marginBottom: 14, lineHeight: 1.5 }}>{job.description || "No description provided."}</p>
+          {isRental ? (
+            <div style={{ background: C.sand, borderRadius: 8, padding: "10px 12px", marginBottom: 14, fontSize: 13, color: C.ink }}>
+              <div><strong>{job.dumpster_type === "trailer" ? "Trailer" : "Roll-off dumpster"}</strong></div>
+              <div style={{ color: C.gray, marginTop: 2 }}>Needed {formatDate(job.rental_start_date)} – {formatDate(job.rental_end_date)}</div>
+            </div>
+          ) : (
+            <p style={{ fontSize: 13, color: C.gray, marginBottom: 14, lineHeight: 1.5 }}>{job.description || "No description provided."}</p>
+          )}
           {alreadyBid ? (
             <Badge color={C.teal} bg={C.tealLight}>✓ You already bid on this job</Badge>
           ) : (
@@ -47,7 +61,9 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
                 <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Message to customer</label>
                 <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Why pick you?" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "10px 13px", fontSize: 13.5, fontFamily: "inherit", outline: "none", minHeight: 60, resize: "vertical" }} />
               </div>
-              <div style={{ fontSize: 11, color: C.gray, marginBottom: 10 }}>Your bid stays open for the customer to accept for 14 days, unless you renew it.</div>
+              <div style={{ fontSize: 11, color: C.gray, marginBottom: 10 }}>
+                Your bid stays open for the customer to accept for {isRental ? 30 : 14} days, unless you renew it. This is a sealed bid — other haulers can't see your price.
+              </div>
               <Btn disabled={!amount || submitting} onClick={submit}>{submitting ? "Submitting…" : "Submit bid"}</Btn>
             </div>
           )}

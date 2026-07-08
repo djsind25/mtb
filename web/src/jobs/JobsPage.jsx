@@ -39,9 +39,13 @@ export function JobsPage({ session, setToast, onOpenChat }) {
   async function handlePostJob(form) {
     setPosting(true);
     try {
-      await postJob({ customerId: session.id, title: form.title, description: form.description, zip: form.zip, photos: form.photos });
+      await postJob({
+        customerId: session.id, title: form.title, description: form.description, zip: form.zip, photos: form.photos,
+        serviceType: form.serviceType, dumpsterType: form.dumpsterType, rentalStartDate: form.rentalStartDate, rentalEndDate: form.rentalEndDate,
+      });
       setShowPost(false);
-      setToast("Job posted! Vetted haulers nearby will start bidding — most jobs get their first bid within 24 hours. This post stays live for 14 days.");
+      const days = form.serviceType === "rental" ? 30 : 14;
+      setToast(`Posted! Vetted haulers nearby will start bidding — most jobs get their first bid within 24 hours. This post stays live for ${days} days.`);
       await loadAll();
     } catch (e) {
       setToast(e.message || "Could not post job.");

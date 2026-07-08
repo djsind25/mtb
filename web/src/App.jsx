@@ -19,9 +19,21 @@ export default function App() {
   const [activeChatId, setActiveChatId] = useState(null);
   const [toast, setToast] = useState(null);
 
+  // Lets the marketing site deep-link straight into signup/login for a specific role, e.g.
+  // linking its hauler CTAs at `?role=hauler` instead of dropping everyone on the role picker.
+  const roleParam = new URLSearchParams(window.location.search).get("role");
+
   const restoreSession = useCallback(async () => {
     const { data: { session: authSession } } = await supabase.auth.getSession();
-    if (!authSession) { setStage("landing"); return; }
+    if (!authSession) {
+      if (roleParam === "customer" || roleParam === "hauler") {
+        setAuthRole(roleParam);
+        setStage("auth");
+      } else {
+        setStage("landing");
+      }
+      return;
+    }
     const { data: profile } = await supabase.from("profiles").select("*").eq("id", authSession.user.id).single();
     if (!profile) { setStage("landing"); return; }
     if (!profile.active) {
