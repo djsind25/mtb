@@ -12,7 +12,7 @@ export function AuthLanding({ onPick }) {
           <div style={{ fontFamily: sans, fontWeight: 800, fontSize: 30, letterSpacing: "-0.02em", marginBottom: 6 }}>
             <span style={{ color: C.charcoal }}>MyTrash</span><span style={{ color: C.green }}>Bid</span>
           </div>
-          <div style={{ fontSize: 15, color: C.charcoal, fontWeight: 600 }}>Snap. <span style={{ color: C.green }}>Get Bids.</span> Trash Gone.</div>
+          <div style={{ fontSize: 15, color: C.charcoal, fontWeight: 600 }}>Snap. <span style={{ color: C.green }}>Get Quotes.</span> Done.</div>
         </div>
 
         <div style={{ display: "grid", gap: 12 }}>
