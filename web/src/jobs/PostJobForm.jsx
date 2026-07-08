@@ -86,7 +86,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
               style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "10px 13px", fontSize: 14, fontFamily: sans, outline: "none", minHeight: 80, resize: "vertical" }} />
             <div style={{ fontSize: 11.5, color: C.teal, marginTop: 5, display: "flex", gap: 5 }}>
               <span>📏</span>
-              <span>Tip: approximate measurements (e.g. "couch is about 7ft long") help haulers bid accurately.</span>
+              <span>Tip: approximate measurements and weight (e.g. "couch, ~150 lbs, about 7ft long") help haulers bid accurately.</span>
             </div>
           </div>
         </>
