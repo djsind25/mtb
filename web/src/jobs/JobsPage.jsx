@@ -7,7 +7,7 @@ import { HaulerJobCard } from "./HaulerJobCard";
 import { HaulerBidStatusCard } from "./HaulerBidStatusCard";
 import {
   loadCustomerJobs, loadOpenJobsForHauler, loadMyBidJobs,
-  postJob, submitBid, renewJob, renewBid, confirmJobComplete,
+  postJob, submitBid, renewJob, renewBid, confirmJobComplete, loadCompletedJobsCount,
 } from "./data";
 
 export function JobsPage({ session, setToast, onOpenChat }) {
@@ -17,12 +17,15 @@ export function JobsPage({ session, setToast, onOpenChat }) {
   const [showPost, setShowPost] = useState(false);
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [completedCount, setCompletedCount] = useState(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       if (session.role === "customer") {
-        setCustomerJobs(await loadCustomerJobs(session.id));
+        const [jobs, count] = await Promise.all([loadCustomerJobs(session.id), loadCompletedJobsCount()]);
+        setCustomerJobs(jobs);
+        setCompletedCount(count);
       } else if (session.role === "hauler") {
         const [open, mine] = await Promise.all([loadOpenJobsForHauler(), loadMyBidJobs(session.id)]);
         setOpenJobs(open);
@@ -114,7 +117,7 @@ export function JobsPage({ session, setToast, onOpenChat }) {
           {customerJobs.length === 0 && !showPost && <CenteredNote>No jobs yet — post one to get started.</CenteredNote>}
           <div style={{ display: "grid", gap: 12 }}>
             {customerJobs.map(job => (
-              <CustomerJobCard key={job.id} job={job} onAccepted={handleAccepted} onOpenChat={onOpenChat} onRenewJob={handleRenewJob} setToast={setToast} />
+              <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onOpenChat={onOpenChat} onRenewJob={handleRenewJob} setToast={setToast} />
             ))}
           </div>
         </>

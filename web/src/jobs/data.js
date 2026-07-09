@@ -116,3 +116,9 @@ export async function confirmJobComplete(jobId) {
   const { error } = await supabase.rpc("confirm_job_complete", { p_job_id: jobId });
   if (error) throw error;
 }
+
+export async function loadCompletedJobsCount() {
+  const { data, error } = await supabase.rpc("completed_jobs_count");
+  if (error) throw error;
+  return Number(data) || 0;
+}

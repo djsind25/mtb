@@ -4,10 +4,18 @@ import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
 
-export function CustomerJobCard({ job, onAccepted, onOpenChat, onRenewJob, setToast }) {
+export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, onRenewJob, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const bids = job.bids || [];
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
+
+  const tally = completedCount != null && bids.length > 0 && (
+    <div style={{ fontSize: 12, color: C.pineDeep, background: C.tealLight, borderRadius: 8, padding: "8px 11px", marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}>
+      <span>🎉</span>
+      <span><strong>{completedCount.toLocaleString()}</strong> job{completedCount === 1 ? "" : "s"} completed on MyTrashBid — compare your quotes below.</span>
+    </div>
+  );
+
   return (
     <div style={{ background: C.paper, border: `1px solid ${jobExpired ? C.amber + "66" : C.line}`, borderRadius: 12, overflow: "hidden" }}>
       <button onClick={() => setExpanded(e => !e)} style={{ width: "100%", background: "none", border: "none", padding: 16, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
@@ -51,16 +59,22 @@ export function CustomerJobCard({ job, onAccepted, onOpenChat, onRenewJob, setTo
               </div>
               <Btn variant="dark" onClick={() => onRenewJob(job.id)}>Renew job listing — 14 more days</Btn>
               {bids.length > 0 && (
-                <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-                  {bids.map(bid => <BidRow key={bid.id} bid={bid} jobId={job.id} onAccepted={onAccepted} setToast={setToast} />)}
+                <div style={{ marginTop: 14 }}>
+                  {tally}
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {bids.map(bid => <BidRow key={bid.id} bid={bid} jobId={job.id} onAccepted={onAccepted} setToast={setToast} />)}
+                  </div>
                 </div>
               )}
             </div>
           ) : bids.length === 0 ? (
             <CenteredNote>Waiting on bids — most jobs get their first one within 24 hours. This listing stays live for 14 days.</CenteredNote>
           ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {bids.map(bid => <BidRow key={bid.id} bid={bid} jobId={job.id} onAccepted={onAccepted} setToast={setToast} />)}
+            <div>
+              {tally}
+              <div style={{ display: "grid", gap: 10 }}>
+                {bids.map(bid => <BidRow key={bid.id} bid={bid} jobId={job.id} onAccepted={onAccepted} setToast={setToast} />)}
+              </div>
             </div>
           )}
         </div>
