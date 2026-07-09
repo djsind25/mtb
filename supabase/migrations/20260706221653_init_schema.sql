@@ -29,7 +29,7 @@ insert into app_config (key, value) values
   -- Shared secret the send-notification function checks on inbound calls from Postgres.
   -- Generated randomly here; the same value must be set as INTERNAL_DISPATCH_KEY when you
   -- deploy that function (supabase secrets set INTERNAL_DISPATCH_KEY=<this value>).
-  ('internal_dispatch_key', encode(gen_random_bytes(24), 'hex'));
+  ('internal_dispatch_key', encode(extensions.gen_random_bytes(24), 'hex'));
 
 create function app_config_numeric(p_key text) returns numeric
   language sql stable as $$
