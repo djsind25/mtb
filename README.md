@@ -146,6 +146,36 @@ drops events for *both* bindings on this Realtime version — no error, the chan
 table. If you add more live-subscribed tables, keep that pattern (one channel per table, not one
 channel with multiple `.on(...)` calls).
 
+### Hosting the front ends on AWS Amplify
+
+Both front ends are static after building (`web/` is a Vite SPA, `site/` is plain HTML with no
+build step), so they're a fit for [AWS Amplify Hosting](https://aws.amazon.com/amplify/hosting/)
+— it builds straight from a git repo on every push, no servers to manage. The repo root has an
+`amplify.yml` monorepo build spec covering both.
+
+1. Push this repo to GitHub (or GitLab/Bitbucket/CodeCommit) — Amplify Hosting deploys from a
+   connected git provider, not a local folder upload.
+2. In the Amplify console, **New app → Host web app**, connect the repo, and enable **monorepo**
+   detection when prompted so it picks up `amplify.yml`'s two `appRoot` entries. This produces two
+   separate Amplify apps against the same repo — one rooted at `web`, one at `site` — each with
+   its own URL and redeploying independently on push.
+3. On the `web` app, add these environment variables (Amplify console → App settings →
+   Environment variables) so the Vite build picks them up — same values as `web/.env`, but
+   pointing at your real Supabase Cloud project instead of `127.0.0.1`:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_STRIPE_PUBLISHABLE_KEY` (live `pk_live_...` key once you're off Stripe test mode)
+4. `site/index.html` has no build step, so it can't read env vars — it hardcodes its config as
+   plain JS consts near the bottom of the file (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `APP_URL`).
+   Before pushing, update those three to your real Supabase project and the `web` app's deployed
+   Amplify URL.
+5. Both apps get an `https://<branch>.<app-id>.amplifyapp.com` URL by default; attach your own
+   domain per app under App settings → Domain management if you want `app.mytrashbid.com` /
+   `mytrashbid.com` instead.
+
+None of this needs AWS credentials checked into anything — Amplify Hosting is configured entirely
+through its console once connected to your git provider.
+
 ## What's deliberately out of scope for v1
 
 Per the Scope of Work: Stripe Connect / marketplace payouts / the `'full'` payment mode
