@@ -272,6 +272,7 @@
       <a href="#services">Services</a>
       <a href="#reviews">Reviews</a>
       <a href="#haulers">For haulers</a>
+      <a href="#" id="navLogin">Log in</a>
       <a href="#quoteCard" class="nav-cta">Get bids — free</a>
     </div>
     <button class="nav-toggle" id="navToggle" aria-label="Menu">
@@ -341,6 +342,13 @@
               <span>📏</span>
               <span>Tip: include a tape measure or familiar object for scale, and note the approximate weight (e.g. "couch, ~150 lbs, 7ft long") — this helps haulers bid accurately without a site visit.</span>
             </div>
+          </div>
+
+          <!-- Required quick description — only shown for junk-removal categories -->
+          <div class="qc-field" id="qcDescField">
+            <label class="qc-label">Quick description <span style="color:var(--red);">*</span></label>
+            <textarea class="qc-input" id="qcDesc" rows="3" placeholder="What needs to go, roughly how much, any access notes…" style="resize:vertical; font-family:inherit;"></textarea>
+            <div id="qcDescError" style="display:none; font-size:11.5px; color:var(--red); margin-top:6px;">Add a quick description so haulers know what they're bidding on.</div>
           </div>
 
           <div class="qc-field">
@@ -723,6 +731,7 @@
     const isRental = cat === 'Dumpster rental';
     document.getElementById('qcRentalFields').style.display = isRental ? 'block' : 'none';
     document.getElementById('qcPhotoField').style.display = isRental ? 'none' : 'block';
+    document.getElementById('qcDescField').style.display = isRental ? 'none' : 'block';
     document.getElementById('qcSubmitLabel').textContent = isRental ? 'Get my rental bids' : 'Get my free bids';
   }
   document.querySelectorAll('.qc-cat').forEach(btn => btn.addEventListener('click', () => selectCategory(btn.dataset.cat)));
@@ -752,6 +761,9 @@
     if (selectedPhotos.length > 0) document.getElementById('qcPhotoError').style.display = 'none';
     e.target.value = '';
   });
+  document.getElementById('qcDesc').addEventListener('input', (e) => {
+    if (e.target.value.trim()) document.getElementById('qcDescError').style.display = 'none';
+  });
   function renderPhotoPreviews() {
     const wrap = document.getElementById('qcPhotoPreviews');
     wrap.innerHTML = selectedPhotos.map((f, i) => {
@@ -772,6 +784,11 @@
   }
   function hideAuthModal() { authModal.classList.remove('open'); }
   document.getElementById('authModalClose').addEventListener('click', hideAuthModal);
+  document.getElementById('navLogin').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.querySelector('.auth-tab[data-mode="login"]').click();
+    showAuthModal();
+  });
   function authErr(msg) {
     const el = document.getElementById('authError');
     el.textContent = msg;
@@ -876,6 +893,14 @@
       return;
     }
 
+    const description = document.getElementById('qcDesc').value.trim();
+    document.getElementById('qcDescError').style.display = 'none';
+    if (!isRental && !description) {
+      document.getElementById('qcDescError').style.display = 'block';
+      document.getElementById('qcDesc').scrollIntoView({ block: 'center' });
+      return;
+    }
+
     if (!currentUser) { showAuthModal(); return; }
 
     const submitBtn = document.getElementById('qcSubmit');
@@ -901,6 +926,7 @@
         const { data, error } = await sb.from('jobs').insert({
           customer_id: currentUser.id,
           title: selectedCat + ' removal',
+          description: description,
           zip: zip,
           service_type: 'removal',
         }).select().single();
