@@ -636,13 +636,20 @@
       <label class="qc-label">Full name</label>
       <input class="qc-input" id="authName" type="text" placeholder="Dave K.">
     </div>
-    <div class="qc-field">
+    <div class="qc-field" id="authEmailField">
       <label class="qc-label">Email</label>
       <input class="qc-input" id="authEmail" type="email" placeholder="you@email.com">
     </div>
-    <div class="qc-field">
-      <label class="qc-label">Passcode</label>
+    <div class="qc-field" id="authPasscodeField">
+      <label class="qc-label" id="authPasscodeLabel">Passcode</label>
       <input class="qc-input" id="authPasscode" type="password" placeholder="At least 6 characters">
+    </div>
+    <div id="authForgotRow" style="margin:-8px 0 14px; text-align:right;">
+      <a href="#" id="authForgotLink" style="font-size:12.5px; color:var(--green); text-decoration:underline;">Forgot passcode?</a>
+    </div>
+    <div id="authResetInfo" style="display:none; font-size:12.5px; color:var(--gray); margin:-8px 0 14px;">
+      Enter your email and we'll send you a link to set a new passcode.
+      <a href="#" id="authBackToLogin" style="color:var(--green); text-decoration:underline;">Back to log in</a>
     </div>
     <label class="auth-terms" id="authTermsRow" style="display:none;">
       <input type="checkbox" id="authTerms">
@@ -789,26 +796,53 @@
     document.querySelector('.auth-tab[data-mode="login"]').click();
     showAuthModal();
   });
-  function authErr(msg) {
+  function authErr(msg, isSuccess) {
     const el = document.getElementById('authError');
     el.textContent = msg;
     el.style.display = 'block';
+    el.style.color = isSuccess ? 'var(--green-deep)' : 'var(--red)';
+    el.style.background = isSuccess ? 'var(--mint)' : '#FBEAE8';
+  }
+  const AUTH_SUBMIT_LABELS = {
+    login: 'Log in & continue', signup: 'Create account & continue',
+    reset: 'Send reset link', recovery: 'Set new passcode',
+  };
+  function setAuthMode(mode) {
+    authMode = mode;
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+    document.querySelector('.auth-tabs').style.display = (mode === 'reset' || mode === 'recovery') ? 'none' : 'flex';
+    document.getElementById('authNameField').style.display = mode === 'signup' ? 'block' : 'none';
+    document.getElementById('authTermsRow').style.display = mode === 'signup' ? 'flex' : 'none';
+    document.getElementById('authTermsText').style.display = 'none';
+    document.getElementById('authEmailField').style.display = mode === 'recovery' ? 'none' : 'block';
+    document.getElementById('authPasscodeField').style.display = mode === 'reset' ? 'none' : 'block';
+    document.getElementById('authPasscodeLabel').textContent = mode === 'recovery' ? 'New passcode' : 'Passcode';
+    document.getElementById('authForgotRow').style.display = mode === 'login' ? 'block' : 'none';
+    document.getElementById('authResetInfo').style.display = mode === 'reset' ? 'block' : 'none';
+    document.getElementById('authSubmit').textContent = AUTH_SUBMIT_LABELS[mode];
+    document.getElementById('authError').style.display = 'none';
   }
   document.querySelectorAll('.auth-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      authMode = tab.dataset.mode;
-      document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t === tab));
-      const isSignup = authMode === 'signup';
-      document.getElementById('authNameField').style.display = isSignup ? 'block' : 'none';
-      document.getElementById('authTermsRow').style.display = isSignup ? 'flex' : 'none';
-      document.getElementById('authTermsText').style.display = 'none';
-      document.getElementById('authSubmit').textContent = isSignup ? 'Create account & continue' : 'Log in & continue';
-    });
+    tab.addEventListener('click', () => setAuthMode(tab.dataset.mode));
+  });
+  document.getElementById('authForgotLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    setAuthMode('reset');
+  });
+  document.getElementById('authBackToLogin').addEventListener('click', (e) => {
+    e.preventDefault();
+    setAuthMode('login');
   });
   document.getElementById('authTermsToggle').addEventListener('click', (e) => {
     e.preventDefault();
     const box = document.getElementById('authTermsText');
     box.style.display = box.style.display === 'block' ? 'none' : 'block';
+  });
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      setAuthMode('recovery');
+      showAuthModal();
+    }
   });
 
   document.getElementById('authSubmit').addEventListener('click', async () => {
@@ -816,9 +850,33 @@
     const passcode = document.getElementById('authPasscode').value.trim();
     const name = document.getElementById('authName').value.trim();
     const zip = document.getElementById('qcZip').value.trim();
-    if (!email || !passcode) { authErr('Enter your email and passcode.'); return; }
-
     const btn = document.getElementById('authSubmit');
+
+    if (authMode === 'reset') {
+      if (!email) { authErr('Enter your email.'); return; }
+      btn.disabled = true;
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+      btn.disabled = false;
+      if (error) { authErr(error.message); return; }
+      authErr("Check your email for a link to set a new passcode.", true);
+      return;
+    }
+
+    if (authMode === 'recovery') {
+      if (passcode.length < 6) { authErr('New passcode must be at least 6 characters.'); return; }
+      btn.disabled = true;
+      const { error } = await sb.auth.updateUser({ password: passcode });
+      if (error) { btn.disabled = false; authErr(error.message); return; }
+      const { data: { user } } = await sb.auth.getUser();
+      const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+      btn.disabled = false;
+      if (profile) currentUser = { id: profile.id, email: profile.email, name: profile.name };
+      document.getElementById('authPasscode').value = '';
+      authErr('Passcode updated' + (profile ? " — you're now logged in." : '.') + ' You can close this window.', true);
+      return;
+    }
+
+    if (!email || !passcode) { authErr('Enter your email and passcode.'); return; }
     btn.disabled = true;
 
     if (authMode === 'signup') {
