@@ -281,6 +281,8 @@
   </div>
 </nav>
 
+<div id="verifyBanner" style="display:none; text-align:center; padding:12px 20px; font-size:14px; font-weight:600;"></div>
+
 <!-- HERO -->
 <section class="hero">
   <div class="wrap">
@@ -730,6 +732,27 @@
     }
   })();
 
+  // ── Email verification link (?verify=<token>) — flips the account + any pending posts live ──
+  (async function checkVerifyLink(){
+    const token = new URLSearchParams(window.location.search).get('verify');
+    if (!token) return;
+    const banner = document.getElementById('verifyBanner');
+    const { data: ok, error } = await sb.rpc('verify_email', { p_token: token });
+    banner.style.display = 'block';
+    if (error || !ok) {
+      banner.style.background = '#FBEAE8';
+      banner.style.color = 'var(--red)';
+      banner.textContent = "That verification link is invalid or has already been used.";
+    } else {
+      banner.style.background = 'var(--mint)';
+      banner.style.color = 'var(--green-deep)';
+      banner.textContent = "✓ Email verified! Any pending post is now live for haulers to see.";
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('verify');
+    window.history.replaceState({}, '', url);
+  })();
+
   // ── Category selection (toggles the rental-only fields) ──
   let selectedCat = 'Furniture';
   function selectCategory(cat) {
@@ -1011,12 +1034,16 @@
   function renderSuccess(job, isRental) {
     const body = document.getElementById('quoteBody');
     const days = isRental ? 30 : 14;
+    const pending = job.status === 'pending_verification';
+    const message = pending
+      ? 'Check your email to verify your address — your post will go live to haulers automatically the moment you do, with the full '+days+'-day window starting from then.'
+      : 'Vetted local haulers in your area will start sending sealed bids — you\'ll see their price and reviews, never each other\'s bids. This listing stays live for '+days+' days. Track bids and accept one from your account.';
     body.innerHTML =
       '<div class="qc-success">'+
         '<div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg></div>'+
         '<h3>You\'re all set!</h3>'+
         '<div class="pill">'+escapeHtml(job.title)+'</div>'+
-        '<p>Vetted local haulers in your area will start sending sealed bids — you\'ll see their price and reviews, never each other\'s bids. This listing stays live for '+days+' days. Track bids and accept one from your account.</p>'+
+        '<p>'+message+'</p>'+
         '<a class="qc-btn" style="text-decoration:none;" href="'+APP_URL+'/?role=customer" target="_blank" rel="noopener">View my bids in the app</a>'+
       '</div>';
   }

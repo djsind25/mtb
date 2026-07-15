@@ -23,8 +23,13 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
           <div>
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.pineDeep, marginBottom: 4 }}>{job.title}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              <Badge color={job.status === "open" ? C.ember : C.teal} bg={job.status === "open" ? C.emberLight : C.tealLight}>
-                {job.status === "open" ? `${bids.length} bid${bids.length !== 1 ? "s" : ""}` : "Booked"}
+              <Badge
+                color={job.status === "open" ? C.ember : job.status === "pending_verification" ? C.amber : C.teal}
+                bg={job.status === "open" ? C.emberLight : job.status === "pending_verification" ? C.amber + "22" : C.tealLight}
+              >
+                {job.status === "open" ? `${bids.length} bid${bids.length !== 1 ? "s" : ""}`
+                  : job.status === "pending_verification" ? "Verify email to activate"
+                  : "Booked"}
               </Badge>
               {job.status === "open" && (
                 <Badge color={jobExpired ? C.red : C.gray} bg={jobExpired ? C.redLight : C.grayLight}>
@@ -39,7 +44,12 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
       {expanded && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
           <JobPhotos jobId={job.id} />
-          {job.status === "booked" ? (
+          {job.status === "pending_verification" ? (
+            <div style={{ fontSize: 13, color: C.ink, fontWeight: 600 }}>
+              ⚠ Check your email and click the verification link to make this post visible to haulers.
+              It'll go live automatically the moment you verify — no need to repost.
+            </div>
+          ) : job.status === "booked" ? (
             <div>
               <div style={{ fontSize: 13, color: C.teal, fontWeight: 700, marginBottom: 6 }}>✓ Locked in — deposit paid</div>
               <div style={{ marginBottom: 10 }}>
