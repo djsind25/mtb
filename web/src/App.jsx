@@ -6,16 +6,15 @@ import { AuthLanding } from "./auth/AuthLanding";
 import { AuthForm } from "./auth/AuthForm";
 import { TopBar } from "./ui/TopBar";
 import { Toast } from "./ui/Toast";
-import { JobsPage } from "./jobs/JobsPage";
-import { ChatsListPage } from "./chat/ChatsListPage";
-import { ChatThread } from "./chat/ChatThread";
+import { CustomerDashboard } from "./dashboard/CustomerDashboard";
+import { HaulerDashboard } from "./dashboard/HaulerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 
 export default function App() {
   const [stage, setStage] = useState("loading"); // loading | landing | auth | app
   const [authRole, setAuthRole] = useState(null);
   const [session, setSession] = useState(null);
-  const [page, setPage] = useState("jobs");
+  const [page, setPage] = useState("dashboard");
   const [activeChatId, setActiveChatId] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -44,7 +43,7 @@ export default function App() {
     }
     const mapped = mapProfileToSession(profile);
     setSession(mapped);
-    setPage(mapped.role === "admin" ? "admin" : "jobs");
+    setPage(mapped.role === "admin" ? "admin" : "dashboard");
     setStage("app");
   }, []);
 
@@ -75,7 +74,7 @@ export default function App() {
   }
   function handleAuthed(user) {
     setSession(user);
-    setPage(user.role === "admin" ? "admin" : "jobs");
+    setPage(user.role === "admin" ? "admin" : "dashboard");
     setStage("app");
   }
   async function logout() {
@@ -101,16 +100,13 @@ export default function App() {
 
       {stage === "app" && session && (
         <div style={{ minHeight: "100vh", background: C.sand }}>
-          <TopBar session={session} onLogout={logout} onNav={(p) => { setPage(p); setActiveChatId(null); }} page={page} />
-          {session.role === "admin" && page === "admin" && <AdminDashboard setToast={setToast} />}
-          {session.role !== "admin" && page === "jobs" && (
-            <JobsPage session={session} setToast={setToast} onOpenChat={(id) => { setActiveChatId(id); setPage("chats"); }} />
+          <TopBar session={session} onLogout={logout} onNav={setPage} page={page} setToast={setToast} />
+          {session.role === "admin" && page === "admin" && <AdminDashboard session={session} setToast={setToast} />}
+          {session.role === "customer" && page === "dashboard" && (
+            <CustomerDashboard session={session} setToast={setToast} initialChatId={activeChatId} onConsumedInitialChat={() => setActiveChatId(null)} />
           )}
-          {session.role !== "admin" && page === "chats" && !activeChatId && (
-            <ChatsListPage session={session} onOpenChat={setActiveChatId} />
-          )}
-          {session.role !== "admin" && page === "chats" && activeChatId && (
-            <ChatThread chatId={activeChatId} session={session} onClose={() => setActiveChatId(null)} setToast={setToast} />
+          {session.role === "hauler" && page === "dashboard" && (
+            <HaulerDashboard session={session} setToast={setToast} initialChatId={activeChatId} onConsumedInitialChat={() => setActiveChatId(null)} />
           )}
         </div>
       )}

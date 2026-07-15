@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { C, mono } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { Avatar, Badge, CenteredNote } from "../ui/Primitives";
-import { loadChat, loadMessages, sendMessage } from "./data";
+import { loadChat, loadMessages, sendMessage, markChatRead } from "./data";
 import { ChatBubble } from "./ChatBubble";
 import { ReviewPanel } from "./ReviewPanel";
 
@@ -21,8 +21,9 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
       setChat(c);
       setMessages(m);
     });
+    markChatRead(chatId, session.role).catch(() => {});
     return () => { cancelled = true; };
-  }, [chatId]);
+  }, [chatId, session.role]);
 
   // Two postgres_changes bindings on a single channel silently breaks delivery of both in
   // this Realtime version (confirmed empirically) — one channel per table subscribed.

@@ -1,0 +1,147 @@
+import { useCallback, useEffect, useState } from "react";
+import { serif, C, MAX_RADIUS_MI } from "../theme";
+import { CenteredNote } from "../ui/Primitives";
+import { HaulerJobCard } from "../jobs/HaulerJobCard";
+import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
+import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, renewBid, confirmJobComplete } from "../jobs/data";
+import { SummaryStrip } from "./SummaryStrip";
+import { MessagesTab } from "./MessagesTab";
+import { AccountTab } from "./AccountTab";
+import { loadHaulerStats } from "./data";
+
+const TABS = [
+  { id: "browse", label: "Browse Jobs" },
+  { id: "bids", label: "My Bids" },
+  { id: "messages", label: "Messages" },
+  { id: "account", label: "Account" },
+];
+
+export function HaulerDashboard({ session, setToast, initialChatId, onConsumedInitialChat }) {
+  const [tab, setTab] = useState(initialChatId ? "messages" : "browse");
+  const [directChatId, setDirectChatId] = useState(null);
+  const [openJobs, setOpenJobs] = useState([]);
+  const [myBidJobs, setMyBidJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => { if (initialChatId) setTab("messages"); }, [initialChatId]);
+
+  function openChat(chatId) {
+    setDirectChatId(chatId);
+    setTab("messages");
+  }
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [open, mine, s] = await Promise.all([
+        loadOpenJobsForHauler(), loadMyBidJobs(session.id), loadHaulerStats(session.id),
+      ]);
+      setOpenJobs(open);
+      setMyBidJobs(mine);
+      setStats(s);
+    } catch (e) {
+      setToast(e.message || "Could not load jobs.");
+    }
+    setLoading(false);
+  }, [session.id, setToast]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  async function handleBid(jobId, amount, note) {
+    try {
+      await submitBid({ jobId, haulerId: session.id, amount, note });
+      setToast("Bid submitted! It stays open for the customer to accept for 14 days.");
+      await loadAll();
+    } catch (e) {
+      setToast(e.message || "Could not submit bid.");
+    }
+  }
+
+  async function handleRenewBid(bidId) {
+    try {
+      await renewBid(bidId);
+      setToast("Bid renewed — live for another 14 days.");
+      await loadAll();
+    } catch (e) {
+      setToast(e.message || "Could not renew bid.");
+    }
+  }
+
+  async function handleConfirmComplete(jobId) {
+    try {
+      await confirmJobComplete(jobId);
+      setToast("Job marked complete! Review form unlocked for both sides.");
+      await loadAll();
+    } catch (e) {
+      setToast(e.message || "Could not confirm completion.");
+    }
+  }
+
+  const myBidJobIds = new Set(myBidJobs.map(j => j.id));
+
+  const summary = stats ? [
+    { label: "Open jobs nearby", value: stats.openNearby },
+    { label: "Active bids", value: stats.activeBids },
+    { label: "Jobs won", value: stats.won },
+    { label: "Completed", value: stats.completed },
+    { label: "Total earned", value: `$${stats.totalEarned.toFixed(2)}` },
+  ] : [];
+
+  return (
+    <div style={{ maxWidth: 700, margin: "0 auto", padding: "20px 16px 60px" }}>
+      {stats && <SummaryStrip stats={summary} />}
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, background: C.sandWarm, borderRadius: 10, padding: 4 }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            flex: 1, padding: "9px 6px", borderRadius: 7, border: "none", cursor: "pointer",
+            background: tab === t.id ? C.paper : "transparent", fontWeight: 700, fontSize: 12.5,
+            color: tab === t.id ? C.pineDeep : C.gray, fontFamily: "inherit",
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === "browse" && (
+        loading ? <CenteredNote>Loading jobs…</CenteredNote> : (
+          <>
+            <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 4 }}>Open jobs near you</h2>
+            <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 18 }}>
+              Showing jobs within {MAX_RADIUS_MI} miles of your service ZIP ({session.zip || "not set"}). Posts stay live for 14 days unless renewed.
+            </p>
+            <div style={{ display: "grid", gap: 12 }}>
+              {openJobs.length === 0 && <CenteredNote>No open jobs within {MAX_RADIUS_MI} miles right now. Check back soon.</CenteredNote>}
+              {openJobs.map(job => (
+                <HaulerJobCard key={job.id} job={job} alreadyBid={myBidJobIds.has(job.id)} onBid={handleBid} />
+              ))}
+            </div>
+          </>
+        )
+      )}
+
+      {tab === "bids" && (
+        loading ? <CenteredNote>Loading bids…</CenteredNote> : (
+          <>
+            <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 16 }}>Your bids</h2>
+            <div style={{ display: "grid", gap: 12 }}>
+              {myBidJobs.length === 0 && <CenteredNote>You haven't submitted any bids yet.</CenteredNote>}
+              {myBidJobs.map(job => (
+                <HaulerBidStatusCard key={job.id} job={job} session={session} onOpenChat={openChat} onRenewBid={handleRenewBid} onConfirmComplete={handleConfirmComplete} />
+              ))}
+            </div>
+          </>
+        )
+      )}
+
+      {tab === "messages" && (
+        <MessagesTab
+          session={session} setToast={setToast}
+          initialChatId={directChatId || initialChatId}
+          onConsumedInitialChat={() => { setDirectChatId(null); onConsumedInitialChat?.(); }}
+        />
+      )}
+
+      {tab === "account" && <AccountTab session={session} setToast={setToast} />}
+    </div>
+  );
+}

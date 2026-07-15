@@ -1,0 +1,65 @@
+import { supabase } from "../lib/supabaseClient";
+
+export async function getOrCreateMySupportChat(userId) {
+  const { data: existing, error: findError } = await supabase
+    .from("support_chats").select("*").eq("user_id", userId).eq("status", "open").maybeSingle();
+  if (findError) throw findError;
+  if (existing) return existing;
+
+  const { data, error } = await supabase.from("support_chats").insert({ user_id: userId }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function loadSupportMessages(supportChatId) {
+  const { data, error } = await supabase.from("support_messages").select("*").eq("support_chat_id", supportChatId).order("created_at", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function sendSupportMessage({ supportChatId, senderId, senderRole, text }) {
+  const { error } = await supabase.from("support_messages").insert({ support_chat_id: supportChatId, sender_id: senderId, sender_role: senderRole, text });
+  if (error) throw error;
+}
+
+// Admin-only (RLS: support_chats_select allows is_admin() to see every open ticket, not just
+// ones assigned to them — "any admin can pick this up" is the point).
+export async function loadOpenSupportChats() {
+  const { data: chats, error } = await supabase.from("support_chats").select("*").eq("status", "open").order("created_at", { ascending: false });
+  if (error) throw error;
+  if (chats.length === 0) return [];
+
+  const userIds = [...new Set(chats.map(c => c.user_id))];
+  const adminIds = [...new Set(chats.map(c => c.assigned_admin_id).filter(Boolean))];
+  const chatIds = chats.map(c => c.id);
+
+  const [{ data: profiles, error: profilesError }, { data: recentMessages, error: msgError }] = await Promise.all([
+    supabase.from("public_profiles").select("id, name, business_name, role").in("id", [...new Set([...userIds, ...adminIds])]),
+    supabase.from("support_messages").select("support_chat_id, sender_id, text, created_at").in("support_chat_id", chatIds).order("created_at", { ascending: false }),
+  ]);
+  if (profilesError) throw profilesError;
+  if (msgError) throw msgError;
+
+  const profileById = Object.fromEntries(profiles.map(p => [p.id, p]));
+  const lastMsgByChatId = {};
+  for (const m of recentMessages) {
+    if (!lastMsgByChatId[m.support_chat_id]) lastMsgByChatId[m.support_chat_id] = m;
+  }
+
+  return chats.map(c => {
+    const requester = profileById[c.user_id];
+    return {
+      ...c,
+      requesterName: requester?.business_name || requester?.name,
+      requesterRole: requester?.role,
+      assignedAdminName: profileById[c.assigned_admin_id]?.name,
+      lastMessagePreview: lastMsgByChatId[c.id]?.text,
+      lastMessageAt: lastMsgByChatId[c.id]?.created_at,
+    };
+  });
+}
+
+export async function closeSupportChat(id) {
+  const { error } = await supabase.from("support_chats").update({ status: "closed" }).eq("id", id);
+  if (error) throw error;
+}

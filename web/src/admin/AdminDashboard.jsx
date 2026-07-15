@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { C, serif, mono, expiryLabel, isExpired, COMMISSION_RATE } from "../theme";
 import { CenteredNote, Field } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs } from "./data";
+import { loadOpenSupportChats } from "../support/data";
+import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
 import { Panel } from "./Panel";
 import { JobRow, JobRowExpanded } from "./JobRow";
@@ -9,13 +11,16 @@ import { FlagRow } from "./FlagRow";
 import { OverdueJobRow } from "./OverdueJobRow";
 import { EditUserModal } from "./EditUserModal";
 import { UserRow } from "./UserRow";
+import { SupportChatRow } from "./SupportChatRow";
 
-export function AdminDashboard({ setToast }) {
+export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
   const [users, setUsers] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [flags, setFlags] = useState([]);
   const [overdue, setOverdue] = useState([]);
+  const [supportChats, setSupportChats] = useState([]);
+  const [activeSupportChatId, setActiveSupportChatId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
@@ -24,8 +29,8 @@ export function AdminDashboard({ setToast }) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, j, f, o] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs()]);
-    setUsers(u); setJobs(j); setFlags(f); setOverdue(o);
+    const [u, j, f, o, sc] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadOpenSupportChats()]);
+    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc);
     setLoading(false);
   }, []);
 
@@ -97,6 +102,7 @@ export function AdminDashboard({ setToast }) {
           { id: "jobs", label: `Jobs & bids (${jobs.length})` },
           { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
+          { id: "support", label: `Support (${supportChats.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             background: tab === t.id ? C.pine : C.paper, color: tab === t.id ? C.paper : C.ink,
@@ -185,6 +191,29 @@ export function AdminDashboard({ setToast }) {
             {visibleOverdue.map(j => <OverdueJobRow key={j.id} job={j} expanded onChanged={loadAll} />)}
           </div>
         </Panel>
+      )}
+
+      {tab === "support" && (
+        activeSupportChatId ? (
+          <SupportChatThread
+            supportChatId={activeSupportChatId}
+            viewerRole="admin"
+            viewerId={session.id}
+            title={(() => {
+              const c = supportChats.find(sc => sc.id === activeSupportChatId);
+              return c ? `${c.requesterName || "Unknown"} (${c.requesterRole})` : "Support ticket";
+            })()}
+            onClose={() => { setActiveSupportChatId(null); loadAll(); }}
+            setToast={setToast}
+          />
+        ) : (
+          <Panel title="Open support tickets — any admin can pick these up">
+            <div style={{ display: "grid", gap: 8 }}>
+              {supportChats.length === 0 && <CenteredNote>No open support tickets.</CenteredNote>}
+              {supportChats.map(c => <SupportChatRow key={c.id} chat={c} onOpen={setActiveSupportChatId} />)}
+            </div>
+          </Panel>
+        )
       )}
 
       {editingUser && (
