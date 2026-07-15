@@ -686,6 +686,10 @@
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   document.getElementById('haulerCta').href = APP_URL + '/?role=hauler';
+  // Distinct from the embedded auth modal below, which is for logging in mid-quote-flow so a
+  // job draft isn't lost — this nav link is for someone who already has an account and just
+  // wants their dashboard, so it goes straight to the actual app instead.
+  document.getElementById('navLogin').href = APP_URL;
 
   // Logo SVG injected into nav + footer
   function logoSVG(size){
@@ -814,11 +818,6 @@
   }
   function hideAuthModal() { authModal.classList.remove('open'); }
   document.getElementById('authModalClose').addEventListener('click', hideAuthModal);
-  document.getElementById('navLogin').addEventListener('click', (e) => {
-    e.preventDefault();
-    document.querySelector('.auth-tab[data-mode="login"]').click();
-    showAuthModal();
-  });
   function authErr(msg, isSuccess) {
     const el = document.getElementById('authError');
     el.textContent = msg;
