@@ -243,6 +243,10 @@ pass = "env(RESEND_API_KEY)"
 admin_email = "bids@mytrashbid.com"
 sender_name = "MyTrashBid"
 
+[auth.email.template.confirmation]
+subject = "MyTrashBid Email Confirmation"
+content_path = "./supabase/templates/confirmation.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"
