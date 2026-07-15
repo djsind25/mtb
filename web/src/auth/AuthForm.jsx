@@ -81,7 +81,16 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     if (!agreedToTerms) { setError("You must agree to the Terms of Service to continue."); return; }
 
     setLoading(true);
-    const { data, error: authError } = await supabase.auth.signUp({ email: email.trim(), password: passcode.trim() });
+    // Profile creation happens server-side via a trigger on auth.users (see the
+    // auto_create_profile_on_signup migration) — it reads this metadata regardless of whether
+    // email confirmation delays the session, so it can't be skipped by that timing the way a
+    // client-side insert right here would be.
+    const metadata = role === "customer"
+      ? { role, name: name.trim(), zip: zip.trim() }
+      : { role, name: contactName.trim(), business_name: businessName.trim(), zip: serviceZip.trim() };
+    const { data, error: authError } = await supabase.auth.signUp({
+      email: email.trim(), password: passcode.trim(), options: { data: metadata },
+    });
     if (authError) { setLoading(false); setError(authError.message); return; }
     // Supabase doesn't return an explicit error for an already-registered email (anti-enumeration
     // protection) — an empty identities array is its documented signal that the account already exists.
@@ -90,22 +99,14 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       setError("An account with this email already exists. Try logging in instead.");
       return;
     }
+    setLoading(false);
     if (!data.session) {
-      setLoading(false);
       setError("Check your email to confirm your account, then log in.");
       return;
     }
 
-    const profileRow = role === "customer"
-      ? { id: data.user.id, role, email: email.trim(), name: name.trim(), zip: zip.trim() }
-      : { id: data.user.id, role, email: email.trim(), name: contactName.trim(), business_name: businessName.trim(), zip: serviceZip.trim() };
-
-    const { error: profileError } = await supabase.from("profiles").insert(profileRow);
-    setLoading(false);
-    if (profileError) { setError(profileError.message); return; }
-
     setToast(`Welcome to MyTrashBid, ${role === "customer" ? name.trim() : businessName.trim()}!`);
-    onAuthed(mapProfileToSession({ ...profileRow, business_name: profileRow.business_name }));
+    onAuthed(mapProfileToSession({ id: data.user.id, role, email: email.trim(), ...metadata }));
   }
 
   if (role === "admin") {

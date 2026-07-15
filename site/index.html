@@ -809,7 +809,13 @@
       if (passcode.length < 6) { authErr('Passcode must be at least 6 characters.'); btn.disabled = false; return; }
       if (!document.getElementById('authTerms').checked) { authErr('You must agree to the Terms of Service to continue.'); btn.disabled = false; return; }
 
-      const { data, error } = await sb.auth.signUp({ email, password: passcode });
+      // Profile creation happens server-side via a trigger on auth.users (see the
+      // auto_create_profile_on_signup migration) — it reads this metadata regardless of whether
+      // email confirmation delays the session, so it can't be skipped by that timing the way a
+      // client-side insert right here would be.
+      const { data, error } = await sb.auth.signUp({
+        email, password: passcode, options: { data: { role: 'customer', name, zip } },
+      });
       if (error) { authErr(error.message); btn.disabled = false; return; }
       // Supabase doesn't return an explicit error for an already-registered email (anti-enumeration
       // protection) — an empty identities array is its documented signal that the account already exists.
@@ -819,8 +825,6 @@
         return;
       }
       if (!data.session) { authErr('Check your email to confirm your account, then log in.'); btn.disabled = false; return; }
-      const { error: profileError } = await sb.from('profiles').insert({ id: data.user.id, role: 'customer', email, name, zip });
-      if (profileError) { authErr(profileError.message); btn.disabled = false; return; }
       currentUser = { id: data.user.id, email, name };
     } else {
       const { data, error } = await sb.auth.signInWithPassword({ email, password: passcode });
