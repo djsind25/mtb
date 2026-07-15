@@ -83,6 +83,13 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     setLoading(true);
     const { data, error: authError } = await supabase.auth.signUp({ email: email.trim(), password: passcode.trim() });
     if (authError) { setLoading(false); setError(authError.message); return; }
+    // Supabase doesn't return an explicit error for an already-registered email (anti-enumeration
+    // protection) — an empty identities array is its documented signal that the account already exists.
+    if (data.user && data.user.identities?.length === 0) {
+      setLoading(false);
+      setError("An account with this email already exists. Try logging in instead.");
+      return;
+    }
     if (!data.session) {
       setLoading(false);
       setError("Check your email to confirm your account, then log in.");

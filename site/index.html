@@ -811,6 +811,13 @@
 
       const { data, error } = await sb.auth.signUp({ email, password: passcode });
       if (error) { authErr(error.message); btn.disabled = false; return; }
+      // Supabase doesn't return an explicit error for an already-registered email (anti-enumeration
+      // protection) — an empty identities array is its documented signal that the account already exists.
+      if (data.user && data.user.identities?.length === 0) {
+        authErr('An account with this email already exists. Switch to the Log in tab instead.');
+        btn.disabled = false;
+        return;
+      }
       if (!data.session) { authErr('Check your email to confirm your account, then log in.'); btn.disabled = false; return; }
       const { error: profileError } = await sb.from('profiles').insert({ id: data.user.id, role: 'customer', email, name, zip });
       if (profileError) { authErr(profileError.message); btn.disabled = false; return; }
