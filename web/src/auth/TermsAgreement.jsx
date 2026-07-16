@@ -11,14 +11,14 @@ export function TermsAgreement({ checked, onChange }) {
         <span>
           I agree to the{" "}
           <button type="button" onClick={(e) => { e.preventDefault(); setExpanded(x => !x); }} style={{
-            background: "none", border: "none", padding: 0, color: C.pine, textDecoration: "underline", cursor: "pointer", fontSize: "inherit", fontFamily: "inherit",
+            background: "none", border: "none", padding: 0, color: C.teal, textDecoration: "underline", cursor: "pointer", fontSize: "inherit", fontFamily: "inherit",
           }}>Terms of Service</button>
           , including the platform abuse and account suspension policy.
         </span>
       </label>
 
       {expanded && (
-        <div style={{ marginTop: 8, background: C.sandWarm, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 14px", fontSize: 11.5, color: C.gray, lineHeight: 1.6, maxHeight: 220, overflowY: "auto" }}>
+        <div style={{ marginTop: 8, background: C.sand, border: `1px solid ${C.line}`, borderRadius: 8, padding: "12px 14px", fontSize: 11.5, color: C.gray, lineHeight: 1.6, maxHeight: 220, overflowY: "auto" }}>
           <strong style={{ color: C.ink, display: "block", marginBottom: 6 }}>MyTrashBid Terms of Service (summary)</strong>
           <p style={{ margin: "0 0 8px" }}>
             MyTrashBid connects customers with independent local haulers. Customers post jobs and

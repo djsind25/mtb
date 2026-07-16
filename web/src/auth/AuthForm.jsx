@@ -126,10 +126,10 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       subtitle={mode === "login" ? "Welcome back" : "Let's get you set up"}
       onBack={onBack}
     >
-      <div style={{ display: "flex", gap: 6, marginBottom: 20, background: C.sandWarm, borderRadius: 14, padding: 3 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, background: C.sandWarm, borderRadius: 9, padding: 3 }}>
         {["login", "signup"].map(m => (
           <button key={m} onClick={() => { setMode(m); setError(""); }} style={{
-            flex: 1, padding: "8px", borderRadius: 10, border: "none", cursor: "pointer",
+            flex: 1, padding: "8px", borderRadius: 6, border: "none", cursor: "pointer",
             background: mode === m ? C.paper : "transparent", fontWeight: 700, fontSize: 13,
             color: mode === m ? C.pineDeep : C.gray, fontFamily: sans,
           }}>{m === "login" ? "Log in" : "Sign up"}</button>

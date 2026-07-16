@@ -135,7 +135,7 @@ export function AccountTab({ session, setToast }) {
   return (
     <div style={{ display: "grid", gap: 24 }}>
       {!profile.email_verified_at && (
-        <section style={{ border: `1.5px solid ${C.amber}66`, borderRadius: 18, padding: 16, background: C.amber + "16" }}>
+        <section style={{ border: `1.5px solid ${C.amber}66`, borderRadius: 12, padding: 16, background: C.amber + "16" }}>
           <div style={{ fontSize: 13, color: C.ink, fontWeight: 600, marginBottom: 10 }}>
             ⚠ Your email isn't verified yet{session.role === "customer" ? " — job posts won't be visible to haulers until it is" : ""}.
           </div>
@@ -178,7 +178,7 @@ export function AccountTab({ session, setToast }) {
         {history.length === 0 && <CenteredNote>{session.role === "customer" ? "No payments yet." : "No earnings yet."}</CenteredNote>}
         <div style={{ display: "grid", gap: 8 }}>
           {history.map(h => (
-            <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: "10px 12px" }}>
+            <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px" }}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13, color: C.pineDeep }}>{h.jobTitle}</div>
                 <div style={{ fontSize: 11.5, color: C.gray }}>{h.otherParty || "—"} · {new Date(h.createdAt).toLocaleDateString()}</div>
@@ -198,7 +198,7 @@ export function AccountTab({ session, setToast }) {
         <Btn full={false} onClick={submitPasswordChange} disabled={changingPassword}>{changingPassword ? "Updating…" : "Update passcode"}</Btn>
       </section>
 
-      <section style={{ border: `1.5px solid ${C.red}55`, borderRadius: 18, padding: 16, background: C.redLight }}>
+      <section style={{ border: `1.5px solid ${C.red}55`, borderRadius: 12, padding: 16, background: C.redLight }}>
         <div style={{ ...sectionTitle, color: C.red }}>Danger zone</div>
         <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 10 }}>
           Deactivating signs you out immediately and blocks future logins. Contact support if you need to reactivate.

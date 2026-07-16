@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, serif, mono, SHADOW_MD } from "../theme";
+import { C, serif, mono } from "../theme";
 import { Badge, CenteredNote } from "../ui/Primitives";
 import { loadChat, loadMessages } from "../chat/data";
 import { ChatBubble } from "../chat/ChatBubble";
@@ -27,10 +27,10 @@ export function AdminChatViewer({ chatId, onClose }) {
       position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
-      <div style={{ background: C.paper, borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "85vh", border: `1px solid ${C.line}`, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: SHADOW_MD }}>
+      <div style={{ background: C.paper, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "85vh", border: `1px solid ${C.line}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.line}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <div style={{ fontFamily: serif, fontSize: 17, fontWeight: 800, color: C.pineDeep }}>{chat?.jobTitle || "Conversation"}</div>
+            <div style={{ fontFamily: serif, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>{chat?.jobTitle || "Conversation"}</div>
             {chat && (
               <div style={{ fontSize: 12, color: C.gray, marginTop: 2 }}>
                 {chat.customerName} ↔ {chat.businessName} · <span style={{ fontFamily: mono }}>${chat.bid_amount}</span>

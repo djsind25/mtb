@@ -66,11 +66,11 @@ export function AdminDashboard({ session, setToast }) {
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
-      <h2 style={{ fontFamily: serif, fontWeight: 800, fontSize: 24, color: C.pineDeep, marginBottom: 4 }}>🛡️ Admin dashboard</h2>
+      <h2 style={{ fontFamily: serif, fontSize: 24, color: C.pineDeep, marginBottom: 4 }}>🛡️ Admin dashboard</h2>
       <p style={{ fontSize: 13, color: C.gray, marginBottom: 16 }}>Full visibility — users, jobs, bids, deposit revenue, and flagged messages.</p>
 
       <div style={{
-        background: C.tealLight, border: `1px solid ${C.teal}44`, borderRadius: 16,
+        background: C.tealLight, border: `1px solid ${C.teal}44`, borderRadius: 10,
         padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
       }}>
         <span style={{ fontSize: 18 }}>💳</span>
@@ -106,7 +106,7 @@ export function AdminDashboard({ session, setToast }) {
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             background: tab === t.id ? C.pine : C.paper, color: tab === t.id ? C.paper : C.ink,
-            border: `1px solid ${tab === t.id ? C.pine : C.line}`, borderRadius: 12, padding: "8px 14px",
+            border: `1px solid ${tab === t.id ? C.pine : C.line}`, borderRadius: 8, padding: "8px 14px",
             fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
           }}>{t.label}</button>
         ))}

@@ -1,35 +1,18 @@
-// MyTrashBid brand tokens — matches the official brand guidelines (Manrope type, vivid grass
-// green as an accent only against clean white/charcoal, Apple/Stripe/Linear-style restraint).
-// Token *names* are kept stable across the app on purpose — only the values changed — so every
-// component that already reads C.pine / C.sand / etc. picks up the rebrand automatically.
+// MyTrashBid brand tokens — ported verbatim from the prototype (junk-bids-platform-full.jsx)
+// so the production app looks identical. Palette pulled from the MyTrashBid logo: vivid grass
+// green + deep charcoal on clean white.
 export const C = {
-  // Brand green — accent only (buttons, links, highlights), never a dominant fill or background.
-  pine: "#38B000", pineDeep: "#111827",
-  ember: "#38B000", emberLight: "#EAF9E0",
-  // "sand" = page/full-viewport canvas (clean white); "sandWarm" = the one light-gray secondary
-  // surface (tab tracks, inset boxes, avatar chips) — see theme.js history for the reasoning.
-  sand: "#FFFFFF", sandWarm: "#F5F7F8",
-  // "teal" doubles as the semantic success color (booked/paid/won states) — distinct from the
-  // primary brand green so success states don't compete visually with primary CTAs.
-  teal: "#22C55E", tealLight: "#E7F9EE",
-  ink: "#111827", paper: "#FFFFFF", gray: "#6B7280", grayLight: "#F5F7F8",
-  line: "#E5E7EB", amber: "#B8860B", amberLight: "#FBF3DD", red: "#C0392B", redLight: "#FBEAE8",
-  green: "#38B000", greenDeep: "#22C55E", charcoal: "#111827",
+  pine: "#41A62E", pineDeep: "#16232D",
+  ember: "#41A62E", emberLight: "#E9F6E6",
+  sand: "#F6F8F5", sandWarm: "#EDF2EA",
+  teal: "#2E7D22", tealLight: "#E2F2DE",
+  ink: "#16232D", paper: "#FFFFFF", gray: "#5E6B63", grayLight: "#E4E9E3",
+  line: "#D8E0D6", amber: "#B8860B", amberLight: "#FBF3DD", red: "#C0392B", redLight: "#FBEAE8",
+  green: "#41A62E", greenDeep: "#2E7D22", charcoal: "#16232D",
 };
-// "serif" is a historical name (the app used to use a serif display face for headings) — now
-// aliased to Manrope 800 per the brand guidelines. Kept so the ~8 existing heading usages didn't
-// all need touching; new headings should just use `heading` directly.
-export const heading = "'Manrope', system-ui, sans-serif";
-export const serif = heading;
-export const sans = "'Manrope', system-ui, sans-serif";
+export const serif = "'Fraunces', Georgia, serif";
+export const sans = "'Inter', system-ui, sans-serif";
 export const mono = "'JetBrains Mono', monospace";
-
-// Design tokens per brand guidelines: 16–20px rounded corners, minimal shadows, 200–300ms
-// ease-in-out motion.
-export const RADIUS = { sm: 10, md: 14, lg: 18, xl: 20, pill: 999 };
-export const SHADOW = "0 1px 2px rgba(17,24,39,0.04), 0 2px 8px rgba(17,24,39,0.05)";
-export const SHADOW_MD = "0 4px 16px rgba(17,24,39,0.08)";
-export const TRANSITION = "all 220ms ease-in-out";
 
 export const MAX_RADIUS_MI = 50;
 export const COMMISSION_RATE = 0.10;

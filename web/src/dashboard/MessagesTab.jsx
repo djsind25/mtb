@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { C, mono, SHADOW } from "../theme";
+import { C, mono } from "../theme";
 import { Avatar, CenteredNote } from "../ui/Primitives";
 import { loadMyChats } from "../chat/data";
 import { ChatThread } from "../chat/ChatThread";
@@ -43,7 +43,7 @@ export function MessagesTab({ session, setToast, initialChatId, onConsumedInitia
           const other = session.role === "customer" ? c.businessName : c.customerName;
           return (
             <button key={c.id} onClick={() => setActiveChatId(c.id)} style={{
-              background: C.paper, border: `1px solid ${C.line}`, borderRadius: 18, padding: 14, boxShadow: SHADOW,
+              background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14,
               display: "flex", gap: 12, alignItems: "center", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
             }}>
               <Avatar emoji={session.role === "customer" ? "🚛" : "👤"} bg={session.role === "customer" ? C.tealLight : C.sandWarm} />

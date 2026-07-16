@@ -99,10 +99,10 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "20px 16px 60px" }}>
       {stats && <SummaryStrip stats={summary} />}
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, background: C.sandWarm, borderRadius: 14, padding: 4 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, background: C.sandWarm, borderRadius: 10, padding: 4 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex: 1, padding: "9px", borderRadius: 10, border: "none", cursor: "pointer",
+            flex: 1, padding: "9px", borderRadius: 7, border: "none", cursor: "pointer",
             background: tab === t.id ? C.paper : "transparent", fontWeight: 700, fontSize: 13,
             color: tab === t.id ? C.pineDeep : C.gray, fontFamily: "inherit",
           }}>{t.label}</button>
@@ -113,7 +113,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
         loading ? <CenteredNote>Loading jobs…</CenteredNote> : (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ fontFamily: serif, fontWeight: 800, fontSize: 20, color: C.pineDeep, margin: 0 }}>Your jobs</h2>
+              <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, margin: 0 }}>Your jobs</h2>
               <Btn full={false} size="sm" onClick={() => setShowPost(true)}>+ Post a job</Btn>
             </div>
             {showPost && <PostJobForm onCancel={() => setShowPost(false)} onSubmit={handlePostJob} submitting={posting} />}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, serif, SHADOW_MD } from "../theme";
+import { C, serif } from "../theme";
 import { Btn, Field, ErrorMsg } from "../ui/Primitives";
 import { updateUserProfile } from "./data";
 
@@ -38,8 +38,8 @@ export function EditUserModal({ user, onClose, onSaved, setToast }) {
       position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
-      <div style={{ background: C.paper, borderRadius: 20, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}`, boxShadow: SHADOW_MD }}>
-        <div style={{ fontFamily: serif, fontSize: 19, fontWeight: 800, color: C.pineDeep, marginBottom: 2 }}>Edit user</div>
+      <div style={{ background: C.paper, borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}` }}>
+        <div style={{ fontFamily: serif, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>Edit user</div>
         <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>{user.email} · {user.role}</div>
 
         {user.role === "hauler" && (

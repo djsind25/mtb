@@ -17,7 +17,7 @@ export function JobPhotos({ jobId }) {
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
       {photos.map(p => (
         <a key={p.id} href={p.url} target="_blank" rel="noreferrer">
-          <img src={p.url} alt={p.original_name || ""} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, border: `1px solid ${C.line}` }} />
+          <img src={p.url} alt={p.original_name || ""} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.line}` }} />
         </a>
       ))}
     </div>

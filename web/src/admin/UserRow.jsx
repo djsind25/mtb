@@ -23,7 +23,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast }) {
   const displayName = u.role === "customer" ? u.name : (u.business_name || u.name);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: 16, background: u.active ? "transparent" : C.redLight }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: 10, background: u.active ? "transparent" : C.redLight }}>
       <Avatar emoji={u.role === "customer" ? "👤" : u.role === "hauler" ? "🚛" : "🛡️"} size={32} bg={u.role === "customer" ? C.sandWarm : C.tealLight} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>

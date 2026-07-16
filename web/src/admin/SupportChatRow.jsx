@@ -4,7 +4,7 @@ import { Badge } from "../ui/Primitives";
 export function SupportChatRow({ chat, onOpen }) {
   return (
     <button onClick={() => onOpen(chat.id)} style={{
-      width: "100%", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 12,
+      width: "100%", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12,
       display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
     }}>
       <div style={{ minWidth: 0 }}>

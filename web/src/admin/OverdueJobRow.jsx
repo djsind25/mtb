@@ -22,7 +22,7 @@ export function OverdueJobRow({ job, expanded, onChanged }) {
     <div style={{
       border: `1px solid ${reviewed ? C.line : C.red + "55"}`,
       background: reviewed ? C.paper : C.redLight,
-      borderRadius: 16, padding: "10px 12px", opacity: reviewed ? 0.65 : 1,
+      borderRadius: 10, padding: "10px 12px", opacity: reviewed ? 0.65 : 1,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
         <span style={{ fontSize: 12.5, fontWeight: 700, color: reviewed ? C.gray : C.red }}>⚠ {job.title}</span>
