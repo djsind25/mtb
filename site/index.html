@@ -246,6 +246,12 @@
   .faq.open .faq-a{padding:0 22px 18px; max-height:320px;}
   .faq-a p{font-size:14px; color:var(--gray); line-height:1.65;}
 
+  /* ───── ABOUT ───── */
+  .about-story{max-width:640px; margin:0 auto; background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:40px 44px; box-shadow:var(--shadow);}
+  @media (max-width:600px){.about-story{padding:28px 24px;}}
+  .about-story p{font-size:16.5px; color:var(--ink); line-height:1.75; margin-bottom:20px;}
+  .about-story p:last-child{margin-bottom:0;}
+
   /* ───── FINAL CTA ───── */
   .final{text-align:center; padding:90px 0;}
   .final h2{font-size:clamp(28px,4.4vw,44px); font-weight:900; letter-spacing:-0.025em; color:var(--charcoal); margin-bottom:16px; line-height:1.1;}
@@ -585,10 +591,26 @@
     <div class="faq-list" id="faqList">
       <div class="faq"><button class="faq-q"><span>How much does it cost to post a job?</span><span class="ar">▾</span></button><div class="faq-a"><p>Posting a job is completely free. When you accept a bid, you pay a 10% deposit to MyTrashBid to lock the job in. You then pay the remaining balance directly to your hauler at completion — cash, check, or their preferred method.</p></div></div>
       <div class="faq"><button class="faq-q"><span>When will I get bids?</span><span class="ar">▾</span></button><div class="faq-a"><p>Most jobs get their first bid within a few hours, and the majority receive bids within 24 hours. Adding clear photos and rough measurements helps haulers bid faster and more accurately.</p></div></div>
-      <div class="faq"><button class="faq-q"><span>Are the haulers actually vetted?</span><span class="ar">▾</span></button><div class="faq-a"><p>Yes. Every hauler completes license verification, insurance confirmation, and a background check before they can bid. They're also rated by customers after every job.</p></div></div>
+      <div class="faq"><button class="faq-q"><span>Are the haulers actually vetted?</span><span class="ar">▾</span></button><div class="faq-a"><p>Yes. Every hauler completes license verification and insurance confirmation before they can bid. They're also rated by customers after every job.</p></div></div>
       <div class="faq"><button class="faq-q"><span>What does "sealed bid" mean?</span><span class="ar">▾</span></button><div class="faq-a"><p>Haulers only ever see their own bid — never what anyone else bid on the same job. You see every hauler's price and review history side by side and pick whichever one you want.</p></div></div>
       <div class="faq"><button class="faq-q"><span>What if I just want to rent a dumpster?</span><span class="ar">▾</span></button><div class="faq-a"><p>Pick "Rent a dumpster" in the quote form, choose trailer or roll-off and your drop-off/pickup dates. Vetted local providers send sealed bids just like a junk-removal job — you pick the one you want and pay the same 10% deposit to lock it in.</p></div></div>
       <div class="faq"><button class="faq-q"><span>How does payment work?</span><span class="ar">▾</span></button><div class="faq-a"><p>You pay a 10% deposit through MyTrashBid when you accept a bid — that locks in your hauler. The remaining 90% is paid directly to your hauler when the work is done. The hauler confirms completion, which unlocks reviews for both sides.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="block about" id="about">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="ey">About MyTrashBid</span>
+      <h2>Why we built this</h2>
+    </div>
+    <div class="about-story">
+      <p>A few years ago, I had a garage full of junk and no idea what it would cost to get rid of it. So I did what everyone does — called five different haulers, described the pile over the phone to five different people, and got five wildly different quotes, none of which I trusted. One guy wanted to "come take a look" before he'd even ballpark it. Another just stopped returning calls.</p>
+      <p>It wasn't that haulers were bad at their jobs — most of them were great. The problem was the <em>process</em>: no visibility, no easy way to compare, and no way to know if the price you got was fair or just whatever the guy on the phone felt like quoting that day.</p>
+      <p>MyTrashBid is the fix I wished existed. Post a couple photos and a quick description, and real local haulers send you real, sealed bids — no phone tag, no guessing, no pressure. You see price and reviews side by side and pick whoever you trust. They get steady work in their own backyard; you get a fair price and your garage back.</p>
+      <p>That's it. No call centers, no lead-selling, no middleman inflating the price. Just local haulers, competing honestly, for your job.</p>
     </div>
   </div>
 </section>
@@ -616,7 +638,7 @@
         <a href="#how">How it works</a><a href="#reviews">Reviews</a>
       </div>
       <div class="foot-col"><h5>Haulers</h5><a href="#haulers">Start bidding</a><a href="#">Get vetted</a><a href="#">List dumpster inventory</a><a href="#">Pricing</a></div>
-      <div class="foot-col"><h5>Company</h5><a href="#">About</a><a href="#">Trust &amp; safety</a><a href="#">Contact</a><a href="#">Terms &amp; privacy</a></div>
+      <div class="foot-col"><h5>Company</h5><a href="#about">About</a><a href="#">Trust &amp; safety</a><a href="#">Contact</a><a href="#">Terms &amp; privacy</a></div>
     </div>
     <div class="foot-bottom">
       <span>© 2026 MyTrashBid. All rights reserved.</span>
