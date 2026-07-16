@@ -7,7 +7,7 @@ import { loadCustomerJobs, postJob, renewJob, loadCompletedJobsCount } from "../
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
 import { AccountTab } from "./AccountTab";
-import { loadCustomerStats } from "./data";
+import { loadCustomerStats, resendVerificationEmail } from "./data";
 
 const TABS = [
   { id: "jobs", label: "My Jobs" },
@@ -114,7 +114,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
             {customerJobs.length === 0 && !showPost && <CenteredNote>No jobs yet — post one to get started.</CenteredNote>}
             <div style={{ display: "grid", gap: 12 }}>
               {customerJobs.map(job => (
-                <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onOpenChat={openChat} onRenewJob={handleRenewJob} setToast={setToast} />
+                <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} setToast={setToast} />
               ))}
             </div>
           </>

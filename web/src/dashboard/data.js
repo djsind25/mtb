@@ -109,6 +109,11 @@ export async function changePassword(newPassword) {
   if (error) throw error;
 }
 
+export async function resendVerificationEmail() {
+  const { error } = await supabase.rpc("resend_verification_email");
+  if (error) throw error;
+}
+
 export async function deactivateOwnAccount(id) {
   const { error } = await supabase.from("profiles").update({ active: false, deactivated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;

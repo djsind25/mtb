@@ -4,8 +4,9 @@ import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
 
-export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, onRenewJob, setToast }) {
+export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, onRenewJob, onResendVerification, setToast }) {
   const [expanded, setExpanded] = useState(false);
+  const [resending, setResending] = useState(false);
   const bids = job.bids || [];
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
 
@@ -45,9 +46,26 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
           <JobPhotos jobId={job.id} />
           {job.status === "pending_verification" ? (
-            <div style={{ fontSize: 13, color: C.ink, fontWeight: 600 }}>
-              ⚠ Check your email and click the verification link to make this post visible to haulers.
-              It'll go live automatically the moment you verify — no need to repost.
+            <div>
+              <div style={{ fontSize: 13, color: C.ink, fontWeight: 600, marginBottom: 10 }}>
+                ⚠ Check your email and click the verification link to make this post visible to haulers.
+                It'll go live automatically the moment you verify — no need to repost.
+              </div>
+              <Btn
+                variant="ghost" full={false} disabled={resending}
+                onClick={async () => {
+                  setResending(true);
+                  try {
+                    await onResendVerification();
+                    setToast("Verification email sent — check your inbox.");
+                  } catch (e) {
+                    setToast(e.message || "Could not resend verification email.");
+                  }
+                  setResending(false);
+                }}
+              >
+                {resending ? "Sending…" : "Resend verification email"}
+              </Btn>
             </div>
           ) : job.status === "booked" ? (
             <div>

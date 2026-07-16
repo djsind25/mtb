@@ -4,7 +4,7 @@ import { Btn, Field, Badge, CenteredNote } from "../ui/Primitives";
 import { supabase } from "../lib/supabaseClient";
 import {
   loadCustomerPayments, loadHaulerEarnings, updateOwnProfile, updateNotificationPrefs,
-  changeEmail, changePassword, deactivateOwnAccount,
+  changeEmail, changePassword, deactivateOwnAccount, resendVerificationEmail,
 } from "./data";
 
 const EVENT_LABELS = {
@@ -39,6 +39,8 @@ export function AccountTab({ session, setToast }) {
 
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,10 +119,32 @@ export function AccountTab({ session, setToast }) {
     }
   }
 
+  async function resendVerification() {
+    setResending(true);
+    try {
+      await resendVerificationEmail();
+      setToast("Verification email sent — check your inbox.");
+    } catch (e) {
+      setToast(e.message || "Could not resend verification email.");
+    }
+    setResending(false);
+  }
+
   if (loading || !prefs) return <CenteredNote>Loading account…</CenteredNote>;
 
   return (
     <div style={{ display: "grid", gap: 24 }}>
+      {!profile.email_verified_at && (
+        <section style={{ border: `1.5px solid ${C.amber}66`, borderRadius: 12, padding: 16, background: C.amber + "16" }}>
+          <div style={{ fontSize: 13, color: C.ink, fontWeight: 600, marginBottom: 10 }}>
+            ⚠ Your email isn't verified yet{session.role === "customer" ? " — job posts won't be visible to haulers until it is" : ""}.
+          </div>
+          <Btn variant="ghost" full={false} onClick={resendVerification} disabled={resending}>
+            {resending ? "Sending…" : "Resend verification email"}
+          </Btn>
+        </section>
+      )}
+
       <section>
         <div style={sectionTitle}>Profile</div>
         {session.role === "hauler" && <Field label="Business name" value={businessName} onChange={setBusinessName} required />}

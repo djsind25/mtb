@@ -109,6 +109,8 @@
   .qc-success h3{font-size:20px; font-weight:800; margin-bottom:8px;}
   .qc-success p{font-size:14px; color:var(--gray); line-height:1.55; margin-bottom:18px;}
   .qc-success .pill{display:inline-block; background:var(--mint); color:var(--green-deep); font-weight:700; font-size:13px; padding:6px 14px; border-radius:99px; margin-bottom:18px;}
+  .qc-link-btn{display:block; width:100%; background:none; border:none; color:var(--green); font-weight:700; font-size:13px; font-family:inherit; cursor:pointer; margin-bottom:14px; text-decoration:underline;}
+  .qc-link-btn:disabled{color:var(--gray); cursor:not-allowed; text-decoration:none;}
 
   /* auth modal (email/passcode signup+login, embedded right on the marketing page) */
   .auth-modal{position:fixed; inset:0; background:rgba(22,35,45,0.55); z-index:500; display:none; align-items:center; justify-content:center; padding:20px;}
@@ -1043,8 +1045,19 @@
         '<h3>You\'re all set!</h3>'+
         '<div class="pill">'+escapeHtml(job.title)+'</div>'+
         '<p>'+message+'</p>'+
+        (pending ? '<button type="button" id="resendVerifyBtn" class="qc-link-btn">Resend verification email</button>' : '')+
         '<a class="qc-btn" style="text-decoration:none;" href="'+APP_URL+'/?role=customer" target="_blank" rel="noopener">View my bids in the app</a>'+
       '</div>';
+    if (pending) {
+      const btn = document.getElementById('resendVerifyBtn');
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+        const { error } = await sb.rpc('resend_verification_email');
+        btn.disabled = false;
+        btn.textContent = error ? 'Could not resend — try again' : 'Sent — check your inbox';
+      });
+    }
   }
 </script>
 
