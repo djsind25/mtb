@@ -29,12 +29,14 @@ export async function loadOpenSupportChats() {
   if (error) throw error;
   if (chats.length === 0) return [];
 
-  const userIds = [...new Set(chats.map(c => c.user_id))];
-  const adminIds = [...new Set(chats.map(c => c.assigned_admin_id).filter(Boolean))];
+  // user_id is null for guest chats (inbound email with no matching profile) — PostgREST's
+  // .in() errors on a literal null (reads it as the string "null", not SQL NULL), so filter
+  // those out before building the query.
+  const profileIds = [...new Set(chats.flatMap(c => [c.user_id, c.assigned_admin_id]).filter(Boolean))];
   const chatIds = chats.map(c => c.id);
 
   const [{ data: profiles, error: profilesError }, { data: recentMessages, error: msgError }] = await Promise.all([
-    supabase.from("public_profiles").select("id, name, business_name, role").in("id", [...new Set([...userIds, ...adminIds])]),
+    profileIds.length ? supabase.from("public_profiles").select("id, name, business_name, role").in("id", profileIds) : Promise.resolve({ data: [], error: null }),
     supabase.from("support_messages").select("support_chat_id, sender_id, text, created_at").in("support_chat_id", chatIds).order("created_at", { ascending: false }),
   ]);
   if (profilesError) throw profilesError;

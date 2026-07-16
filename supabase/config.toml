@@ -462,3 +462,15 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/send-verification-email/deno.json"
 entrypoint = "./functions/send-verification-email/index.ts"
+
+[functions.receive-inbound-email]
+enabled = true
+verify_jwt = false
+import_map = "./functions/receive-inbound-email/deno.json"
+entrypoint = "./functions/receive-inbound-email/index.ts"
+
+[functions.send-support-reply]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-support-reply/deno.json"
+entrypoint = "./functions/send-support-reply/index.ts"

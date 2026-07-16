@@ -14,3 +14,6 @@ web/.env.local
 
 # Local Claude Code permission grants (machine-specific, not project config)
 .claude/settings.local.json
+
+# Lambda deployment zip — build artifact, regenerate via lambda/inbound-email/README.md
+lambda/*.zip

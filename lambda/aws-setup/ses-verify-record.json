@@ -1,0 +1,14 @@
+{
+  "Comment": "SES domain verification for inbound email receiving (support@mytrashbid.com pipeline)",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "_amazonses.mytrashbid.com",
+        "Type": "TXT",
+        "TTL": 300,
+        "ResourceRecords": [{ "Value": "\"l+cSj3cdKdOWyyWOciB3eUfyGhpV+mlKshTpuLbhKK8=\"" }]
+      }
+    }
+  ]
+}

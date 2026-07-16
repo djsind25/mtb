@@ -9,8 +9,8 @@ export function SupportChatRow({ chat, onOpen }) {
     }}>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-          <span style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep }}>{chat.requesterName || "Unknown"}</span>
-          <Badge color={C.gray} bg={C.grayLight}>{chat.requesterRole}</Badge>
+          <span style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep }}>{chat.requesterName || chat.sender_email || "Unknown"}</span>
+          <Badge color={C.gray} bg={C.grayLight}>{chat.requesterRole || "guest"}</Badge>
         </div>
         {chat.lastMessagePreview && (
           <div style={{ fontSize: 12, color: C.gray, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 400 }}>

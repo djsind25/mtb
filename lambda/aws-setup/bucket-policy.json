@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSESPuts",
+      "Effect": "Allow",
+      "Principal": { "Service": "ses.amazonaws.com" },
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::mytrashbid-inbound-email/*",
+      "Condition": {
+        "StringEquals": { "aws:Referer": "898565151547" }
+      }
+    }
+  ]
+}

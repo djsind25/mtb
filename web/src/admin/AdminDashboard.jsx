@@ -201,7 +201,7 @@ export function AdminDashboard({ session, setToast }) {
             viewerId={session.id}
             title={(() => {
               const c = supportChats.find(sc => sc.id === activeSupportChatId);
-              return c ? `${c.requesterName || "Unknown"} (${c.requesterRole})` : "Support ticket";
+              return c ? `${c.requesterName || c.sender_email || "Unknown"} (${c.requesterRole || "guest"})` : "Support ticket";
             })()}
             onClose={() => { setActiveSupportChatId(null); loadAll(); }}
             setToast={setToast}

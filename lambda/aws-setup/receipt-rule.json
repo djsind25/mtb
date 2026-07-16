@@ -1,0 +1,20 @@
+{
+  "Name": "support-inbound",
+  "Enabled": true,
+  "TlsPolicy": "Optional",
+  "ScanEnabled": true,
+  "Recipients": ["support@mytrashbid.com"],
+  "Actions": [
+    {
+      "S3Action": {
+        "BucketName": "mytrashbid-inbound-email"
+      }
+    },
+    {
+      "LambdaAction": {
+        "FunctionArn": "arn:aws:lambda:us-east-1:898565151547:function:mytrashbid-inbound-email",
+        "InvocationType": "Event"
+      }
+    }
+  ]
+}

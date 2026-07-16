@@ -1,0 +1,10 @@
+{
+  "name": "mytrashbid-inbound-email",
+  "version": "1.0.0",
+  "description": "AWS Lambda: parses SES-received emails for support@mytrashbid.com and forwards them to the receive-inbound-email Supabase Edge Function.",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "mailparser": "^3.7.1"
+  }
+}
