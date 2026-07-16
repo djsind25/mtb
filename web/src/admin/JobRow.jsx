@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { C, mono, expiryLabel, isExpired } from "../theme";
+import { C, mono, expiryLabel, isExpired, timelineMeta } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
 
 export function JobRow({ job }) {
+  const timeline = timelineMeta(job.timeline);
   return (
     <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, fontSize: 13 }}>
       <span style={{ color: C.ink, fontWeight: 600 }}>{job.title}</span>
-      <Badge color={job.status === "booked" ? C.teal : C.ember} bg={job.status === "booked" ? C.tealLight : C.emberLight}>{job.status}</Badge>
+      <div style={{ display: "flex", gap: 6 }}>
+        {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge>}
+        <Badge color={job.status === "booked" ? C.teal : C.ember} bg={job.status === "booked" ? C.tealLight : C.emberLight}>{job.status}</Badge>
+      </div>
     </div>
   );
 }
@@ -16,6 +20,7 @@ export function JobRowExpanded({ job }) {
   const [open, setOpen] = useState(false);
   const [viewingChat, setViewingChat] = useState(false);
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
+  const timeline = timelineMeta(job.timeline);
   return (
     <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
       <button onClick={() => setOpen(o => !o)} style={{ width: "100%", background: "none", border: "none", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontFamily: "inherit" }}>
@@ -23,7 +28,8 @@ export function JobRowExpanded({ job }) {
           <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>{job.title}</div>
           <div style={{ fontSize: 11, color: C.gray }}>by {job.customerName || "—"} · ZIP {job.zip} · {(job.bids || []).length} bids</div>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge>}
           {job.status === "open" && <Badge color={jobExpired ? C.red : C.gray} bg={jobExpired ? C.redLight : C.grayLight}>{expiryLabel(job.expires_at)}</Badge>}
           <Badge color={job.status === "booked" ? C.teal : C.ember} bg={job.status === "booked" ? C.tealLight : C.emberLight}>{job.status}</Badge>
         </div>

@@ -1,14 +1,31 @@
 import { useState } from "react";
-import { C, expiryLabel, isExpired } from "../theme";
+import { C, expiryLabel, isExpired, timelineMeta } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
+import { TimelinePicker } from "./TimelinePicker";
 
-export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, onRenewJob, onResendVerification, setToast }) {
+export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
+  const [editingTimeline, setEditingTimeline] = useState(false);
+  const [pendingTimeline, setPendingTimeline] = useState(job.timeline);
+  const [savingTimeline, setSavingTimeline] = useState(false);
   const bids = job.bids || [];
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
+  const timeline = timelineMeta(job.timeline);
+
+  async function saveTimeline() {
+    setSavingTimeline(true);
+    try {
+      await onUpdateTimeline(job.id, pendingTimeline);
+      setEditingTimeline(false);
+      setToast("Timeline updated.");
+    } catch (e) {
+      setToast(e.message || "Could not update timeline.");
+    }
+    setSavingTimeline(false);
+  }
 
   const tally = completedCount != null && bids.length > 0 && (
     <div style={{ fontSize: 12, color: C.pineDeep, background: C.tealLight, borderRadius: 8, padding: "8px 11px", marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}>
@@ -32,6 +49,7 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
                   : job.status === "pending_verification" ? "Verify email to activate"
                   : "Booked"}
               </Badge>
+              {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡ " : ""}{timeline.label}</Badge>}
               {job.status === "open" && (
                 <Badge color={jobExpired ? C.red : C.gray} bg={jobExpired ? C.redLight : C.grayLight}>
                   {expiryLabel(job.expires_at)}
@@ -45,6 +63,27 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
       {expanded && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
           <JobPhotos jobId={job.id} />
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: editingTimeline ? 8 : 14 }}>
+            <span style={{ fontSize: 12, color: C.gray, fontWeight: 600 }}>Timeline:</span>
+            {timeline ? <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge> : <span style={{ fontSize: 12, color: C.gray }}>Not set</span>}
+            {job.status !== "booked" && !editingTimeline && (
+              <button onClick={() => { setPendingTimeline(job.timeline); setEditingTimeline(true); }}
+                style={{ background: "none", border: "none", color: C.teal, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
+                Change
+              </button>
+            )}
+          </div>
+          {editingTimeline && (
+            <div style={{ marginBottom: 14 }}>
+              <TimelinePicker value={pendingTimeline} onChange={setPendingTimeline} />
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <Btn size="sm" full={false} variant="ghost" onClick={() => setEditingTimeline(false)}>Cancel</Btn>
+                <Btn size="sm" full={false} disabled={!pendingTimeline || savingTimeline} onClick={saveTimeline}>{savingTimeline ? "Saving…" : "Save"}</Btn>
+              </div>
+            </div>
+          )}
+
           {job.status === "pending_verification" ? (
             <div>
               <div style={{ fontSize: 13, color: C.ink, fontWeight: 600, marginBottom: 10 }}>

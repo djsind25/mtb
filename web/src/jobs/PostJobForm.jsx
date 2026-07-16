@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { C, sans } from "../theme";
 import { Field, Btn } from "../ui/Primitives";
+import { TimelinePicker } from "./TimelinePicker";
 
 export function PostJobForm({ onCancel, onSubmit, submitting }) {
   const [serviceType, setServiceType] = useState("removal"); // removal | rental
@@ -11,6 +12,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
   const [dumpsterType, setDumpsterType] = useState("rolloff");
   const [rentalStartDate, setRentalStartDate] = useState("");
   const [rentalEndDate, setRentalEndDate] = useState("");
+  const [timeline, setTimeline] = useState(null);
   const fileInputRef = useRef(null);
 
   function handleFiles(fileList) {
@@ -28,7 +30,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
   }
 
   const isRental = serviceType === "rental";
-  const canSubmit = !submitting && zip && (
+  const canSubmit = !submitting && zip && timeline && (
     isRental ? (dumpsterType && rentalStartDate && rentalEndDate)
       : (title && photos.length > 0)
   );
@@ -37,12 +39,12 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
     if (isRental) {
       const label = dumpsterType === "trailer" ? "Trailer" : "Roll-off dumpster";
       onSubmit({
-        serviceType: "rental", zip, dumpsterType, rentalStartDate, rentalEndDate,
+        serviceType: "rental", zip, dumpsterType, rentalStartDate, rentalEndDate, timeline,
         title: `${label} rental, ${rentalStartDate} to ${rentalEndDate}`,
         description: null, photos: photos.map(p => p.file),
       });
     } else {
-      onSubmit({ serviceType: "removal", title, description, zip, photos: photos.map(p => p.file) });
+      onSubmit({ serviceType: "removal", title, description, zip, timeline, photos: photos.map(p => p.file) });
     }
   }
 
@@ -114,6 +116,13 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
             <span style={{ fontSize: 9 }}>Add</span>
           </button>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 7 }}>
+          How soon do you need this done? <span style={{ color: C.red }}>*</span>
+        </label>
+        <TimelinePicker value={timeline} onChange={setTimeline} />
       </div>
 
       <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />

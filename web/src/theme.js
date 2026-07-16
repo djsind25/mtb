@@ -17,6 +17,22 @@ export const mono = "'JetBrains Mono', monospace";
 export const MAX_RADIUS_MI = 50;
 export const COMMISSION_RATE = 0.10;
 
+export const TIMELINE_OPTIONS = [
+  { id: "asap", label: "ASAP", sub: "within 48 hours" },
+  { id: "this_week", label: "This week" },
+  { id: "next_2_weeks", label: "Next 2 weeks" },
+  { id: "this_month", label: "This month" },
+  { id: "flexible", label: "Flexible / no rush" },
+];
+
+// Legacy jobs from before this field existed have timeline = null — treated as "no badge"
+// rather than guessing, so old test/demo data never renders "undefined" or a misleading label.
+export function timelineMeta(timeline) {
+  const opt = TIMELINE_OPTIONS.find(o => o.id === timeline);
+  if (!opt) return null;
+  return { label: opt.label, urgent: timeline === "asap", color: timeline === "asap" ? C.red : C.gray, bg: timeline === "asap" ? C.redLight : C.grayLight };
+}
+
 export function nowStr(iso) {
   return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }

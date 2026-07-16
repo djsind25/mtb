@@ -66,8 +66,8 @@ export async function loadJobPhotos(jobId) {
   return withUrls;
 }
 
-export async function postJob({ customerId, title, description, zip, photos, serviceType, dumpsterType, rentalStartDate, rentalEndDate }) {
-  const row = { customer_id: customerId, title, description, zip };
+export async function postJob({ customerId, title, description, zip, photos, serviceType, dumpsterType, rentalStartDate, rentalEndDate, timeline }) {
+  const row = { customer_id: customerId, title, description, zip, timeline };
   if (serviceType === "rental") {
     row.service_type = "rental";
     row.dumpster_type = dumpsterType;
@@ -89,6 +89,11 @@ export async function postJob({ customerId, title, description, zip, photos, ser
 
 export async function submitBid({ jobId, haulerId, amount, note }) {
   const { error } = await supabase.from("bids").insert({ job_id: jobId, hauler_id: haulerId, amount: Number(amount), note });
+  if (error) throw error;
+}
+
+export async function updateJobTimeline(jobId, timeline) {
+  const { error } = await supabase.from("jobs").update({ timeline }).eq("id", jobId);
   if (error) throw error;
 }
 

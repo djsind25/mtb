@@ -3,7 +3,7 @@ import { serif, C } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 import { PostJobForm } from "../jobs/PostJobForm";
 import { CustomerJobCard } from "../jobs/CustomerJobCard";
-import { loadCustomerJobs, postJob, renewJob, loadCompletedJobsCount } from "../jobs/data";
+import { loadCustomerJobs, postJob, renewJob, loadCompletedJobsCount, updateJobTimeline } from "../jobs/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
 import { AccountTab } from "./AccountTab";
@@ -55,6 +55,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
       await postJob({
         customerId: session.id, title: form.title, description: form.description, zip: form.zip, photos: form.photos,
         serviceType: form.serviceType, dumpsterType: form.dumpsterType, rentalStartDate: form.rentalStartDate, rentalEndDate: form.rentalEndDate,
+        timeline: form.timeline,
       });
       setShowPost(false);
       const days = form.serviceType === "rental" ? 30 : 14;
@@ -79,6 +80,11 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
   function handleAccepted(chatId) {
     loadAll();
     openChat(chatId);
+  }
+
+  async function handleUpdateTimeline(jobId, timeline) {
+    await updateJobTimeline(jobId, timeline);
+    await loadAll();
   }
 
   const summary = stats ? [
@@ -114,7 +120,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
             {customerJobs.length === 0 && !showPost && <CenteredNote>No jobs yet — post one to get started.</CenteredNote>}
             <div style={{ display: "grid", gap: 12 }}>
               {customerJobs.map(job => (
-                <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} setToast={setToast} />
+                <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} onUpdateTimeline={handleUpdateTimeline} setToast={setToast} />
               ))}
             </div>
           </>

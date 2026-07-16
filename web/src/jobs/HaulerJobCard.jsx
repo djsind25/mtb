@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, expiryLabel } from "../theme";
+import { C, expiryLabel, timelineMeta } from "../theme";
 import { Badge, Field, Btn } from "../ui/Primitives";
 import { JobPhotos } from "./JobPhotos";
 
@@ -14,6 +14,7 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const isRental = job.service_type === "rental";
+  const timeline = timelineMeta(job.timeline);
 
   async function submit() {
     setSubmitting(true);
@@ -33,6 +34,7 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
               <Badge color={C.gray} bg={C.grayLight}>{expiryLabel(job.expires_at)}</Badge>
               {typeof job.distance_mi === "number" && <Badge color={C.teal} bg={C.tealLight}>📏 {job.distance_mi < 1 ? "<1" : Math.round(job.distance_mi)} mi away</Badge>}
               {job.distance_mi === null && <Badge color={C.gray} bg={C.grayLight}>Distance unknown</Badge>}
+              {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡ " : "⏱ "}{timeline.label}</Badge>}
               {job.photo_count > 0 && <Badge color={C.teal} bg={C.tealLight}>📷 {job.photo_count} photo{job.photo_count !== 1 ? "s" : ""} attached</Badge>}
             </div>
           </div>
@@ -49,6 +51,18 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
             </div>
           ) : (
             <p style={{ fontSize: 13, color: C.gray, marginBottom: 14, lineHeight: 1.5 }}>{job.description || "No description provided."}</p>
+          )}
+          {timeline && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "9px 12px",
+              borderRadius: 8, background: timeline.urgent ? C.redLight : C.sand,
+              border: `1px solid ${timeline.urgent ? C.red + "55" : C.line}`,
+            }}>
+              <span style={{ fontSize: 13 }}>{timeline.urgent ? "⚡" : "⏱"}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: timeline.urgent ? C.red : C.ink }}>
+                Customer needs this: {timeline.label}
+              </span>
+            </div>
           )}
           {alreadyBid ? (
             <Badge color={C.teal} bg={C.tealLight}>✓ You already bid on this job</Badge>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { serif, C, MAX_RADIUS_MI } from "../theme";
+import { serif, C, MAX_RADIUS_MI, TIMELINE_OPTIONS } from "../theme";
 import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
 import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
@@ -20,6 +20,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const [tab, setTab] = useState(initialChatId ? "messages" : "browse");
   const [directChatId, setDirectChatId] = useState(null);
   const [openJobs, setOpenJobs] = useState([]);
+  const [timelineFilter, setTimelineFilter] = useState("all");
   const [myBidJobs, setMyBidJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -79,6 +80,9 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   }
 
   const myBidJobIds = new Set(myBidJobs.map(j => j.id));
+  // Legacy jobs with no stated timeline are grouped under "Flexible" for filtering purposes
+  // (even though their card shows no badge at all — see timelineMeta in theme.js).
+  const filteredOpenJobs = timelineFilter === "all" ? openJobs : openJobs.filter(j => (j.timeline || "flexible") === timelineFilter);
 
   const summary = stats ? [
     { label: "Open jobs nearby", value: stats.openNearby },
@@ -106,12 +110,22 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
         loading ? <CenteredNote>Loading jobs…</CenteredNote> : (
           <>
             <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 4 }}>Open jobs near you</h2>
-            <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 18 }}>
+            <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 14 }}>
               Showing jobs within {MAX_RADIUS_MI} miles of your service ZIP ({session.zip || "not set"}). Posts stay live for 14 days unless renewed.
             </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 18 }}>
+              {[{ id: "all", label: "All timelines" }, ...TIMELINE_OPTIONS].map(o => (
+                <button key={o.id} onClick={() => setTimelineFilter(o.id)} style={{
+                  border: `1.5px solid ${timelineFilter === o.id ? C.green : C.line}`, borderRadius: 20,
+                  background: timelineFilter === o.id ? C.tealLight : C.paper, padding: "5px 12px",
+                  cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: C.ink, fontFamily: "inherit",
+                }}>{o.label}</button>
+              ))}
+            </div>
             <div style={{ display: "grid", gap: 12 }}>
               {openJobs.length === 0 && <CenteredNote>No open jobs within {MAX_RADIUS_MI} miles right now. Check back soon.</CenteredNote>}
-              {openJobs.map(job => (
+              {openJobs.length > 0 && filteredOpenJobs.length === 0 && <CenteredNote>No open jobs match that timeline right now.</CenteredNote>}
+              {filteredOpenJobs.map(job => (
                 <HaulerJobCard key={job.id} job={job} alreadyBid={myBidJobIds.has(job.id)} onBid={handleBid} />
               ))}
             </div>
