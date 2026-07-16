@@ -41,7 +41,7 @@ export function ReviewPanel({ chat, chatId, viewer, setToast }) {
       <div style={{ fontSize: 12.5, fontWeight: 700, color: C.teal, marginBottom: 10 }}>⭐ Job complete — leave your review</div>
 
       {!editing && myReview ? (
-        <div style={{ background: C.paper, borderRadius: 10, padding: "10px 12px", marginBottom: otherReview ? 10 : 0 }}>
+        <div style={{ background: C.paper, borderRadius: 16, padding: "10px 12px", marginBottom: otherReview ? 10 : 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
             <span style={{ color: "#E8A23D", fontSize: 13 }}>{"★".repeat(myReview.rating)}{"☆".repeat(5 - myReview.rating)}</span>
             <button onClick={() => setEditing(true)} style={{ background: "none", border: "none", color: C.teal, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Edit</button>
@@ -49,14 +49,14 @@ export function ReviewPanel({ chat, chatId, viewer, setToast }) {
           {myReview.text && <div style={{ fontSize: 12.5, color: C.ink }}>{myReview.text}</div>}
         </div>
       ) : (
-        <div style={{ background: C.paper, borderRadius: 10, padding: "12px" }}>
+        <div style={{ background: C.paper, borderRadius: 16, padding: "12px" }}>
           <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
             {[1, 2, 3, 4, 5].map(n => (
               <button key={n} onClick={() => setRating(n)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: n <= rating ? "#E8A23D" : C.grayLight, padding: 0 }}>★</button>
             ))}
           </div>
           <textarea value={text} onChange={e => setText(e.target.value)} placeholder={`How was working with ${otherLabel}?`}
-            style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "8px 11px", fontSize: 12.5, fontFamily: "inherit", outline: "none", minHeight: 56, resize: "vertical", marginBottom: 8 }} />
+            style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 12, padding: "8px 11px", fontSize: 12.5, fontFamily: "inherit", outline: "none", minHeight: 56, resize: "vertical", marginBottom: 8 }} />
           <Btn size="sm" disabled={!rating} onClick={handleSubmit}>Submit review</Btn>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { C, mono, expiryLabel, isExpired, daysLeft } from "../theme";
+import { C, mono, expiryLabel, isExpired, daysLeft, SHADOW } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 
 export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onConfirmComplete }) {
@@ -12,7 +12,7 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onCo
   const completionDaysLeft = won && !job.completed ? daysLeft(job.complete_by) : null;
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${bidExpired || completionOverdue ? C.amber + "66" : C.line}`, borderRadius: 12, padding: 14 }}>
+    <div style={{ background: C.paper, border: `1px solid ${bidExpired || completionOverdue ? C.amber + "66" : C.line}`, borderRadius: 18, padding: 14, boxShadow: SHADOW }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{job.title}</span>
         <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${myBid?.amount}</span>
@@ -48,7 +48,7 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onCo
         </div>
       )}
       {completionOverdue && (
-        <div style={{ fontSize: 11, color: "#8A6604", background: C.amberLight, borderRadius: 8, padding: "8px 10px", marginTop: 8, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: "#8A6604", background: C.amberLight, borderRadius: 12, padding: "8px 10px", marginTop: 8, lineHeight: 1.5 }}>
           🔔 Reminder: it's been over 30 days since this job was booked. Please confirm completion so the customer can leave a review and your commission can finalize.
         </div>
       )}

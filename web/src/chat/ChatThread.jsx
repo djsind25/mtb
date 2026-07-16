@@ -68,7 +68,7 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 16px 0", display: "flex", flexDirection: "column", height: "calc(100vh - 64px)" }}>
       <button onClick={onClose} style={{ background: "none", border: "none", color: C.gray, fontSize: 13, cursor: "pointer", marginBottom: 10, textAlign: "left" }}>← Back to chats</button>
 
-      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 18, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ background: C.paper, borderBottom: `1px solid ${C.line}`, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
           <Avatar emoji={otherIsBiz ? "🚛" : "👤"} bg={otherIsBiz ? C.tealLight : C.sandWarm} />
           <div style={{ flex: 1 }}>
@@ -91,7 +91,7 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
           )}
         </div>
 
-        <div style={{ background: C.sand, padding: "12px 16px", borderBottom: `1px solid ${C.line}` }}>
+        <div style={{ background: C.sandWarm, padding: "12px 16px", borderBottom: `1px solid ${C.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontFamily: mono, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>${chat.bid_amount} total</span>
             <Badge color={C.teal} bg={C.tealLight}>✓ Deposit paid</Badge>
@@ -119,7 +119,7 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
             <textarea value={draft} onChange={e => setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Message about this job…" rows={1}
-              style={{ flex: 1, resize: "none", border: `1.5px solid ${C.line}`, borderRadius: 20, padding: "9px 15px", fontSize: 13.5, fontFamily: "inherit", outline: "none", color: C.ink, background: C.sand }} />
+              style={{ flex: 1, resize: "none", border: `1.5px solid ${C.line}`, borderRadius: 20, padding: "9px 15px", fontSize: 13.5, fontFamily: "inherit", outline: "none", color: C.ink, background: C.sandWarm }} />
             <button onClick={send} disabled={!draft.trim() || sending} style={{
               width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: "none",
               cursor: draft.trim() ? "pointer" : "default", background: draft.trim() ? C.ember : C.grayLight,

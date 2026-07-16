@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, sans } from "../theme";
+import { C, sans, SHADOW_MD } from "../theme";
 import { Wordmark } from "./Logo";
 import { Btn } from "./Primitives";
 import { getOrCreateMySupportChat } from "../support/data";
@@ -52,7 +52,7 @@ export function TopBar({ session, onLogout, onNav, page, setToast }) {
 
       {supportChatId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: C.sand, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "88vh", padding: 16, boxSizing: "border-box" }}>
+          <div style={{ background: C.paper, borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "88vh", padding: 16, boxSizing: "border-box", boxShadow: SHADOW_MD }}>
             <SupportChatThread supportChatId={supportChatId} viewerRole={session.role} viewerId={session.id} onClose={() => setSupportChatId(null)} setToast={setToast} />
           </div>
         </div>
@@ -64,7 +64,7 @@ export function TopBar({ session, onLogout, onNav, page, setToast }) {
 function NavTab({ label, active, onClick }) {
   return (
     <button onClick={onClick} style={{
-      background: active ? C.sandWarm : "transparent", border: "none", borderRadius: 7,
+      background: active ? C.sandWarm : "transparent", border: "none", borderRadius: 10,
       padding: "7px 13px", fontSize: 13, fontWeight: 600, color: active ? C.pineDeep : C.gray,
       cursor: "pointer", fontFamily: sans,
     }}>{label}</button>

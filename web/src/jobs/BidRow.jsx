@@ -29,7 +29,7 @@ export function BidRow({ bid, jobId, onAccepted, setToast }) {
   }
 
   return (
-    <div style={{ border: `1px solid ${bidExpired ? C.amber + "66" : C.line}`, borderRadius: 10, padding: 12 }}>
+    <div style={{ border: `1px solid ${bidExpired ? C.amber + "66" : C.line}`, borderRadius: 16, padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
         <div>
           <span style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep }}>{bid.businessName}</span>
@@ -49,7 +49,7 @@ export function BidRow({ bid, jobId, onAccepted, setToast }) {
         <div style={{ fontSize: 12, color: C.red }}>This bid expired and can no longer be accepted. The hauler can renew it to reopen it.</div>
       ) : (
         <>
-          <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
+          <div style={{ background: C.sandWarm, borderRadius: 14, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
               <span style={{ color: C.gray }}>Pay now to lock in (10% deposit)</span>
               <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>

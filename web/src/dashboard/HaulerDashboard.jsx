@@ -96,10 +96,10 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "20px 16px 60px" }}>
       {stats && <SummaryStrip stats={summary} />}
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, background: C.sandWarm, borderRadius: 10, padding: 4 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, background: C.sandWarm, borderRadius: 14, padding: 4 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex: 1, padding: "9px 6px", borderRadius: 7, border: "none", cursor: "pointer",
+            flex: 1, padding: "9px 6px", borderRadius: 10, border: "none", cursor: "pointer",
             background: tab === t.id ? C.paper : "transparent", fontWeight: 700, fontSize: 12.5,
             color: tab === t.id ? C.pineDeep : C.gray, fontFamily: "inherit",
           }}>{t.label}</button>
@@ -109,7 +109,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
       {tab === "browse" && (
         loading ? <CenteredNote>Loading jobs…</CenteredNote> : (
           <>
-            <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 4 }}>Open jobs near you</h2>
+            <h2 style={{ fontFamily: serif, fontWeight: 800, fontSize: 20, color: C.pineDeep, marginBottom: 4 }}>Open jobs near you</h2>
             <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 14 }}>
               Showing jobs within {MAX_RADIUS_MI} miles of your service ZIP ({session.zip || "not set"}). Posts stay live for 14 days unless renewed.
             </p>
@@ -136,7 +136,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
       {tab === "bids" && (
         loading ? <CenteredNote>Loading bids…</CenteredNote> : (
           <>
-            <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 16 }}>Your bids</h2>
+            <h2 style={{ fontFamily: serif, fontWeight: 800, fontSize: 20, color: C.pineDeep, marginBottom: 16 }}>Your bids</h2>
             <div style={{ display: "grid", gap: 12 }}>
               {myBidJobs.length === 0 && <CenteredNote>You haven't submitted any bids yet.</CenteredNote>}
               {myBidJobs.map(job => (

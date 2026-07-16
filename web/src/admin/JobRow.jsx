@@ -22,7 +22,7 @@ export function JobRowExpanded({ job }) {
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline);
   return (
-    <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
+    <div style={{ border: `1px solid ${C.line}`, borderRadius: 16, overflow: "hidden" }}>
       <button onClick={() => setOpen(o => !o)} style={{ width: "100%", background: "none", border: "none", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontFamily: "inherit" }}>
         <div style={{ textAlign: "left" }}>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>{job.title}</div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, expiryLabel, timelineMeta } from "../theme";
+import { C, expiryLabel, timelineMeta, SHADOW } from "../theme";
 import { Badge, Field, Btn } from "../ui/Primitives";
 import { JobPhotos } from "./JobPhotos";
 
@@ -23,7 +23,7 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
   }
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 18, overflow: "hidden", boxShadow: SHADOW }}>
       <button onClick={() => setExpanded(e => !e)} style={{ width: "100%", background: "none", border: "none", padding: 16, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -45,7 +45,7 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
           <JobPhotos jobId={job.id} />
           {isRental ? (
-            <div style={{ background: C.sand, borderRadius: 8, padding: "10px 12px", marginBottom: 14, fontSize: 13, color: C.ink }}>
+            <div style={{ background: C.sandWarm, borderRadius: 14, padding: "10px 12px", marginBottom: 14, fontSize: 13, color: C.ink }}>
               <div><strong>{job.dumpster_type === "trailer" ? "Trailer" : "Roll-off dumpster"}</strong></div>
               <div style={{ color: C.gray, marginTop: 2 }}>Needed {formatDate(job.rental_start_date)} – {formatDate(job.rental_end_date)}</div>
             </div>
@@ -55,7 +55,7 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
           {timeline && (
             <div style={{
               display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "9px 12px",
-              borderRadius: 8, background: timeline.urgent ? C.redLight : C.sand,
+              borderRadius: 14, background: timeline.urgent ? C.redLight : C.sandWarm,
               border: `1px solid ${timeline.urgent ? C.red + "55" : C.line}`,
             }}>
               <span style={{ fontSize: 13 }}>{timeline.urgent ? "⚡" : "⏱"}</span>
@@ -73,7 +73,7 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Message to customer</label>
-                <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Why pick you?" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "10px 13px", fontSize: 13.5, fontFamily: "inherit", outline: "none", minHeight: 60, resize: "vertical" }} />
+                <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Why pick you?" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 12, padding: "10px 13px", fontSize: 13.5, fontFamily: "inherit", outline: "none", minHeight: 60, resize: "vertical" }} />
               </div>
               <div style={{ fontSize: 11, color: C.gray, marginBottom: 10 }}>
                 Your bid stays open for the customer to accept for {isRental ? 30 : 14} days, unless you renew it. This is a sealed bid — other haulers can't see your price.

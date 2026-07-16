@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, expiryLabel, isExpired, timelineMeta } from "../theme";
+import { C, expiryLabel, isExpired, timelineMeta, SHADOW } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
@@ -28,14 +28,14 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
   }
 
   const tally = completedCount != null && bids.length > 0 && (
-    <div style={{ fontSize: 12, color: C.pineDeep, background: C.tealLight, borderRadius: 8, padding: "8px 11px", marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}>
+    <div style={{ fontSize: 12, color: C.pineDeep, background: C.tealLight, borderRadius: 12, padding: "8px 11px", marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}>
       <span>🎉</span>
       <span><strong>{completedCount.toLocaleString()}</strong> job{completedCount === 1 ? "" : "s"} completed on MyTrashBid — compare your quotes below.</span>
     </div>
   );
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${jobExpired ? C.amber + "66" : C.line}`, borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ background: C.paper, border: `1px solid ${jobExpired ? C.amber + "66" : C.line}`, borderRadius: 18, overflow: "hidden", boxShadow: SHADOW }}>
       <button onClick={() => setExpanded(e => !e)} style={{ width: "100%", background: "none", border: "none", padding: 16, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
