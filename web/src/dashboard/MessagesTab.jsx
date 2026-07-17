@@ -4,7 +4,7 @@ import { Avatar, CenteredNote } from "../ui/Primitives";
 import { loadMyChats } from "../chat/data";
 import { ChatThread } from "../chat/ChatThread";
 
-export function MessagesTab({ session, setToast, initialChatId, onConsumedInitialChat }) {
+export function MessagesTab({ session, setToast, initialChatId, onConsumedInitialChat, onUnreadCountChange }) {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeChatId, setActiveChatId] = useState(initialChatId || null);
@@ -12,12 +12,14 @@ export function MessagesTab({ session, setToast, initialChatId, onConsumedInitia
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      setChats(await loadMyChats(session.id));
+      const loaded = await loadMyChats(session.id);
+      setChats(loaded);
+      onUnreadCountChange?.(loaded.filter(c => c.unread).length);
     } catch (e) {
       setToast(e.message || "Could not load chats.");
     }
     setLoading(false);
-  }, [session.id, setToast]);
+  }, [session.id, setToast, onUnreadCountChange]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 

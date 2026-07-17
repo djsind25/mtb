@@ -4,6 +4,7 @@ import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
 import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
 import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, renewBid, confirmJobComplete } from "../jobs/data";
+import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
 import { AccountTab } from "./AccountTab";
@@ -24,6 +25,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const [myBidJobs, setMyBidJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => { if (initialChatId) setTab("messages"); }, [initialChatId]);
 
@@ -35,12 +37,13 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [open, mine, s] = await Promise.all([
-        loadOpenJobsForHauler(), loadMyBidJobs(session.id), loadHaulerStats(session.id),
+      const [open, mine, s, chats] = await Promise.all([
+        loadOpenJobsForHauler(), loadMyBidJobs(session.id), loadHaulerStats(session.id), loadMyChats(session.id),
       ]);
       setOpenJobs(open);
       setMyBidJobs(mine);
       setStats(s);
+      setUnreadCount(chats.filter(c => c.unread).length);
     } catch (e) {
       setToast(e.message || "Could not load jobs.");
     }
@@ -99,10 +102,19 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
       <div style={{ display: "flex", gap: 6, marginBottom: 18, background: C.sandWarm, borderRadius: 10, padding: 4 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
-            flex: 1, padding: "9px 6px", borderRadius: 7, border: "none", cursor: "pointer",
+            position: "relative", flex: 1, padding: "9px 6px", borderRadius: 7, border: "none", cursor: "pointer",
             background: tab === t.id ? C.paper : "transparent", fontWeight: 700, fontSize: 12.5,
             color: tab === t.id ? C.pineDeep : C.gray, fontFamily: "inherit",
-          }}>{t.label}</button>
+          }}>
+            {t.label}
+            {t.id === "messages" && (
+              <span style={{
+                position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8,
+                background: unreadCount > 0 ? C.ember : C.grayLight, color: unreadCount > 0 ? C.paper : C.gray,
+                fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
+              }}>{unreadCount}</span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -152,6 +164,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
           session={session} setToast={setToast}
           initialChatId={directChatId || initialChatId}
           onConsumedInitialChat={() => { setDirectChatId(null); onConsumedInitialChat?.(); }}
+          onUnreadCountChange={setUnreadCount}
         />
       )}
 
