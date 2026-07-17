@@ -9,6 +9,8 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
   const [zip, setZip] = useState(user.zip || "");
   const [phone, setPhone] = useState(user.phone || "");
   const [verified, setVerified] = useState(!!user.verified);
+  const [licenseActive, setLicenseActive] = useState(!!user.license_active);
+  const [insuranceActive, setInsuranceActive] = useState(!!user.insurance_active);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -23,6 +25,8 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
       if (user.role === "hauler") {
         fields.business_name = businessName.trim();
         fields.verified = verified;
+        fields.license_active = licenseActive;
+        fields.insurance_active = insuranceActive;
       }
       await updateUserProfile(user.id, fields);
       setToast("User updated.");
@@ -50,10 +54,23 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
         <Field label="Phone" value={phone} onChange={setPhone} placeholder="(optional)" />
 
         {user.role === "hauler" && (
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 14, cursor: "pointer" }}>
-            <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} />
-            Verified hauler
-          </label>
+          <>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 10, cursor: "pointer" }}>
+              <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} />
+              Verified hauler
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 10, cursor: "pointer" }}>
+              <input type="checkbox" checked={licenseActive} onChange={e => setLicenseActive(e.target.checked)} />
+              Verified business license
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 14, cursor: "pointer" }}>
+              <input type="checkbox" checked={insuranceActive} onChange={e => setInsuranceActive(e.target.checked)} />
+              Verified insurance
+            </label>
+            <div style={{ fontSize: 11, color: C.gray, marginTop: -8, marginBottom: 14 }}>
+              Checking these directly unlocks bidding — it bypasses the document upload/review flow in the Hauler docs tab.
+            </div>
+          </>
         )}
 
         {error && <ErrorMsg>{error}</ErrorMsg>}
