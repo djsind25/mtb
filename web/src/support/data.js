@@ -22,10 +22,12 @@ export async function sendSupportMessage({ supportChatId, senderId, senderRole, 
   if (error) throw error;
 }
 
-// Admin-only (RLS: support_chats_select allows is_admin() to see every open ticket, not just
-// ones assigned to them — "any admin can pick this up" is the point).
-export async function loadOpenSupportChats() {
-  const { data: chats, error } = await supabase.from("support_chats").select("*").eq("status", "open").order("created_at", { ascending: false });
+// Admin-only (RLS: support_chats_select allows is_admin() to see every ticket, not just ones
+// assigned to them — "any admin can pick this up" is the point). Loads every ticket regardless of
+// status; the admin dashboard's Open/Closed/All sub-tabs filter this client-side, same pattern as
+// the flagged-messages and overdue-completions tabs.
+export async function loadSupportChats() {
+  const { data: chats, error } = await supabase.from("support_chats").select("*").order("created_at", { ascending: false });
   if (error) throw error;
   if (chats.length === 0) return [];
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
 import { CenteredNote, Field } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites } from "./data";
-import { loadOpenSupportChats } from "../support/data";
+import { loadSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
 import { Panel } from "./Panel";
@@ -32,10 +32,11 @@ export function AdminDashboard({ session, setToast }) {
   const [userSearch, setUserSearch] = useState("");
   const [hideReviewedFlags, setHideReviewedFlags] = useState(false);
   const [hideReviewedOverdue, setHideReviewedOverdue] = useState(false);
+  const [supportSubTab, setSupportSubTab] = useState("open");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, j, f, o, sc, hd, ai] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadOpenSupportChats(), loadHaulerDocuments(), loadAdminInvites()]);
+    const [u, j, f, o, sc, hd, ai] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(), loadAdminInvites()]);
     setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai);
     setLoading(false);
   }, []);
@@ -75,6 +76,10 @@ export function AdminDashboard({ session, setToast }) {
 
   const sortedHaulerDocs = [...haulerDocs].sort((a, b) => (a.status === "pending") === (b.status === "pending") ? 0 : a.status === "pending" ? -1 : 1);
   const pendingDocCount = haulerDocs.filter(d => d.status === "pending").length;
+
+  const openSupportChats = supportChats.filter(c => c.status === "open");
+  const closedSupportChats = supportChats.filter(c => c.status === "closed");
+  const visibleSupportChats = supportSubTab === "open" ? openSupportChats : supportSubTab === "closed" ? closedSupportChats : supportChats;
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
@@ -127,9 +132,9 @@ export function AdminDashboard({ session, setToast }) {
           { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
-          { id: "support", label: `Support (${supportChats.length})` },
+          { id: "support", label: `Open chat tickets (${openSupportChats.length})` },
         ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
+          <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "support") setSupportSubTab("open"); }} style={{
             background: tab === t.id ? C.pine : C.paper, color: tab === t.id ? C.paper : C.ink,
             border: `1px solid ${tab === t.id ? C.pine : C.line}`, borderRadius: 8, padding: "8px 14px",
             fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
@@ -283,10 +288,31 @@ export function AdminDashboard({ session, setToast }) {
             readOnly={readOnly}
           />
         ) : (
-          <Panel title="Open support tickets — any admin can pick these up">
+          <Panel title={
+            supportSubTab === "open" ? "Open chats — any admin can pick these up"
+            : supportSubTab === "closed" ? "Closed chats"
+            : "All chat tickets"
+          }>
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              {[
+                { id: "open", label: `Open chats (${openSupportChats.length})` },
+                { id: "closed", label: `Closed chats (${closedSupportChats.length})` },
+                { id: "all", label: `All chat tickets (${supportChats.length})` },
+              ].map(st => (
+                <button key={st.id} onClick={() => setSupportSubTab(st.id)} style={{
+                  background: supportSubTab === st.id ? C.pine : C.paper, color: supportSubTab === st.id ? C.paper : C.ink,
+                  border: `1px solid ${supportSubTab === st.id ? C.pine : C.line}`, borderRadius: 8, padding: "6px 12px",
+                  fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                }}>{st.label}</button>
+              ))}
+            </div>
             <div style={{ display: "grid", gap: 8 }}>
-              {supportChats.length === 0 && <CenteredNote>No open support tickets.</CenteredNote>}
-              {supportChats.map(c => <SupportChatRow key={c.id} chat={c} onOpen={setActiveSupportChatId} />)}
+              {visibleSupportChats.length === 0 && (
+                <CenteredNote>
+                  {supportSubTab === "open" ? "No open support tickets." : supportSubTab === "closed" ? "No closed support tickets." : "No support tickets yet."}
+                </CenteredNote>
+              )}
+              {visibleSupportChats.map(c => <SupportChatRow key={c.id} chat={c} onOpen={setActiveSupportChatId} />)}
             </div>
           </Panel>
         )
