@@ -102,19 +102,20 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "20px 16px 60px" }}>
       {stats && <SummaryStrip stats={summary} />}
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, background: C.sandWarm, borderRadius: 10, padding: 4 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
-            position: "relative", flex: 1, padding: "9px", borderRadius: 7, border: "none", cursor: "pointer",
-            background: tab === t.id ? C.paper : "transparent", fontWeight: 700, fontSize: 13,
-            color: tab === t.id ? C.pineDeep : C.gray, fontFamily: "inherit",
+            position: "relative", flex: 1, padding: "9px", borderRadius: 8, cursor: "pointer",
+            background: tab === t.id ? C.pine : C.paper, border: `1px solid ${tab === t.id ? C.pine : C.line}`,
+            fontWeight: 700, fontSize: 13, color: tab === t.id ? C.paper : C.ink, fontFamily: "inherit",
           }}>
             {t.label}
             {t.id === "messages" && (
               <span style={{
-                position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8,
+                position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9,
                 background: unreadCount > 0 ? C.ember : C.grayLight, color: unreadCount > 0 ? C.paper : C.gray,
-                fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
+                border: `2px solid ${C.sand}`,
+                fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
               }}>{unreadCount}</span>
             )}
           </button>
