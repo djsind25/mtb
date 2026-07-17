@@ -54,13 +54,16 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
         </>
       )}
       <Badge color={u.role === "customer" ? C.gray : C.teal} bg={u.role === "customer" ? C.grayLight : C.tealLight}>{u.role}</Badge>
-      {u.role === "admin" && (
+      {u.role === "admin" && u.super_admin && (
+        <Badge color={C.pineDeep} bg={C.sandWarm}>👑 super admin</Badge>
+      )}
+      {u.role === "admin" && !u.super_admin && (
         <Badge color={u.admin_read_only ? C.amber : C.teal} bg={u.admin_read_only ? C.amberLight : C.tealLight}>
           {u.admin_read_only ? "view-only" : "full admin"}
         </Badge>
       )}
       {!readOnly && <Btn size="sm" full={false} variant="ghost" onClick={() => onEdit(u)}>Edit</Btn>}
-      {!readOnly && u.role === "admin" && (
+      {!readOnly && u.role === "admin" && !u.super_admin && (
         confirmingAdminRole ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <span style={{ fontSize: 11.5, color: C.gray }}>{u.admin_read_only ? "Make full admin?" : "Make view-only?"}</span>
