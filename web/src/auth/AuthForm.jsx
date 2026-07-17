@@ -5,6 +5,7 @@ import { mapProfileToSession } from "../lib/session";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
+import { SmsAgreement } from "./SmsAgreement";
 
 async function fetchProfile(userId) {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -24,14 +25,17 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
   // customer signup
   const [name, setName] = useState("");
   const [zip, setZip] = useState("");
+  const [phone, setPhone] = useState("");
   // hauler signup
   const [businessName, setBusinessName] = useState("");
   const [contactName, setContactName] = useState("");
   const [serviceZip, setServiceZip] = useState("");
+  const [haulerPhone, setHaulerPhone] = useState("");
 
   // admin
   const [adminPass, setAdminPass] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [smsOptIn, setSmsOptIn] = useState(false);
 
   async function handleAdminLogin() {
     setError("");
@@ -90,7 +94,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     if (role === "customer") {
       if (!name.trim() || !email.trim() || !passcode.trim() || !zip.trim()) { setError("Fill in all fields."); return; }
     } else {
-      if (!businessName.trim() || !contactName.trim() || !email.trim() || !passcode.trim() || !serviceZip.trim()) { setError("Fill in all fields."); return; }
+      if (!businessName.trim() || !contactName.trim() || !email.trim() || !passcode.trim() || !serviceZip.trim() || !haulerPhone.trim()) { setError("Fill in all fields."); return; }
     }
     if (passcode.trim().length < 6) { setError("Passcode must be at least 6 characters."); return; }
     if (!agreedToTerms) { setError("You must agree to the Terms of Service to continue."); return; }
@@ -101,8 +105,8 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     // email confirmation delays the session, so it can't be skipped by that timing the way a
     // client-side insert right here would be.
     const metadata = role === "customer"
-      ? { role, name: name.trim(), zip: zip.trim() }
-      : { role, name: contactName.trim(), business_name: businessName.trim(), zip: serviceZip.trim() };
+      ? { role, name: name.trim(), zip: zip.trim(), phone: phone.trim(), sms_consent: smsOptIn }
+      : { role, name: contactName.trim(), business_name: businessName.trim(), zip: serviceZip.trim(), phone: haulerPhone.trim(), sms_consent: smsOptIn };
     const { data, error: authError } = await supabase.auth.signUp({
       email: email.trim(), password: passcode.trim(), options: { data: metadata },
     });
@@ -216,7 +220,9 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Full name" value={name} onChange={setName} placeholder="Dave K." required />
           <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" required />
           <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />
+          <Field label="Phone" value={phone} onChange={setPhone} type="tel" placeholder="(optional)" />
           <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 6 characters" required hint="At least 6 characters." />
+          <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Create account"}</Btn>
@@ -229,7 +235,9 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Contact name" value={contactName} onChange={setContactName} placeholder="Jake Torres" required />
           <Field label="Business email" value={email} onChange={setEmail} type="email" placeholder="jake@capitalcityhaul.com" required />
           <Field label="Primary service ZIP" value={serviceZip} onChange={setServiceZip} placeholder="60491" required />
+          <Field label="Phone" value={haulerPhone} onChange={setHaulerPhone} type="tel" placeholder="(555) 867-5309" required />
           <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 6 characters" required hint="At least 6 characters." />
+          <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Apply as a hauler"}</Btn>

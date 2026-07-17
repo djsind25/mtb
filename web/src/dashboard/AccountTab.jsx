@@ -7,6 +7,7 @@ import {
   changeEmail, changePassword, deactivateOwnAccount, resendVerificationEmail, loadHaulerDocuments,
 } from "./data";
 import { HaulerDocuments } from "./HaulerDocuments";
+import { SmsAgreement } from "../auth/SmsAgreement";
 
 const EVENT_LABELS = {
   bidReceived: "New bid on your job",
@@ -14,8 +15,25 @@ const EVENT_LABELS = {
   newMessage: "New chat message",
   jobCompleted: "Job marked complete",
   reminderOverdue: "Completion reminder",
+  jobBooked: "Your job is booked",
   documentExpiring: "Verification document expiring soon",
   documentExpired: "Verification document expired",
+};
+
+// Only the specific text-message categories asked for per role — adminMessage (a support reply)
+// still texts both roles once they've opted into SMS overall, it just doesn't get its own toggle
+// here to keep this list to what was actually requested.
+const SMS_EVENT_LABELS = {
+  hauler: {
+    newJobNearby: "New jobs near you (hourly summary, not one text per job)",
+    bidAccepted: "You won a job",
+    newMessage: "New message from a customer",
+  },
+  customer: {
+    jobBooked: "Your job is booked",
+    newMessage: "New message from a hauler",
+    adminMessage: "New message from support",
+  },
 };
 
 const sectionTitle = { fontSize: 15, fontWeight: 700, color: C.pineDeep, marginBottom: 12 };
@@ -33,6 +51,7 @@ export function AccountTab({ session, setToast }) {
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [prefs, setPrefs] = useState(null);
+  const [smsConsent, setSmsConsent] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
 
   const [history, setHistory] = useState([]);
@@ -69,6 +88,7 @@ export function AccountTab({ session, setToast }) {
       setPhone(p.phone || "");
       setZip(p.zip || "");
       setPrefs(p.notification_prefs);
+      setSmsConsent(p.sms_consent || false);
       setHistory(hist);
       setLoading(false);
     })();
@@ -76,6 +96,10 @@ export function AccountTab({ session, setToast }) {
   }, [session.id, session.role]);
 
   async function saveProfile() {
+    if (session.role === "hauler" && !phone.trim()) {
+      setToast("A phone number is required for hauler accounts.");
+      return;
+    }
     setSavingProfile(true);
     try {
       const fields = { name: name.trim(), phone: phone.trim() || null, zip: zip.trim() };
@@ -94,9 +118,13 @@ export function AccountTab({ session, setToast }) {
   }
 
   async function savePrefs() {
+    if (smsConsent && !phone.trim()) {
+      setToast("Add a phone number above before enabling text messages.");
+      return;
+    }
     setSavingPrefs(true);
     try {
-      await updateNotificationPrefs(session.id, prefs);
+      await updateNotificationPrefs(session.id, prefs, smsConsent);
       setToast("Notification preferences saved.");
     } catch (e) {
       setToast(e.message || "Could not save preferences.");
@@ -165,7 +193,7 @@ export function AccountTab({ session, setToast }) {
         {session.role === "hauler" && <Field label="Business name" value={businessName} onChange={setBusinessName} required />}
         <Field label={session.role === "hauler" ? "Contact name" : "Full name"} value={name} onChange={setName} required />
         <Field label="Email" value={email} onChange={setEmail} type="email" hint="Changing this sends a confirmation link to the new address." />
-        <Field label="Phone" value={phone} onChange={setPhone} placeholder="(optional)" />
+        <Field label="Phone" value={phone} onChange={setPhone} type="tel" placeholder={session.role === "hauler" ? "(555) 867-5309" : "(optional)"} required={session.role === "hauler"} />
         <Field label="ZIP code" value={zip} onChange={setZip} />
         <Btn full={false} onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "Saving…" : "Save profile"}</Btn>
       </section>
@@ -183,6 +211,23 @@ export function AccountTab({ session, setToast }) {
             {label}
           </label>
         ))}
+
+        <div style={{ height: 1, background: C.line, margin: "16px 0" }} />
+
+        <SmsAgreement checked={smsConsent} onChange={setSmsConsent} />
+        {smsConsent && !phone.trim() && (
+          <div style={{ fontSize: 11.5, color: C.red, marginBottom: 8, marginLeft: 20 }}>
+            Add a phone number above, then save, to actually receive texts.
+          </div>
+        )}
+        {(SMS_EVENT_LABELS[session.role] ? Object.entries(SMS_EVENT_LABELS[session.role]) : []).map(([key, label]) => (
+          <label key={key} style={{ ...checkboxRow, opacity: smsConsent ? 1 : 0.5, marginLeft: 20 }}>
+            <input type="checkbox" checked={prefs.smsEvents?.[key] ?? true} disabled={!smsConsent}
+              onChange={e => setPrefs({ ...prefs, smsEvents: { ...prefs.smsEvents, [key]: e.target.checked } })} />
+            {label}
+          </label>
+        ))}
+
         <div style={{ marginTop: 8 }}>
           <Btn full={false} onClick={savePrefs} disabled={savingPrefs}>{savingPrefs ? "Saving…" : "Save preferences"}</Btn>
         </div>

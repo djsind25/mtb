@@ -94,8 +94,18 @@ export async function updateOwnProfile(id, fields) {
   if (error) throw error;
 }
 
-export async function updateNotificationPrefs(id, prefs) {
-  const { error } = await supabase.from("profiles").update({ notification_prefs: prefs }).eq("id", id);
+// smsConsent is only passed when the caller wants to change it — omitting it (undefined) leaves
+// the column untouched, so this can be called for a plain email-prefs save too. Turning consent
+// ON stamps sms_consent_at as the compliance record of when they last agreed; turning it OFF
+// intentionally leaves that timestamp alone (it should always show the last time consent was
+// actually given, not get erased by opting out).
+export async function updateNotificationPrefs(id, prefs, smsConsent) {
+  const fields = { notification_prefs: prefs };
+  if (smsConsent !== undefined) {
+    fields.sms_consent = smsConsent;
+    if (smsConsent) fields.sms_consent_at = new Date().toISOString();
+  }
+  const { error } = await supabase.from("profiles").update(fields).eq("id", id);
   if (error) throw error;
 }
 
