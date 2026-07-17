@@ -3,6 +3,22 @@ import { C, sans } from "../theme";
 import { Field, Btn } from "../ui/Primitives";
 import { TimelinePicker } from "./TimelinePicker";
 
+// iPhones default to HEIC/HEIF, which browsers can't render in an <img> tag — the customer's
+// own upload would show as a broken thumbnail. Detect by MIME type (Safari) or extension (iOS
+// Chrome, which reports an empty/generic type for these) and convert to JPEG before it's ever
+// previewed or uploaded.
+function isHeic(file) {
+  return /^image\/hei(c|f)/.test(file.type) || /\.hei[cf]$/i.test(file.name);
+}
+
+async function toJpegIfHeic(file) {
+  if (!isHeic(file)) return file;
+  const heic2any = (await import("heic2any")).default;
+  const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+  const blob = Array.isArray(converted) ? converted[0] : converted;
+  return new File([blob], file.name.replace(/\.hei[cf]$/i, ".jpg"), { type: "image/jpeg" });
+}
+
 export function PostJobForm({ onCancel, onSubmit, submitting }) {
   const [serviceType, setServiceType] = useState("removal"); // removal | rental
   const [title, setTitle] = useState("");
@@ -13,12 +29,23 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
   const [rentalStartDate, setRentalStartDate] = useState("");
   const [rentalEndDate, setRentalEndDate] = useState("");
   const [timeline, setTimeline] = useState(null);
+  const [convertingPhotos, setConvertingPhotos] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const fileInputRef = useRef(null);
 
-  function handleFiles(fileList) {
-    const files = Array.from(fileList || []).filter(f => f.type.startsWith("image/"));
-    const newPhotos = files.map(f => ({ file: f, url: URL.createObjectURL(f) }));
-    setPhotos(p => [...p, ...newPhotos]);
+  async function handleFiles(fileList) {
+    const files = Array.from(fileList || []).filter(f => f.type.startsWith("image/") || isHeic(f));
+    if (files.length === 0) return;
+    setPhotoError("");
+    setConvertingPhotos(true);
+    try {
+      const converted = await Promise.all(files.map(toJpegIfHeic));
+      const newPhotos = converted.map(f => ({ file: f, url: URL.createObjectURL(f) }));
+      setPhotos(p => [...p, ...newPhotos]);
+    } catch {
+      setPhotoError("Couldn't process one of those photos — try a different file.");
+    }
+    setConvertingPhotos(false);
   }
   function removePhoto(idx) {
     setPhotos(p => {
@@ -98,8 +125,9 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
         <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>
           Photos {!isRental && <span style={{ color: C.red }}>*</span>} <span style={{ fontWeight: 400, color: C.gray }}>{isRental ? "— optional" : "— at least 1 required"}</span>
         </label>
-        <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }}
+        <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" multiple style={{ display: "none" }}
           onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
+        {photoError && <div style={{ fontSize: 11.5, color: C.red, marginBottom: 6 }}>{photoError}</div>}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {photos.map((p, i) => (
             <div key={i} style={{ position: "relative", width: 64, height: 64 }}>
@@ -107,13 +135,13 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
               <button onClick={() => removePhoto(i)} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: C.red, color: C.paper, border: "none", fontSize: 11, cursor: "pointer" }}>×</button>
             </div>
           ))}
-          <button onClick={() => fileInputRef.current?.click()} style={{
+          <button onClick={() => fileInputRef.current?.click()} disabled={convertingPhotos} style={{
             width: 64, height: 64, borderRadius: 8, border: `2px dashed ${C.line}`, background: "none",
-            cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            color: C.gray, fontSize: 18,
+            cursor: convertingPhotos ? "default" : "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            color: C.gray, fontSize: 18, opacity: convertingPhotos ? 0.6 : 1,
           }}>
-            <span>+</span>
-            <span style={{ fontSize: 9 }}>Add</span>
+            <span>{convertingPhotos ? "…" : "+"}</span>
+            <span style={{ fontSize: 9 }}>{convertingPhotos ? "Processing" : "Add"}</span>
           </button>
         </div>
       </div>
