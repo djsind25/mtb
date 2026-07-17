@@ -14,5 +14,6 @@ export function mapProfileToSession(profile) {
     notificationPrefs: profile.notification_prefs,
     active: profile.active,
     adminReadOnly: !!profile.admin_read_only,
+    superAdmin: !!profile.super_admin,
   };
 }

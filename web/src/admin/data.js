@@ -144,3 +144,26 @@ export async function reviewHaulerDocument(documentId, approved, note) {
   const { error } = await supabase.rpc("review_hauler_document", { p_document_id: documentId, p_approved: approved, p_note: note || null });
   if (error) throw error;
 }
+
+export async function loadAdminInvites() {
+  const { data: invites, error } = await supabase.from("admin_invites").select("*").is("accepted_at", null).order("created_at", { ascending: false });
+  if (error) throw error;
+  if (invites.length === 0) return [];
+
+  const inviterIds = [...new Set(invites.map(i => i.invited_by))];
+  const { data: people, error: peopleError } = await supabase.from("public_profiles").select("id, name").in("id", inviterIds);
+  if (peopleError) throw peopleError;
+  const nameById = Object.fromEntries(people.map(p => [p.id, p.name]));
+
+  return invites.map(i => ({ ...i, invitedByName: nameById[i.invited_by] }));
+}
+
+export async function createAdminInvite(email, adminReadOnly) {
+  const { error } = await supabase.rpc("create_admin_invite", { p_email: email, p_admin_read_only: adminReadOnly });
+  if (error) throw error;
+}
+
+export async function cancelAdminInvite(inviteId) {
+  const { error } = await supabase.rpc("cancel_admin_invite", { p_invite_id: inviteId });
+  if (error) throw error;
+}

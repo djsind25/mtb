@@ -4,6 +4,7 @@ import { supabase } from "./lib/supabaseClient";
 import { mapProfileToSession } from "./lib/session";
 import { AuthLanding } from "./auth/AuthLanding";
 import { AuthForm } from "./auth/AuthForm";
+import { AdminInviteAccept } from "./auth/AdminInviteAccept";
 import { TopBar } from "./ui/TopBar";
 import { Toast } from "./ui/Toast";
 import { CustomerDashboard } from "./dashboard/CustomerDashboard";
@@ -21,8 +22,16 @@ export default function App() {
   // Lets the marketing site deep-link straight into signup/login for a specific role, e.g.
   // linking its hauler CTAs at `?role=hauler` instead of dropping everyone on the role picker.
   const roleParam = new URLSearchParams(window.location.search).get("role");
+  // An emailed admin-invite link (`?admin_invite=<token>`) takes priority over any existing
+  // session — someone might click it from an inbox on a device where they're already logged in
+  // as something else entirely.
+  const adminInviteToken = new URLSearchParams(window.location.search).get("admin_invite");
 
   const restoreSession = useCallback(async () => {
+    if (adminInviteToken) {
+      setStage("admin_invite");
+      return;
+    }
     const { data: { session: authSession } } = await supabase.auth.getSession();
     if (!authSession) {
       if (roleParam === "customer" || roleParam === "hauler") {
@@ -97,6 +106,23 @@ export default function App() {
       {stage === "loading" && <div style={{ minHeight: "100vh", background: C.sandWarm }} />}
       {stage === "landing" && <AuthLanding onPick={pickRole} />}
       {stage === "auth" && <AuthForm role={authRole} onBack={() => setStage("landing")} onAuthed={handleAuthed} setToast={setToast} />}
+      {stage === "admin_invite" && (
+        <AdminInviteAccept
+          token={adminInviteToken}
+          onAuthed={(user) => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("admin_invite");
+            window.history.replaceState({}, "", url);
+            handleAuthed(user);
+          }}
+          onBack={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("admin_invite");
+            window.history.replaceState({}, "", url);
+            setStage("landing");
+          }}
+        />
+      )}
 
       {stage === "app" && session && (
         <div style={{ minHeight: "100vh", background: C.sand }}>

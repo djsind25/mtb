@@ -474,3 +474,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/send-support-reply/deno.json"
 entrypoint = "./functions/send-support-reply/index.ts"
+
+[functions.send-admin-invite]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-admin-invite/deno.json"
+entrypoint = "./functions/send-admin-invite/index.ts"

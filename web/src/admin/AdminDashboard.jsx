@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif, mono, expiryLabel, isExpired, COMMISSION_RATE } from "../theme";
 import { CenteredNote, Field } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites } from "./data";
 import { loadOpenSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
@@ -13,6 +13,7 @@ import { EditUserModal } from "./EditUserModal";
 import { UserRow } from "./UserRow";
 import { SupportChatRow } from "./SupportChatRow";
 import { HaulerDocRow } from "./HaulerDocRow";
+import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -23,6 +24,7 @@ export function AdminDashboard({ session, setToast }) {
   const [supportChats, setSupportChats] = useState([]);
   const [activeSupportChatId, setActiveSupportChatId] = useState(null);
   const [haulerDocs, setHaulerDocs] = useState([]);
+  const [adminInvites, setAdminInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
@@ -31,8 +33,8 @@ export function AdminDashboard({ session, setToast }) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, j, f, o, sc, hd] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadOpenSupportChats(), loadHaulerDocuments()]);
-    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd);
+    const [u, j, f, o, sc, hd, ai] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadOpenSupportChats(), loadHaulerDocuments(), loadAdminInvites()]);
+    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai);
     setLoading(false);
   }, []);
 
@@ -180,6 +182,20 @@ export function AdminDashboard({ session, setToast }) {
             View-only admins can see every screen but can't approve documents, deactivate accounts,
             edit profiles, or reply to support tickets.
           </p>
+
+          {session.superAdmin && <InviteAdminForm onChanged={loadAll} setToast={setToast} />}
+
+          {adminInvites.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Pending invites</div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {adminInvites.map(i => (
+                  <AdminInviteRow key={i.id} invite={i} onChanged={loadAll} setToast={setToast} canCancel={session.superAdmin} />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ display: "grid", gap: 8 }}>
             {admins.length === 0 && <CenteredNote>No admin accounts.</CenteredNote>}
             {admins.map(u => (
