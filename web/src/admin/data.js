@@ -123,3 +123,24 @@ export async function loadOverdueJobs() {
     };
   });
 }
+
+export async function loadHaulerDocuments() {
+  const { data: docs, error } = await supabase.from("hauler_documents").select("*").order("uploaded_at", { ascending: false });
+  if (error) throw error;
+  if (docs.length === 0) return [];
+
+  const haulerIds = [...new Set(docs.map(d => d.hauler_id))];
+  const { data: people, error: peopleError } = await supabase.from("public_profiles").select("id, name, business_name").in("id", haulerIds);
+  if (peopleError) throw peopleError;
+  const nameById = Object.fromEntries(people.map(p => [p.id, p.business_name || p.name]));
+
+  return Promise.all(docs.map(async d => {
+    const { data: signed } = await supabase.storage.from("hauler-documents").createSignedUrl(d.storage_path, 3600);
+    return { ...d, haulerName: nameById[d.hauler_id], url: signed?.signedUrl };
+  }));
+}
+
+export async function reviewHaulerDocument(documentId, approved, note) {
+  const { error } = await supabase.rpc("review_hauler_document", { p_document_id: documentId, p_approved: approved, p_note: note || null });
+  if (error) throw error;
+}

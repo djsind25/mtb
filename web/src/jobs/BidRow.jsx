@@ -32,12 +32,19 @@ export function BidRow({ bid, jobId, onAccepted, setToast }) {
     <div style={{ border: `1px solid ${bidExpired ? C.amber + "66" : C.line}`, borderRadius: 10, padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
         <div>
-          <span style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep }}>{bid.businessName}</span>
-          {bid.ratingCount > 0 ? (
-            <span style={{ fontSize: 11.5, color: "#E8A23D", marginLeft: 7 }}>★ {bid.rating.toFixed(1)} <span style={{ color: C.gray }}>({bid.ratingCount})</span></span>
-          ) : (
-            <span style={{ fontSize: 11.5, color: C.gray, marginLeft: 7 }}>No reviews yet</span>
-          )}
+          <div>
+            <span style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep }}>{bid.businessName}</span>
+            {bid.ratingCount > 0 ? (
+              <span style={{ fontSize: 11.5, color: "#E8A23D", marginLeft: 7 }}>⭐ {bid.rating.toFixed(1)} <span style={{ color: C.gray }}>({bid.ratingCount})</span></span>
+            ) : (
+              <span style={{ fontSize: 11.5, color: C.gray, marginLeft: 7 }}>No reviews yet</span>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 3, fontSize: 11, color: C.gray }}>
+            {bid.licenseActive && <span>🪪 Licensed</span>}
+            {bid.insuranceActive && <span>🛡️ Insured</span>}
+            {bid.verified && <span>✅ Verified</span>}
+          </div>
         </div>
         <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${bid.amount}</span>
       </div>

@@ -33,6 +33,12 @@ export function UserRow({ user: u, onEdit, onChanged, setToast }) {
         <div style={{ fontSize: 11.5, color: C.gray }}>{u.email} · ZIP {u.zip || "—"} · joined {new Date(u.created_at).toLocaleDateString()}</div>
       </div>
       {!u.active && <Badge color={C.red} bg={C.redLight}>deactivated</Badge>}
+      {u.role === "hauler" && (
+        <>
+          <Badge color={u.license_active ? C.teal : C.red} bg={u.license_active ? C.tealLight : C.redLight}>license {u.license_active ? "✓" : "✗"}</Badge>
+          <Badge color={u.insurance_active ? C.teal : C.red} bg={u.insurance_active ? C.tealLight : C.redLight}>insurance {u.insurance_active ? "✓" : "✗"}</Badge>
+        </>
+      )}
       <Badge color={u.role === "customer" ? C.gray : C.teal} bg={u.role === "customer" ? C.grayLight : C.tealLight}>{u.role}</Badge>
       <Btn size="sm" full={false} variant="ghost" onClick={() => onEdit(u)}>Edit</Btn>
       {u.role !== "admin" && (

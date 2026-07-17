@@ -119,3 +119,27 @@ export async function deactivateOwnAccount(id) {
   if (error) throw error;
   await supabase.auth.signOut();
 }
+
+export async function loadHaulerDocuments(haulerId) {
+  const { data, error } = await supabase.from("hauler_documents").select("*").eq("hauler_id", haulerId);
+  if (error) throw error;
+  const byType = Object.fromEntries(data.map(d => [d.doc_type, d]));
+  for (const doc of data) {
+    const { data: signed } = await supabase.storage.from("hauler-documents").createSignedUrl(doc.storage_path, 3600);
+    doc.url = signed?.signedUrl;
+  }
+  return byType;
+}
+
+// A fresh upload always replaces whatever was there before (one current document per type —
+// see the hauler_documents unique(hauler_id, doc_type) constraint), which is why this needs
+// the hauler's own id up front rather than a doc id.
+export async function submitHaulerDocument({ haulerId, docType, file, expiresAt }) {
+  const path = `${haulerId}/${crypto.randomUUID()}-${file.name}`;
+  const { error: uploadError } = await supabase.storage.from("hauler-documents").upload(path, file);
+  if (uploadError) throw uploadError;
+  const { error } = await supabase.rpc("submit_hauler_document", {
+    p_doc_type: docType, p_storage_path: path, p_original_name: file.name, p_expires_at: expiresAt,
+  });
+  if (error) throw error;
+}

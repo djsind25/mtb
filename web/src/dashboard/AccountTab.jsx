@@ -4,8 +4,9 @@ import { Btn, Field, Badge, CenteredNote } from "../ui/Primitives";
 import { supabase } from "../lib/supabaseClient";
 import {
   loadCustomerPayments, loadHaulerEarnings, updateOwnProfile, updateNotificationPrefs,
-  changeEmail, changePassword, deactivateOwnAccount, resendVerificationEmail,
+  changeEmail, changePassword, deactivateOwnAccount, resendVerificationEmail, loadHaulerDocuments,
 } from "./data";
+import { HaulerDocuments } from "./HaulerDocuments";
 
 const EVENT_LABELS = {
   bidReceived: "New bid on your job",
@@ -13,6 +14,8 @@ const EVENT_LABELS = {
   newMessage: "New chat message",
   jobCompleted: "Job marked complete",
   reminderOverdue: "Completion reminder",
+  documentExpiring: "Verification document expiring soon",
+  documentExpired: "Verification document expired",
 };
 
 const sectionTitle = { fontSize: 15, fontWeight: 700, color: C.pineDeep, marginBottom: 12 };
@@ -42,6 +45,13 @@ export function AccountTab({ session, setToast }) {
 
   const [resending, setResending] = useState(false);
 
+  const [documents, setDocuments] = useState({});
+
+  const loadDocuments = async () => {
+    if (session.role !== "hauler") return;
+    setDocuments(await loadHaulerDocuments(session.id));
+  };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -50,6 +60,7 @@ export function AccountTab({ session, setToast }) {
         supabase.from("profiles").select("*").eq("id", session.id).single(),
         session.role === "customer" ? loadCustomerPayments(session.id) : loadHaulerEarnings(session.id),
       ]);
+      if (session.role === "hauler") await loadDocuments();
       if (cancelled) return;
       setProfile(p);
       setName(p.name || "");
@@ -143,6 +154,10 @@ export function AccountTab({ session, setToast }) {
             {resending ? "Sending…" : "Resend verification email"}
           </Btn>
         </section>
+      )}
+
+      {session.role === "hauler" && (
+        <HaulerDocuments haulerId={session.id} documents={documents} onChanged={loadDocuments} setToast={setToast} />
       )}
 
       <section>

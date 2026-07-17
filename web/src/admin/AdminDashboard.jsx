@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif, mono, expiryLabel, isExpired, COMMISSION_RATE } from "../theme";
 import { CenteredNote, Field } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments } from "./data";
 import { loadOpenSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
@@ -12,6 +12,7 @@ import { OverdueJobRow } from "./OverdueJobRow";
 import { EditUserModal } from "./EditUserModal";
 import { UserRow } from "./UserRow";
 import { SupportChatRow } from "./SupportChatRow";
+import { HaulerDocRow } from "./HaulerDocRow";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -21,6 +22,7 @@ export function AdminDashboard({ session, setToast }) {
   const [overdue, setOverdue] = useState([]);
   const [supportChats, setSupportChats] = useState([]);
   const [activeSupportChatId, setActiveSupportChatId] = useState(null);
+  const [haulerDocs, setHaulerDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
@@ -29,8 +31,8 @@ export function AdminDashboard({ session, setToast }) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, j, f, o, sc] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadOpenSupportChats()]);
-    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc);
+    const [u, j, f, o, sc, hd] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadOpenSupportChats(), loadHaulerDocuments()]);
+    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd);
     setLoading(false);
   }, []);
 
@@ -63,6 +65,9 @@ export function AdminDashboard({ session, setToast }) {
   const sortedOverdue = [...overdue].sort((a, b) => (a.overdue_reviewed === b.overdue_reviewed ? 0 : a.overdue_reviewed ? 1 : -1));
   const visibleOverdue = hideReviewedOverdue ? sortedOverdue.filter(j => !j.overdue_reviewed) : sortedOverdue;
   const unreviewedOverdueCount = overdue.filter(j => !j.overdue_reviewed).length;
+
+  const sortedHaulerDocs = [...haulerDocs].sort((a, b) => (a.status === "pending") === (b.status === "pending") ? 0 : a.status === "pending" ? -1 : 1);
+  const pendingDocCount = haulerDocs.filter(d => d.status === "pending").length;
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
@@ -102,6 +107,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "jobs", label: `Jobs & bids (${jobs.length})` },
           { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
+          { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
           { id: "support", label: `Support (${supportChats.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
@@ -189,6 +195,15 @@ export function AdminDashboard({ session, setToast }) {
             {overdue.length === 0 && <CenteredNote>Nothing overdue right now.</CenteredNote>}
             {overdue.length > 0 && visibleOverdue.length === 0 && <CenteredNote>All overdue jobs reviewed. 🎉</CenteredNote>}
             {visibleOverdue.map(j => <OverdueJobRow key={j.id} job={j} expanded onChanged={loadAll} />)}
+          </div>
+        </Panel>
+      )}
+
+      {tab === "docs" && (
+        <Panel title="Hauler license & insurance review">
+          <div style={{ display: "grid", gap: 8 }}>
+            {haulerDocs.length === 0 && <CenteredNote>No documents submitted yet.</CenteredNote>}
+            {sortedHaulerDocs.map(d => <HaulerDocRow key={d.id} doc={d} onChanged={loadAll} setToast={setToast} />)}
           </div>
         </Panel>
       )}
