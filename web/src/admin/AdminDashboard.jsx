@@ -15,6 +15,7 @@ import { SupportChatRow } from "./SupportChatRow";
 import { HaulerDocRow } from "./HaulerDocRow";
 import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
 import { RevenueTab, buildMonthlyRevenue } from "./RevenueTab";
+import { AutoExportTab } from "./AutoExportTab";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -58,6 +59,9 @@ export function AdminDashboard({ session, setToast }) {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const thisMonth = monthlyRevenue.find(r => r.key === currentMonthKey) || { gmv: 0, deposit: 0, haulerDirect: 0 };
+  const sixtyDaysAgo = new Date(now);
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+  const recentJobCount = jobs.filter(j => new Date(j.created_at) >= sixtyDaysAgo).length;
 
   // Unreviewed-first (stable sort keeps each group in its original, most-recent-first order),
   // with an optional toggle to hide anything already checked off.
@@ -103,7 +107,7 @@ export function AdminDashboard({ session, setToast }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 24 }}>
         <Stat label="Customers" value={customers.length} />
         <Stat label="Haulers" value={haulers.length} />
-        <Stat label="Total jobs" value={jobs.length} />
+        <Stat label="Total jobs — last 60 days" value={recentJobCount} onClick={() => setTab("jobs")} />
         <Stat label="Booked jobs" value={bookedJobs.length} />
         <Stat label="GMV (booked) — this month" value={`$${thisMonth.gmv.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
         <Stat label="Deposit revenue (10%) — this month" value={`$${thisMonth.deposit.toFixed(2)}`} mono accent onClick={() => setTab("revenue")} />
@@ -119,6 +123,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "admins", label: `Admins (${admins.length})` },
           { id: "jobs", label: `Jobs & bids (${jobs.length})` },
           { id: "revenue", label: "Revenue" },
+          { id: "autoExport", label: "Auto export" },
           { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
@@ -217,6 +222,12 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "revenue" && (
         <Panel title="Revenue by month">
           <RevenueTab jobs={jobs} />
+        </Panel>
+      )}
+
+      {tab === "autoExport" && (
+        <Panel title="Auto export">
+          <AutoExportTab session={session} setToast={setToast} />
         </Panel>
       )}
 

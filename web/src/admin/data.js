@@ -167,3 +167,19 @@ export async function cancelAdminInvite(inviteId) {
   const { error } = await supabase.rpc("cancel_admin_invite", { p_invite_id: inviteId });
   if (error) throw error;
 }
+
+export async function loadAutoExportEnabled() {
+  const { data, error } = await supabase.from("app_config").select("value").eq("key", "auto_export_enabled").single();
+  if (error) throw error;
+  return data.value === "true";
+}
+
+export async function setAutoExportEnabled(enabled) {
+  const { error } = await supabase.rpc("set_auto_export_enabled", { p_enabled: enabled });
+  if (error) throw error;
+}
+
+export async function sendMonthlyExportNow() {
+  const { error } = await supabase.rpc("send_monthly_export_now");
+  if (error) throw error;
+}

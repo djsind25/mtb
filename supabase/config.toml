@@ -480,3 +480,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/send-admin-invite/deno.json"
 entrypoint = "./functions/send-admin-invite/index.ts"
+
+[functions.send-monthly-export]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-monthly-export/deno.json"
+entrypoint = "./functions/send-monthly-export/index.ts"
