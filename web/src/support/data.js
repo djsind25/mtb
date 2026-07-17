@@ -62,6 +62,6 @@ export async function loadOpenSupportChats() {
 }
 
 export async function closeSupportChat(id) {
-  const { error } = await supabase.from("support_chats").update({ status: "closed" }).eq("id", id);
+  const { error } = await supabase.rpc("close_support_chat", { p_support_chat_id: id });
   if (error) throw error;
 }
