@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { C, serif, mono, expiryLabel, isExpired, COMMISSION_RATE } from "../theme";
+import { C, serif } from "../theme";
 import { CenteredNote, Field } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites } from "./data";
 import { loadOpenSupportChats } from "../support/data";
@@ -14,6 +14,7 @@ import { UserRow } from "./UserRow";
 import { SupportChatRow } from "./SupportChatRow";
 import { HaulerDocRow } from "./HaulerDocRow";
 import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
+import { RevenueTab, buildMonthlyRevenue } from "./RevenueTab";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -53,12 +54,10 @@ export function AdminDashboard({ session, setToast }) {
   const filteredCustomers = customers.filter(matchesSearch);
   const filteredHaulers = haulers.filter(matchesSearch);
   const bookedJobs = jobs.filter(j => j.status === "booked");
-  const totalGMV = bookedJobs.reduce((sum, j) => {
-    const bid = (j.bids || []).find(b => b.id === j.accepted_bid_id);
-    return sum + (bid?.amount || 0);
-  }, 0);
-  const depositCollected = +(totalGMV * COMMISSION_RATE).toFixed(2);
-  const haulerDirectVolume = +(totalGMV * (1 - COMMISSION_RATE)).toFixed(2);
+  const monthlyRevenue = buildMonthlyRevenue(jobs);
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const thisMonth = monthlyRevenue.find(r => r.key === currentMonthKey) || { gmv: 0, deposit: 0, haulerDirect: 0 };
 
   // Unreviewed-first (stable sort keeps each group in its original, most-recent-first order),
   // with an optional toggle to hide anything already checked off.
@@ -106,10 +105,10 @@ export function AdminDashboard({ session, setToast }) {
         <Stat label="Haulers" value={haulers.length} />
         <Stat label="Total jobs" value={jobs.length} />
         <Stat label="Booked jobs" value={bookedJobs.length} />
-        <Stat label="GMV (booked)" value={`$${totalGMV.toFixed(2)}`} mono />
-        <Stat label="Deposit revenue (10%)" value={`$${depositCollected.toFixed(2)}`} mono accent />
-        <Stat label="Paid hauler-direct (90%)" value={`$${haulerDirectVolume.toFixed(2)}`} mono />
-        <Stat label="Overdue completions" value={overdue.length} accent={overdue.length > 0} />
+        <Stat label="GMV (booked) — this month" value={`$${thisMonth.gmv.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
+        <Stat label="Deposit revenue (10%) — this month" value={`$${thisMonth.deposit.toFixed(2)}`} mono accent onClick={() => setTab("revenue")} />
+        <Stat label="Paid hauler-direct (90%) — this month" value={`$${thisMonth.haulerDirect.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
+        <Stat label="Overdue completions" value={overdue.length} accent={overdue.length > 0} onClick={() => setTab("overdue")} />
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
@@ -119,6 +118,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "haulers", label: `Haulers (${haulers.length})` },
           { id: "admins", label: `Admins (${admins.length})` },
           { id: "jobs", label: `Jobs & bids (${jobs.length})` },
+          { id: "revenue", label: "Revenue" },
           { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
@@ -211,6 +211,12 @@ export function AdminDashboard({ session, setToast }) {
             {jobs.length === 0 && <CenteredNote>No jobs yet.</CenteredNote>}
             {jobs.map(j => <JobRowExpanded key={j.id} job={j} />)}
           </div>
+        </Panel>
+      )}
+
+      {tab === "revenue" && (
+        <Panel title="Revenue by month">
+          <RevenueTab jobs={jobs} />
         </Panel>
       )}
 
