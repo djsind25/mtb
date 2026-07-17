@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MyTrashBid — Junk Haulers Compete For Your Job</title>
 <meta name="description" content="Post your junk removal job and local haulers compete with competitive quotes. Snap. Get Quotes. Done.">
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -715,22 +716,17 @@
   // wants their dashboard, so it goes straight to the actual app instead.
   document.getElementById('navLogin').href = APP_URL;
 
-  // Logo SVG injected into nav + footer
-  function logoSVG(size){
-    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 48 48" fill="none" style="flex-shrink:0">'+
-      '<circle cx="37" cy="9" r="7.5" fill="#41A62E"/>'+
-      '<path d="M37 16.5 L33.5 12 L40.5 12 Z" fill="#41A62E"/>'+
-      '<text x="37" y="12.5" text-anchor="middle" font-size="9" font-weight="800" fill="#fff" font-family="Inter,sans-serif">$</text>'+
-      '<rect x="5" y="15" width="34" height="6" rx="1.5" fill="#fff"/>'+
-      '<path d="M8 21 H36 L33.5 39 H10.5 Z" fill="#41A62E"/>'+
-      '<circle cx="14" cy="41.5" r="2.4" fill="#fff"/>'+
-      '<circle cx="30" cy="41.5" r="2.4" fill="#fff"/>'+
-      '<circle cx="22" cy="30" r="7" fill="#fff"/>'+
-      '<path d="M18.5 30 L21 32.5 L26 27" stroke="#41A62E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'+
-      '</svg>';
+  // Logo image injected into nav + footer — a white circular badge behind the mark so it reads
+  // as a button against both the dark nav/footer and the lighter page background.
+  function logoImg(size){
+    var pad = Math.round(size * 0.18);
+    var inner = size - pad * 2;
+    return '<span style="display:inline-flex;align-items:center;justify-content:center;width:'+size+'px;height:'+size+'px;border-radius:50%;background:#fff;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.15)">'+
+      '<img src="logo.png" width="'+inner+'" height="'+inner+'" alt="" style="object-fit:contain">'+
+      '</span>';
   }
-  document.getElementById('brandLogo').innerHTML = logoSVG(28) + '<span>MyTrash<span class="b">Bid</span></span>';
-  document.getElementById('footLogo').innerHTML = logoSVG(26) + '<span>MyTrash<span class="b">Bid</span></span>';
+  document.getElementById('brandLogo').innerHTML = logoImg(28) + '<span>MyTrash<span class="b">Bid</span></span>';
+  document.getElementById('footLogo').innerHTML = logoImg(26) + '<span>MyTrash<span class="b">Bid</span></span>';
 
   // Nav toggle
   const navToggle = document.getElementById('navToggle');
