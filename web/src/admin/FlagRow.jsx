@@ -4,7 +4,7 @@ import { nowStr } from "../theme";
 import { AdminChatViewer } from "./AdminChatViewer";
 import { setFlagReviewed } from "./data";
 
-export function FlagRow({ flag, expanded, onChanged }) {
+export function FlagRow({ flag, expanded, onChanged, readOnly }) {
   const [viewingChat, setViewingChat] = useState(false);
   const [working, setWorking] = useState(false);
   const isRepeat = flag.flag_type === "warned-repeat";
@@ -44,8 +44,8 @@ export function FlagRow({ flag, expanded, onChanged }) {
             View full conversation →
           </button>
         ) : <span />}
-        <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.ink, cursor: "pointer" }}>
-          <input type="checkbox" checked={reviewed} disabled={working} onChange={toggleReviewed} />
+        <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.ink, cursor: readOnly ? "default" : "pointer" }}>
+          <input type="checkbox" checked={reviewed} disabled={working || readOnly} onChange={toggleReviewed} />
           Reviewed
         </label>
       </div>

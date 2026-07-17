@@ -4,7 +4,7 @@ import { CenteredNote } from "../ui/Primitives";
 import { supabase } from "../lib/supabaseClient";
 import { loadSupportMessages, sendSupportMessage } from "./data";
 
-export function SupportChatThread({ supportChatId, viewerRole, viewerId, title, onClose, setToast }) {
+export function SupportChatThread({ supportChatId, viewerRole, viewerId, title, onClose, setToast, readOnly }) {
   const [messages, setMessages] = useState(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -72,19 +72,25 @@ export function SupportChatThread({ supportChatId, viewerRole, viewerId, title, 
           })}
         </div>
 
-        <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 12px" }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-            <textarea value={draft} onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Message support…" rows={1}
-              style={{ flex: 1, resize: "none", border: `1.5px solid ${C.line}`, borderRadius: 20, padding: "9px 15px", fontSize: 13.5, fontFamily: "inherit", outline: "none", color: C.ink, background: C.sand }} />
-            <button onClick={send} disabled={!draft.trim() || sending} style={{
-              width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: "none",
-              cursor: draft.trim() ? "pointer" : "default", background: draft.trim() ? C.ember : C.grayLight,
-              color: C.paper, fontSize: 14,
-            }}>➤</button>
+        {readOnly ? (
+          <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 16px", fontSize: 12, color: C.gray, textAlign: "center" }}>
+            👁️ View-only admin — can't reply to tickets.
           </div>
-        </div>
+        ) : (
+          <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 12px" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <textarea value={draft} onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                placeholder="Message support…" rows={1}
+                style={{ flex: 1, resize: "none", border: `1.5px solid ${C.line}`, borderRadius: 20, padding: "9px 15px", fontSize: 13.5, fontFamily: "inherit", outline: "none", color: C.ink, background: C.sand }} />
+              <button onClick={send} disabled={!draft.trim() || sending} style={{
+                width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: "none",
+                cursor: draft.trim() ? "pointer" : "default", background: draft.trim() ? C.ember : C.grayLight,
+                color: C.paper, fontSize: 14,
+              }}>➤</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

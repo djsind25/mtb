@@ -3,8 +3,9 @@ import { C } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
 import { updateUserProfile } from "./data";
 
-export function UserRow({ user: u, onEdit, onChanged, setToast }) {
+export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const [confirming, setConfirming] = useState(false);
+  const [confirmingAdminRole, setConfirmingAdminRole] = useState(false);
   const [working, setWorking] = useState(false);
 
   async function toggleActive() {
@@ -18,6 +19,19 @@ export function UserRow({ user: u, onEdit, onChanged, setToast }) {
     }
     setWorking(false);
     setConfirming(false);
+  }
+
+  async function toggleAdminReadOnly() {
+    setWorking(true);
+    try {
+      await updateUserProfile(u.id, { admin_read_only: !u.admin_read_only });
+      setToast(u.admin_read_only ? `${displayName} is now a full admin.` : `${displayName} is now view-only.`);
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not update admin access.");
+    }
+    setWorking(false);
+    setConfirmingAdminRole(false);
   }
 
   const displayName = u.role === "customer" ? u.name : (u.business_name || u.name);
@@ -40,8 +54,26 @@ export function UserRow({ user: u, onEdit, onChanged, setToast }) {
         </>
       )}
       <Badge color={u.role === "customer" ? C.gray : C.teal} bg={u.role === "customer" ? C.grayLight : C.tealLight}>{u.role}</Badge>
-      <Btn size="sm" full={false} variant="ghost" onClick={() => onEdit(u)}>Edit</Btn>
-      {u.role !== "admin" && (
+      {u.role === "admin" && (
+        <Badge color={u.admin_read_only ? C.amber : C.teal} bg={u.admin_read_only ? C.amberLight : C.tealLight}>
+          {u.admin_read_only ? "view-only" : "full admin"}
+        </Badge>
+      )}
+      {!readOnly && <Btn size="sm" full={false} variant="ghost" onClick={() => onEdit(u)}>Edit</Btn>}
+      {!readOnly && u.role === "admin" && (
+        confirmingAdminRole ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: 11.5, color: C.gray }}>{u.admin_read_only ? "Make full admin?" : "Make view-only?"}</span>
+            <Btn size="sm" full={false} variant="teal" disabled={working} onClick={toggleAdminReadOnly}>Yes</Btn>
+            <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingAdminRole(false)}>No</Btn>
+          </div>
+        ) : (
+          <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingAdminRole(true)}>
+            {u.admin_read_only ? "Make full admin" : "Make view-only"}
+          </Btn>
+        )
+      )}
+      {!readOnly && u.role !== "admin" && (
         confirming ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <span style={{ fontSize: 11.5, color: C.gray }}>{u.active ? "Deactivate?" : "Reactivate?"}</span>

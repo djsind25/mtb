@@ -2,7 +2,7 @@ import { useState } from "react";
 import { C } from "../theme";
 import { setOverdueReviewed } from "./data";
 
-export function OverdueJobRow({ job, expanded, onChanged }) {
+export function OverdueJobRow({ job, expanded, onChanged, readOnly }) {
   const [working, setWorking] = useState(false);
   const reviewed = !!job.overdue_reviewed;
   const daysSince = job.accepted_at ? Math.floor((Date.now() - new Date(job.accepted_at).getTime()) / (24 * 60 * 60 * 1000)) : null;
@@ -37,8 +37,8 @@ export function OverdueJobRow({ job, expanded, onChanged }) {
         </div>
       )}
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.ink, cursor: "pointer" }}>
-          <input type="checkbox" checked={reviewed} disabled={working} onChange={toggleReviewed} />
+        <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.ink, cursor: readOnly ? "default" : "pointer" }}>
+          <input type="checkbox" checked={reviewed} disabled={working || readOnly} onChange={toggleReviewed} />
           Reviewed
         </label>
       </div>

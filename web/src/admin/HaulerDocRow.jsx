@@ -11,7 +11,7 @@ const STATUS_STYLE = {
   expired: { color: C.red, bg: C.redLight },
 };
 
-export function HaulerDocRow({ doc, onChanged, setToast }) {
+export function HaulerDocRow({ doc, onChanged, setToast, readOnly }) {
   const [working, setWorking] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState("");
@@ -64,7 +64,7 @@ export function HaulerDocRow({ doc, onChanged, setToast }) {
         <div style={{ fontSize: 11.5, color: C.red }}>Note: {doc.reviewer_note}</div>
       )}
 
-      {pending && (
+      {pending && !readOnly && (
         rejecting ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <input value={note} onChange={e => setNote(e.target.value)} placeholder="Reason (optional)"

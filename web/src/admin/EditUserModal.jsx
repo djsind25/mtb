@@ -3,7 +3,7 @@ import { C, serif } from "../theme";
 import { Btn, Field, ErrorMsg } from "../ui/Primitives";
 import { updateUserProfile } from "./data";
 
-export function EditUserModal({ user, onClose, onSaved, setToast }) {
+export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
   const [name, setName] = useState(user.name || "");
   const [businessName, setBusinessName] = useState(user.business_name || "");
   const [zip, setZip] = useState(user.zip || "");
@@ -58,9 +58,12 @@ export function EditUserModal({ user, onClose, onSaved, setToast }) {
 
         {error && <ErrorMsg>{error}</ErrorMsg>}
 
+        {readOnly && (
+          <div style={{ fontSize: 12, color: C.gray, marginBottom: 12 }}>👁️ View-only admin — changes can't be saved.</div>
+        )}
         <div style={{ display: "flex", gap: 8 }}>
-          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Btn>
+          <Btn variant="ghost" onClick={onClose}>{readOnly ? "Close" : "Cancel"}</Btn>
+          {!readOnly && <Btn onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Btn>}
         </div>
       </div>
     </div>

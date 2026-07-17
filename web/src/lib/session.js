@@ -13,5 +13,6 @@ export function mapProfileToSession(profile) {
     rating: profile.rating,
     notificationPrefs: profile.notification_prefs,
     active: profile.active,
+    adminReadOnly: !!profile.admin_read_only,
   };
 }

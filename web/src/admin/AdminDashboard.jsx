@@ -40,8 +40,10 @@ export function AdminDashboard({ session, setToast }) {
 
   if (loading) return <CenteredNote>Loading admin dashboard…</CenteredNote>;
 
+  const readOnly = !!session.adminReadOnly;
   const customers = users.filter(u => u.role === "customer");
   const haulers = users.filter(u => u.role === "hauler");
+  const admins = users.filter(u => u.role === "admin");
 
   const searchQuery = userSearch.trim().toLowerCase();
   const matchesSearch = (u) => !searchQuery || [u.name, u.business_name, u.email, u.zip]
@@ -74,6 +76,15 @@ export function AdminDashboard({ session, setToast }) {
       <h2 style={{ fontFamily: serif, fontSize: 24, color: C.pineDeep, marginBottom: 4 }}>🛡️ Admin dashboard</h2>
       <p style={{ fontSize: 13, color: C.gray, marginBottom: 16 }}>Full visibility — users, jobs, bids, deposit revenue, and flagged messages.</p>
 
+      {readOnly && (
+        <div style={{
+          background: C.amberLight, border: `1px solid ${C.amber}66`, borderRadius: 10,
+          padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "#8A6604", fontWeight: 600,
+        }}>
+          👁️ View-only admin — you can see everything here, but can't make changes.
+        </div>
+      )}
+
       <div style={{
         background: C.tealLight, border: `1px solid ${C.teal}44`, borderRadius: 10,
         padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
@@ -104,6 +115,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "overview", label: "Overview" },
           { id: "customers", label: `Customers (${customers.length})` },
           { id: "haulers", label: `Haulers (${haulers.length})` },
+          { id: "admins", label: `Admins (${admins.length})` },
           { id: "jobs", label: `Jobs & bids (${jobs.length})` },
           { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
@@ -126,11 +138,11 @@ export function AdminDashboard({ session, setToast }) {
           </Panel>
           {overdue.length > 0 && (
             <Panel title={`⚠ Overdue completions (${overdue.length})`}>
-              {sortedOverdue.map(j => <OverdueJobRow key={j.id} job={j} onChanged={loadAll} />)}
+              {sortedOverdue.map(j => <OverdueJobRow key={j.id} job={j} onChanged={loadAll} readOnly={readOnly} />)}
             </Panel>
           )}
           <Panel title="Recent flags">
-            {sortedFlags.slice(0, 5).map(f => <FlagRow key={f.id} flag={f} onChanged={loadAll} />)}
+            {sortedFlags.slice(0, 5).map(f => <FlagRow key={f.id} flag={f} onChanged={loadAll} readOnly={readOnly} />)}
             {flags.length === 0 && <CenteredNote>No flagged messages yet.</CenteredNote>}
           </Panel>
         </div>
@@ -143,7 +155,7 @@ export function AdminDashboard({ session, setToast }) {
             {customers.length === 0 && <CenteredNote>No customer accounts yet.</CenteredNote>}
             {customers.length > 0 && filteredCustomers.length === 0 && <CenteredNote>No customers match "{userSearch}".</CenteredNote>}
             {filteredCustomers.map(u => (
-              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} />
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
             ))}
           </div>
         </Panel>
@@ -156,7 +168,22 @@ export function AdminDashboard({ session, setToast }) {
             {haulers.length === 0 && <CenteredNote>No hauler accounts yet.</CenteredNote>}
             {haulers.length > 0 && filteredHaulers.length === 0 && <CenteredNote>No haulers match "{userSearch}".</CenteredNote>}
             {filteredHaulers.map(u => (
-              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} />
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      {tab === "admins" && (
+        <Panel title="Admin accounts">
+          <p style={{ fontSize: 12, color: C.gray, marginBottom: 12 }}>
+            View-only admins can see every screen but can't approve documents, deactivate accounts,
+            edit profiles, or reply to support tickets.
+          </p>
+          <div style={{ display: "grid", gap: 8 }}>
+            {admins.length === 0 && <CenteredNote>No admin accounts.</CenteredNote>}
+            {admins.map(u => (
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
             ))}
           </div>
         </Panel>
@@ -180,7 +207,7 @@ export function AdminDashboard({ session, setToast }) {
           <div style={{ display: "grid", gap: 8 }}>
             {flags.length === 0 && <CenteredNote>No flagged messages yet.</CenteredNote>}
             {flags.length > 0 && visibleFlags.length === 0 && <CenteredNote>All flags reviewed. 🎉</CenteredNote>}
-            {visibleFlags.map(f => <FlagRow key={f.id} flag={f} expanded onChanged={loadAll} />)}
+            {visibleFlags.map(f => <FlagRow key={f.id} flag={f} expanded onChanged={loadAll} readOnly={readOnly} />)}
           </div>
         </Panel>
       )}
@@ -194,7 +221,7 @@ export function AdminDashboard({ session, setToast }) {
           <div style={{ display: "grid", gap: 8 }}>
             {overdue.length === 0 && <CenteredNote>Nothing overdue right now.</CenteredNote>}
             {overdue.length > 0 && visibleOverdue.length === 0 && <CenteredNote>All overdue jobs reviewed. 🎉</CenteredNote>}
-            {visibleOverdue.map(j => <OverdueJobRow key={j.id} job={j} expanded onChanged={loadAll} />)}
+            {visibleOverdue.map(j => <OverdueJobRow key={j.id} job={j} expanded onChanged={loadAll} readOnly={readOnly} />)}
           </div>
         </Panel>
       )}
@@ -203,7 +230,7 @@ export function AdminDashboard({ session, setToast }) {
         <Panel title="Hauler license & insurance review">
           <div style={{ display: "grid", gap: 8 }}>
             {haulerDocs.length === 0 && <CenteredNote>No documents submitted yet.</CenteredNote>}
-            {sortedHaulerDocs.map(d => <HaulerDocRow key={d.id} doc={d} onChanged={loadAll} setToast={setToast} />)}
+            {sortedHaulerDocs.map(d => <HaulerDocRow key={d.id} doc={d} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />)}
           </div>
         </Panel>
       )}
@@ -220,6 +247,7 @@ export function AdminDashboard({ session, setToast }) {
             })()}
             onClose={() => { setActiveSupportChatId(null); loadAll(); }}
             setToast={setToast}
+            readOnly={readOnly}
           />
         ) : (
           <Panel title="Open support tickets — any admin can pick these up">
@@ -237,6 +265,7 @@ export function AdminDashboard({ session, setToast }) {
           onClose={() => setEditingUser(null)}
           onSaved={() => { setEditingUser(null); loadAll(); }}
           setToast={setToast}
+          readOnly={readOnly}
         />
       )}
     </div>
