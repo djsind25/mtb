@@ -13,9 +13,10 @@ async function fetchProfile(userId) {
 }
 
 export function AuthForm({ role, onBack, onAuthed, setToast }) {
-  const [mode, setMode] = useState("login"); // login | signup
+  const [mode, setMode] = useState("login"); // login | signup | reset
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
 
   // shared
   const [email, setEmail] = useState("");
@@ -70,6 +71,20 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     onAuthed(mapProfileToSession(profile));
   }
 
+  async function handleReset() {
+    setError("");
+    if (!email.trim()) { setError("Enter your email."); return; }
+    setLoading(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin,
+    });
+    setLoading(false);
+    // Supabase doesn't reveal whether the email actually has an account (anti-enumeration) — the
+    // same "check your email" message is shown either way.
+    if (resetError) { setError(resetError.message); return; }
+    setResetSent(true);
+  }
+
   async function handleSignup() {
     setError("");
     if (role === "customer") {
@@ -110,12 +125,59 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
   }
 
   if (role === "admin") {
+    if (mode === "reset") {
+      return (
+        <AuthShell title="Admin login" subtitle="Reset your passcode" onBack={onBack}>
+          {resetSent ? (
+            <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.6 }}>
+              Check <strong>{email.trim()}</strong> for a link to set a new passcode.
+            </div>
+          ) : (
+            <>
+              <Field label="Admin email" value={email} onChange={setEmail} placeholder="admin@mytrashbid.com" />
+              {error && <ErrorMsg>{error}</ErrorMsg>}
+              <Btn onClick={handleReset} disabled={loading} size="lg" variant="dark">{loading ? "Sending…" : "Send reset link"}</Btn>
+            </>
+          )}
+          <button onClick={() => { setMode("login"); setError(""); setResetSent(false); }} style={{
+            background: "none", border: "none", color: C.gray, fontSize: 12.5, cursor: "pointer",
+            textDecoration: "underline", marginTop: 14, display: "block",
+          }}>← Back to login</button>
+        </AuthShell>
+      );
+    }
     return (
       <AuthShell title="Admin login" subtitle="Restricted access" onBack={onBack}>
         <Field label="Admin email" value={email} onChange={setEmail} placeholder="admin@mytrashbid.com" />
         <Field label="Passcode" value={adminPass} onChange={setAdminPass} type="password" placeholder="••••••" />
         {error && <ErrorMsg>{error}</ErrorMsg>}
         <Btn onClick={handleAdminLogin} disabled={loading} size="lg" variant="dark">{loading ? "Checking…" : "Enter dashboard"}</Btn>
+        <button onClick={() => { setMode("reset"); setError(""); }} style={{
+          background: "none", border: "none", color: C.gray, fontSize: 12.5, cursor: "pointer",
+          textDecoration: "underline", marginTop: 14, display: "block",
+        }}>Forgot passcode?</button>
+      </AuthShell>
+    );
+  }
+
+  if (mode === "reset") {
+    return (
+      <AuthShell title={role === "customer" ? "Customer account" : "Hauler account"} subtitle="Reset your passcode" onBack={onBack}>
+        {resetSent ? (
+          <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.6 }}>
+            Check <strong>{email.trim()}</strong> for a link to set a new passcode.
+          </div>
+        ) : (
+          <>
+            <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" required />
+            {error && <ErrorMsg>{error}</ErrorMsg>}
+            <Btn onClick={handleReset} disabled={loading} size="lg">{loading ? "Sending…" : "Send reset link"}</Btn>
+          </>
+        )}
+        <button onClick={() => { setMode("login"); setError(""); setResetSent(false); }} style={{
+          background: "none", border: "none", color: C.gray, fontSize: 12.5, cursor: "pointer",
+          textDecoration: "underline", marginTop: 14, display: "block",
+        }}>← Back to login</button>
       </AuthShell>
     );
   }
@@ -142,6 +204,10 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Passcode" value={passcode} onChange={setPasscode} type="password" placeholder="••••••" required />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleLogin} disabled={loading} size="lg">{loading ? "Checking…" : "Log in"}</Btn>
+          <button onClick={() => { setMode("reset"); setError(""); }} style={{
+            background: "none", border: "none", color: C.gray, fontSize: 12.5, cursor: "pointer",
+            textDecoration: "underline", marginTop: 14, display: "block",
+          }}>Forgot passcode?</button>
         </>
       )}
 

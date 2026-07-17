@@ -5,6 +5,7 @@ import { mapProfileToSession } from "./lib/session";
 import { AuthLanding } from "./auth/AuthLanding";
 import { AuthForm } from "./auth/AuthForm";
 import { AdminInviteAccept } from "./auth/AdminInviteAccept";
+import { AuthRecovery } from "./auth/AuthRecovery";
 import { TopBar } from "./ui/TopBar";
 import { Toast } from "./ui/Toast";
 import { CustomerDashboard } from "./dashboard/CustomerDashboard";
@@ -12,7 +13,7 @@ import { HaulerDashboard } from "./dashboard/HaulerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 
 export default function App() {
-  const [stage, setStage] = useState("loading"); // loading | landing | auth | app
+  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | app
   const [authRole, setAuthRole] = useState(null);
   const [session, setSession] = useState(null);
   const [page, setPage] = useState("dashboard");
@@ -26,10 +27,19 @@ export default function App() {
   // session — someone might click it from an inbox on a device where they're already logged in
   // as something else entirely.
   const adminInviteToken = new URLSearchParams(window.location.search).get("admin_invite");
+  // A clicked passcode-reset link lands here with `#access_token=...&type=recovery` — that hash
+  // establishes a real, valid session, so getSession() below would otherwise just log the user
+  // straight in as if nothing special happened (a race the PASSWORD_RECOVERY listener alone
+  // doesn't reliably win). Checking the hash upfront routes to the reset screen first regardless.
+  const isRecoveryLink = window.location.hash.includes("type=recovery");
 
   const restoreSession = useCallback(async () => {
     if (adminInviteToken) {
       setStage("admin_invite");
+      return;
+    }
+    if (isRecoveryLink) {
+      setStage("recovery");
       return;
     }
     const { data: { session: authSession } } = await supabase.auth.getSession();
@@ -73,6 +83,11 @@ export default function App() {
         setActiveChatId(null);
         setStage("landing");
       }
+      // Fires once supabase-js has exchanged the token from a clicked passcode-reset email link —
+      // takes over regardless of what screen was showing, same as the admin-invite link above.
+      if (event === "PASSWORD_RECOVERY") {
+        setStage("recovery");
+      }
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -106,6 +121,12 @@ export default function App() {
       {stage === "loading" && <div style={{ minHeight: "100vh", background: C.sandWarm }} />}
       {stage === "landing" && <AuthLanding onPick={pickRole} />}
       {stage === "auth" && <AuthForm role={authRole} onBack={() => setStage("landing")} onAuthed={handleAuthed} setToast={setToast} />}
+      {stage === "recovery" && (
+        <AuthRecovery
+          onAuthed={handleAuthed}
+          onBack={async () => { await supabase.auth.signOut(); setStage("landing"); }}
+        />
+      )}
       {stage === "admin_invite" && (
         <AdminInviteAccept
           token={adminInviteToken}
