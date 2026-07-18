@@ -28,6 +28,7 @@ const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link:
   jobBooked: (title, _body, link) => `Your job "${title}" is booked! ${link}`,
   newMessage: (_title, body, link) => `New MyTrashBid message: ${body ?? ""} ${link}`,
   adminMessage: (_title, body, link) => `MyTrashBid support: ${body ?? ""} ${link}`,
+  jobMarkedDone: (title, _body, link) => `Your hauler marked "${title}" complete — review the photos & acknowledge. ${link}`,
 };
 
 async function sendSms(to: string, body: string): Promise<boolean> {

@@ -22,10 +22,15 @@ async function attachHaulerNames(bids) {
 async function attachChatIds(jobs) {
   const jobIds = jobs.map(j => j.id);
   if (jobIds.length === 0) return jobs;
-  const { data: chats, error } = await supabase.from("chats").select("id, job_id").in("job_id", jobIds);
+  const { data: chats, error } = await supabase.from("chats").select("id, job_id, hauler_done_at, customer_ack_at").in("job_id", jobIds);
   if (error) throw error;
-  const byJobId = Object.fromEntries((chats || []).map(c => [c.job_id, c.id]));
-  return jobs.map(j => ({ ...j, chatId: byJobId[j.id] }));
+  const byJobId = Object.fromEntries((chats || []).map(c => [c.job_id, c]));
+  return jobs.map(j => ({
+    ...j,
+    chatId: byJobId[j.id]?.id,
+    haulerDoneAt: byJobId[j.id]?.hauler_done_at,
+    customerAckAt: byJobId[j.id]?.customer_ack_at,
+  }));
 }
 
 export async function loadCustomerJobs(customerId) {
@@ -120,8 +125,65 @@ export async function acceptBid({ jobId, bidId }) {
   return data; // { clientSecret, chatId, deposit, balanceDue, commission, bidAmount }
 }
 
-export async function confirmJobComplete(jobId) {
-  const { error } = await supabase.rpc("confirm_job_complete", { p_job_id: jobId });
+export async function loadCompletionPhotos(jobId) {
+  const { data: rows, error } = await supabase.from("job_completion_photos").select("*").eq("job_id", jobId).order("created_at", { ascending: true });
+  if (error) throw error;
+  const withUrls = await Promise.all(rows.map(async (r) => {
+    const { data } = await supabase.storage.from("completion-photos").createSignedUrl(r.storage_path, 3600);
+    return { ...r, url: data?.signedUrl };
+  }));
+  return withUrls;
+}
+
+// Best-effort browser geolocation captured at upload time. Resolves to {lat,lng} or null (permission
+// denied, no GPS, or timeout) — we never block the upload on it, per the completion-workflow plan.
+function getGeolocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+    );
+  });
+}
+
+// iPhones default to HEIC, which browsers can't render — convert to JPEG before upload (same
+// approach as the job-post photo flow), dynamically importing heic2any so it only loads when needed.
+async function toJpegIfHeic(file) {
+  if (!/^image\/hei(c|f)/.test(file.type) && !/\.hei[cf]$/i.test(file.name)) return file;
+  const heic2any = (await import("heic2any")).default;
+  const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+  const blob = Array.isArray(converted) ? converted[0] : converted;
+  return new File([blob], file.name.replace(/\.hei[cf]$/i, ".jpg"), { type: "image/jpeg" });
+}
+
+export async function uploadCompletionPhoto({ jobId, haulerId, phase, file }) {
+  const geo = await getGeolocation();
+  const jpeg = await toJpegIfHeic(file);
+  const path = `${jobId}/${crypto.randomUUID()}-${jpeg.name}`;
+  const { error: uploadError } = await supabase.storage.from("completion-photos").upload(path, jpeg);
+  if (uploadError) throw uploadError;
+  const { error: rowError } = await supabase.from("job_completion_photos").insert({
+    job_id: jobId, phase, storage_path: path, original_name: jpeg.name,
+    lat: geo?.lat ?? null, lng: geo?.lng ?? null, uploaded_by: haulerId,
+  });
+  if (rowError) throw rowError;
+}
+
+export async function deleteCompletionPhoto(photoId, storagePath) {
+  await supabase.storage.from("completion-photos").remove([storagePath]);
+  const { error } = await supabase.from("job_completion_photos").delete().eq("id", photoId);
+  if (error) throw error;
+}
+
+export async function haulerMarkDone(jobId) {
+  const { error } = await supabase.rpc("hauler_mark_done", { p_job_id: jobId });
+  if (error) throw error;
+}
+
+export async function customerAcknowledgeCompletion(jobId) {
+  const { error } = await supabase.rpc("customer_acknowledge_completion", { p_job_id: jobId });
   if (error) throw error;
 }
 

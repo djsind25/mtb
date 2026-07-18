@@ -3,11 +3,13 @@ import { C, expiryLabel, isExpired, timelineMeta } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
+import { CompletionPhotos } from "./CompletionPhotos";
 import { TimelinePicker } from "./TimelinePicker";
 
-export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, setToast }) {
+export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
+  const [acknowledging, setAcknowledging] = useState(false);
   const [editingTimeline, setEditingTimeline] = useState(false);
   const [pendingTimeline, setPendingTimeline] = useState(job.timeline);
   const [savingTimeline, setSavingTimeline] = useState(false);
@@ -108,15 +110,47 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
             </div>
           ) : job.status === "booked" ? (
             <div>
-              <div style={{ fontSize: 13, color: C.teal, fontWeight: 700, marginBottom: 6 }}>✓ Locked in — deposit paid</div>
-              <div style={{ marginBottom: 10 }}>
-                {job.completed ? (
-                  <Badge color={C.teal} bg={C.tealLight}>✓ Hauler confirmed complete — leave a review in chat</Badge>
-                ) : (
-                  <Badge color={C.gray} bg={C.grayLight}>Pay the balance directly to your hauler at completion</Badge>
-                )}
-              </div>
-              <Btn variant="teal" onClick={() => onOpenChat(job.chatId)}>Open chat</Btn>
+              <div style={{ fontSize: 13, color: C.teal, fontWeight: 700, marginBottom: 6 }}>✓ Locked in</div>
+              {job.completed ? (
+                <div style={{ marginBottom: 10 }}>
+                  <Badge color={C.teal} bg={C.tealLight}>✓ Completed — leave a review in chat</Badge>
+                </div>
+              ) : job.haulerDoneAt ? (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 13, color: C.ink, fontWeight: 600, marginBottom: 8 }}>
+                    🧹 Your hauler marked this job complete. Review the before/after photos, then acknowledge.
+                  </div>
+                  <CompletionPhotos jobId={job.id} />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <Btn
+                      variant="primary" full={false} disabled={acknowledging}
+                      onClick={async () => {
+                        setAcknowledging(true);
+                        try {
+                          await onAcknowledge(job.id);
+                          setToast("Thanks! Job confirmed complete — you can leave a review in chat.");
+                        } catch (e) {
+                          setToast(e.message || "Could not acknowledge completion.");
+                        }
+                        setAcknowledging(false);
+                      }}
+                    >
+                      {acknowledging ? "Confirming…" : "✓ Acknowledge job complete"}
+                    </Btn>
+                    <Btn variant="teal" full={false} onClick={() => onOpenChat(job.chatId)}>Open chat</Btn>
+                  </div>
+                  <div style={{ fontSize: 10.5, color: C.gray, marginTop: 6 }}>
+                    If you don't respond, this auto-confirms after 7 days.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 10 }}>
+                    <Badge color={C.gray} bg={C.grayLight}>In progress — your hauler will mark it complete with photos</Badge>
+                  </div>
+                  <Btn variant="teal" onClick={() => onOpenChat(job.chatId)}>Open chat</Btn>
+                </>
+              )}
             </div>
           ) : jobExpired ? (
             <div>

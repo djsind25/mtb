@@ -3,7 +3,7 @@ import { serif, C } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 import { PostJobForm } from "../jobs/PostJobForm";
 import { CustomerJobCard } from "../jobs/CustomerJobCard";
-import { loadCustomerJobs, postJob, renewJob, loadCompletedJobsCount, updateJobTimeline } from "../jobs/data";
+import { loadCustomerJobs, postJob, renewJob, loadCompletedJobsCount, updateJobTimeline, customerAcknowledgeCompletion } from "../jobs/data";
 import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
@@ -90,6 +90,11 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
     await loadAll();
   }
 
+  async function handleAcknowledge(jobId) {
+    await customerAcknowledgeCompletion(jobId);
+    await loadAll();
+  }
+
   const summary = stats ? [
     { label: "Active jobs", value: stats.active },
     { label: "Bids waiting on me", value: stats.bidsWaiting },
@@ -133,7 +138,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
             {customerJobs.length === 0 && !showPost && <CenteredNote>No jobs yet — post one to get started.</CenteredNote>}
             <div style={{ display: "grid", gap: 12 }}>
               {customerJobs.map(job => (
-                <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} onUpdateTimeline={handleUpdateTimeline} setToast={setToast} />
+                <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} onUpdateTimeline={handleUpdateTimeline} onAcknowledge={handleAcknowledge} setToast={setToast} />
               ))}
             </div>
           </>

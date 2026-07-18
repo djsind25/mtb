@@ -183,3 +183,37 @@ export async function sendMonthlyExportNow() {
   const { error } = await supabase.rpc("send_monthly_export_now");
   if (error) throw error;
 }
+
+// Admin completion queue: every job the hauler has marked done, newest first. Admin RLS
+// (is_admin()) grants full read of chats/jobs/profiles, so these are plain joins.
+export async function loadCompletedJobs() {
+  const { data: chats, error } = await supabase
+    .from("chats")
+    .select("*")
+    .not("hauler_done_at", "is", null)
+    .order("hauler_done_at", { ascending: false });
+  if (error) throw error;
+  if (chats.length === 0) return [];
+
+  const jobIds = chats.map(c => c.job_id);
+  const partyIds = [...new Set(chats.flatMap(c => [c.customer_id, c.hauler_id]))];
+  const [{ data: jobs }, { data: profiles }] = await Promise.all([
+    supabase.from("jobs").select("id, title, zip").in("id", jobIds),
+    supabase.from("profiles").select("id, name, business_name").in("id", partyIds),
+  ]);
+  const jobById = Object.fromEntries((jobs || []).map(j => [j.id, j]));
+  const pById = Object.fromEntries((profiles || []).map(p => [p.id, p]));
+
+  return chats.map(c => ({
+    ...c,
+    jobTitle: jobById[c.job_id]?.title,
+    zip: jobById[c.job_id]?.zip,
+    customerName: pById[c.customer_id]?.name || "Customer",
+    haulerName: pById[c.hauler_id]?.business_name || pById[c.hauler_id]?.name || "Hauler",
+  }));
+}
+
+export async function reviewCompletion(jobId) {
+  const { error } = await supabase.rpc("admin_review_completion", { p_job_id: jobId });
+  if (error) throw error;
+}

@@ -3,7 +3,7 @@ import { serif, C, MAX_RADIUS_MI, TIMELINE_OPTIONS } from "../theme";
 import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
 import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
-import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, renewBid, confirmJobComplete } from "../jobs/data";
+import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, renewBid, haulerMarkDone } from "../jobs/data";
 import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
@@ -72,14 +72,10 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     }
   }
 
-  async function handleConfirmComplete(jobId) {
-    try {
-      await confirmJobComplete(jobId);
-      setToast("Job marked complete! Review form unlocked for both sides.");
-      await loadAll();
-    } catch (e) {
-      setToast(e.message || "Could not confirm completion.");
-    }
+  async function handleMarkDone(jobId) {
+    await haulerMarkDone(jobId);
+    setToast("Marked complete! The customer has been asked to acknowledge.");
+    await loadAll();
   }
 
   const myBidJobIds = new Set(myBidJobs.map(j => j.id));
@@ -153,7 +149,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
             <div style={{ display: "grid", gap: 12 }}>
               {myBidJobs.length === 0 && <CenteredNote>You haven't submitted any bids yet.</CenteredNote>}
               {myBidJobs.map(job => (
-                <HaulerBidStatusCard key={job.id} job={job} session={session} onOpenChat={openChat} onRenewBid={handleRenewBid} onConfirmComplete={handleConfirmComplete} />
+                <HaulerBidStatusCard key={job.id} job={job} session={session} onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone} setToast={setToast} />
               ))}
             </div>
           </>

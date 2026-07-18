@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
 import { CenteredNote, Field } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs } from "./data";
 import { loadSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
@@ -16,6 +16,7 @@ import { HaulerDocRow } from "./HaulerDocRow";
 import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
 import { RevenueTab, buildMonthlyRevenue } from "./RevenueTab";
 import { AutoExportTab } from "./AutoExportTab";
+import { CompletionReview } from "./CompletionReview";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -27,6 +28,7 @@ export function AdminDashboard({ session, setToast }) {
   const [activeSupportChatId, setActiveSupportChatId] = useState(null);
   const [haulerDocs, setHaulerDocs] = useState([]);
   const [adminInvites, setAdminInvites] = useState([]);
+  const [completedJobs, setCompletedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
@@ -36,8 +38,8 @@ export function AdminDashboard({ session, setToast }) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, j, f, o, sc, hd, ai] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(), loadAdminInvites()]);
-    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai);
+    const [u, j, f, o, sc, hd, ai, cj] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(), loadAdminInvites(), loadCompletedJobs()]);
+    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj);
     setLoading(false);
   }, []);
 
@@ -81,6 +83,8 @@ export function AdminDashboard({ session, setToast }) {
   const closedSupportChats = supportChats.filter(c => c.status === "closed");
   const visibleSupportChats = supportSubTab === "open" ? openSupportChats : supportSubTab === "closed" ? closedSupportChats : supportChats;
 
+  const completionsNeedingReview = completedJobs.filter(c => !c.admin_reviewed_at).length;
+
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
       <h2 style={{ fontFamily: serif, fontSize: 24, color: C.pineDeep, marginBottom: 4 }}>🛡️ Admin dashboard</h2>
@@ -118,6 +122,7 @@ export function AdminDashboard({ session, setToast }) {
         <Stat label="Deposit revenue (10%) — this month" value={`$${thisMonth.deposit.toFixed(2)}`} mono accent onClick={() => setTab("revenue")} />
         <Stat label="Paid hauler-direct (90%) — this month" value={`$${thisMonth.haulerDirect.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
         <Stat label="Overdue completions" value={overdue.length} accent={overdue.length > 0} onClick={() => setTab("overdue")} />
+        <Stat label="Completed — awaiting review" value={completionsNeedingReview} accent={completionsNeedingReview > 0} onClick={() => setTab("completed")} />
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
@@ -132,6 +137,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
+          { id: "completed", label: `Completed jobs (${completionsNeedingReview}/${completedJobs.length})` },
           { id: "support", label: `Open chat tickets (${openSupportChats.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "support") setSupportSubTab("open"); }} style={{
@@ -270,6 +276,12 @@ export function AdminDashboard({ session, setToast }) {
             {haulerDocs.length === 0 && <CenteredNote>No documents submitted yet.</CenteredNote>}
             {sortedHaulerDocs.map(d => <HaulerDocRow key={d.id} doc={d} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />)}
           </div>
+        </Panel>
+      )}
+
+      {tab === "completed" && (
+        <Panel title="Completed jobs — before/after photos & confirmations">
+          <CompletionReview completedJobs={completedJobs} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
         </Panel>
       )}
 
