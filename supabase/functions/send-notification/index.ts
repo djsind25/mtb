@@ -18,6 +18,13 @@ const resendApiKey = Deno.env.get("RESEND_API_KEY");
 const fromAddress = Deno.env.get("RESEND_FROM_EMAIL") ?? "MyTrashBid <bids@mytrashbid.com>";
 const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
 
+// title/body come from user-controlled content (job titles, chat message text). They're
+// interpolated into the email HTML below, so escape them — otherwise a user could inject a
+// phishing link, tracking pixel, or other markup into the email the other party receives.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
 const EVENT_SUBJECTS: Record<string, string> = {
   bidReceived: "New bid on your job",
   bidAccepted: "You won a job!",
@@ -78,8 +85,8 @@ export default {
         from: fromAddress,
         to: profile.email,
         subject,
-        html: `<p>${notification.title}</p>` +
-          (notification.body ? `<p>${notification.body}</p>` : "") +
+        html: `<p>${escapeHtml(notification.title)}</p>` +
+          (notification.body ? `<p>${escapeHtml(notification.body)}</p>` : "") +
           `<p><a href="${link}">View on MyTrashBid</a></p>`,
       });
 

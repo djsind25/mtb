@@ -17,6 +17,11 @@ const resendApiKey = Deno.env.get("RESEND_API_KEY");
 const fromAddress = Deno.env.get("RESEND_FROM_EMAIL") ?? "MyTrashBid <bids@mytrashbid.com>";
 const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
 
+// inviter.name is a stored profile name — escape before interpolating into the email HTML.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
     if (req.headers.get("apikey") !== internalKey || !internalKey) {
@@ -57,7 +62,7 @@ export default {
         from: fromAddress,
         to: invite.email,
         subject: "You've been invited to MyTrashBid as an admin",
-        html: `<h2>You've been invited${inviter?.name ? ` by ${inviter.name}` : ""}.</h2>` +
+        html: `<h2>You've been invited${inviter?.name ? ` by ${escapeHtml(inviter.name)}` : ""}.</h2>` +
           `<p>You're being added as a <strong>${roleLabel}</strong> on MyTrashBid.</p>` +
           `<p><a href="${link}">Set up your admin account</a></p>` +
           `<p>This link expires in 7 days.</p>`,

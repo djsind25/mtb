@@ -16,6 +16,13 @@ import { Resend } from "resend";
 const internalKey = Deno.env.get("INTERNAL_DISPATCH_KEY") ?? "";
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
+// Escape before interpolating into the email HTML. The reply text is admin-authored (lower risk
+// than fully untrusted input), but escaping keeps stray markup from rendering and is consistent
+// with send-notification. Escape first, then turn real newlines into <br> so our own breaks survive.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
     if (req.headers.get("apikey") !== internalKey || !internalKey) {
@@ -56,7 +63,7 @@ export default {
         from: "MyTrashBid Support <support@mytrashbid.com>",
         to: chat.sender_email,
         subject: "Re: your MyTrashBid support request",
-        html: `<p>${message.text.replace(/\n/g, "<br>")}</p>` +
+        html: `<p>${escapeHtml(message.text).replace(/\n/g, "<br>")}</p>` +
           `<p style="color:#888;font-size:12px;">Reply to this email to continue the conversation.</p>`,
       });
       return Response.json({ sent: true });

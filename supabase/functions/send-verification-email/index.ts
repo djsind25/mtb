@@ -19,6 +19,11 @@ const resendApiKey = Deno.env.get("RESEND_API_KEY");
 const fromAddress = Deno.env.get("RESEND_FROM_EMAIL") ?? "MyTrashBid <bids@mytrashbid.com>";
 const siteUrl = Deno.env.get("SITE_URL") ?? "http://localhost:4173";
 
+// profile.name is user-entered at signup — escape before interpolating into the email HTML.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
     if (req.headers.get("apikey") !== internalKey || !internalKey) {
@@ -55,7 +60,7 @@ export default {
         from: fromAddress,
         to: profile.email,
         subject: "Verify your email to activate your MyTrashBid post",
-        html: `<h2>Thanks for signing up${profile.name ? `, ${profile.name}` : ""}.</h2>` +
+        html: `<h2>Thanks for signing up${profile.name ? `, ${escapeHtml(profile.name)}` : ""}.</h2>` +
           `<p>You're already logged in — but any job you post won't be visible to haulers until you verify your email.</p>` +
           `<p><a href="${link}">Verify my email</a></p>` +
           `<p>If you have a post pending, it'll go live automatically the moment you verify.</p>`,
