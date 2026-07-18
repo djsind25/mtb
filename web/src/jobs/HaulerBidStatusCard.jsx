@@ -2,11 +2,13 @@ import { useState } from "react";
 import { C, mono, expiryLabel, isExpired, daysLeft } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "./CompletionPhotos";
+import { RequestCancellationControl } from "./RequestCancellationControl";
 
-export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMarkDone, setToast }) {
+export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, setToast }) {
   const myBid = job.myBid;
   const won = job.status === "booked" && job.accepted_bid_id === myBid?.id;
   const lost = job.status === "booked" && job.accepted_bid_id !== myBid?.id;
+  const cancelled = job.status === "cancelled" && job.accepted_bid_id === myBid?.id;
   const pending = (!job.status || job.status === "open");
   const bidExpired = pending && isExpired(myBid?.expires_at);
 
@@ -48,6 +50,7 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
         {won && !job.completed && job.haulerDoneAt && <Badge color={C.amber} bg={C.amberLight}>Awaiting customer acknowledgment</Badge>}
         {won && !job.completed && !job.haulerDoneAt && <Badge color={C.teal} bg={C.tealLight}>✓ You won this job</Badge>}
         {lost && <Badge color={C.gray} bg={C.grayLight}>{job.wasAccepted ? "Customer switched to another hauler" : "Customer chose another hauler"}</Badge>}
+        {cancelled && <Badge color={C.gray} bg={C.grayLight}>Cancelled by MyTrashBid</Badge>}
         {pending && !bidExpired && <Badge color={C.ember} bg={C.emberLight}>Pending — awaiting customer decision</Badge>}
         {bidExpired && <Badge color={C.red} bg={C.redLight}>Bid expired — no longer acceptable</Badge>}
         {pending && <Badge color={C.gray} bg={C.grayLight}>{expiryLabel(myBid?.expires_at)}</Badge>}
@@ -90,6 +93,9 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
             <div style={{ fontSize: 10.5, color: C.gray, marginTop: 6 }}>
               Add at least one <strong>before</strong> and one <strong>after</strong> photo to mark the job complete.
             </div>
+          )}
+          {!job.completed && (
+            <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
           )}
         </>
       )}

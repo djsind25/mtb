@@ -6,8 +6,9 @@ import { JobPhotos } from "./JobPhotos";
 import { CompletionPhotos } from "./CompletionPhotos";
 import { TimelinePicker } from "./TimelinePicker";
 import { SwitchHaulerPicker } from "./SwitchHaulerPicker";
+import { RequestCancellationControl } from "./RequestCancellationControl";
 
-export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, setToast }) {
+export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
@@ -16,7 +17,7 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, o
   const [savingTimeline, setSavingTimeline] = useState(false);
   const [switching, setSwitching] = useState(false);
   const bids = job.bids || [];
-  const canSwitchHauler = job.status === "booked" && !job.completed && !job.haulerDoneAt
+  const canSwitchHauler = job.status === "booked" && !job.completed && !job.haulerDoneAt && !job.pendingCancellation
     && job.payment_mode === "full" && bids.some(b => b.id !== job.accepted_bid_id);
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline);
@@ -48,11 +49,12 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, o
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.pineDeep, marginBottom: 4 }}>{job.title}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               <Badge
-                color={job.status === "open" ? C.ember : job.status === "pending_verification" ? C.amber : C.teal}
-                bg={job.status === "open" ? C.emberLight : job.status === "pending_verification" ? C.amber + "22" : C.tealLight}
+                color={job.status === "open" ? C.ember : job.status === "pending_verification" ? C.amber : job.status === "cancelled" ? C.gray : C.teal}
+                bg={job.status === "open" ? C.emberLight : job.status === "pending_verification" ? C.amber + "22" : job.status === "cancelled" ? C.grayLight : C.tealLight}
               >
                 {job.status === "open" ? `${bids.length} bid${bids.length !== 1 ? "s" : ""}`
                   : job.status === "pending_verification" ? "Verify email to activate"
+                  : job.status === "cancelled" ? "Cancelled"
                   : "Booked"}
               </Badge>
               {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡ " : ""}{timeline.label}</Badge>}
@@ -161,7 +163,20 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, o
                   {switching && (
                     <SwitchHaulerPicker job={job} onSwitched={onSwitched} setToast={setToast} onClose={() => setSwitching(false)} />
                   )}
+                  <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
                 </>
+              )}
+              {job.haulerDoneAt && !job.completed && (
+                <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
+              )}
+            </div>
+          ) : job.status === "cancelled" ? (
+            <div>
+              <Badge color={C.gray} bg={C.grayLight}>Cancelled by MyTrashBid</Badge>
+              {job.chatId && (
+                <div style={{ marginTop: 10 }}>
+                  <Btn variant="ghost" full={false} onClick={() => onOpenChat(job.chatId)}>Open chat</Btn>
+                </div>
               )}
             </div>
           ) : jobExpired ? (

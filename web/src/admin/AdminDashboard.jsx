@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, setDefaultPaymentMode } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, setDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary } from "./data";
 import { loadSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
@@ -17,6 +17,7 @@ import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
 import { RevenueTab, buildMonthlyRevenue } from "./RevenueTab";
 import { AutoExportTab } from "./AutoExportTab";
 import { CompletionReview } from "./CompletionReview";
+import { CancellationRequestsTab } from "./CancellationRequestsTab";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -29,6 +30,8 @@ export function AdminDashboard({ session, setToast }) {
   const [haulerDocs, setHaulerDocs] = useState([]);
   const [adminInvites, setAdminInvites] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
+  const [cancellationRequests, setCancellationRequests] = useState([]);
+  const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
   const [togglingPaymentMode, setTogglingPaymentMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,8 +43,12 @@ export function AdminDashboard({ session, setToast }) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, j, f, o, sc, hd, ai, cj, pm] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(), loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode()]);
+    const [u, j, f, o, sc, hd, ai, cj, pm, cr, fps] = await Promise.all([
+      loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
+      loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(),
+    ]);
     setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
+    setCancellationRequests(cr); setFullPaymentSummary(fps);
     setLoading(false);
   }, []);
 
@@ -99,6 +106,7 @@ export function AdminDashboard({ session, setToast }) {
   const visibleSupportChats = supportSubTab === "open" ? openSupportChats : supportSubTab === "closed" ? closedSupportChats : supportChats;
 
   const completionsNeedingReview = completedJobs.filter(c => !c.admin_reviewed_at).length;
+  const pendingCancellationCount = cancellationRequests.filter(r => r.status === "pending").length;
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
@@ -142,11 +150,13 @@ export function AdminDashboard({ session, setToast }) {
         <Stat label="Haulers" value={haulers.length} />
         <Stat label="Total jobs — last 60 days" value={recentJobCount} onClick={() => setTab("jobs")} />
         <Stat label="Booked jobs" value={bookedJobs.length} />
-        <Stat label="GMV (booked) — this month" value={`$${thisMonth.gmv.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
+        <Stat label="GMV (booked, deposit-mode) — this month" value={`$${thisMonth.gmv.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
         <Stat label="Deposit revenue (10%) — this month" value={`$${thisMonth.deposit.toFixed(2)}`} mono accent onClick={() => setTab("revenue")} />
         <Stat label="Paid hauler-direct (90%) — this month" value={`$${thisMonth.haulerDirect.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
+        <Stat label="Funds held (full-payment)" value={`$${(fullPaymentSummary?.fundsHeld ?? 0).toFixed(2)}`} mono onClick={() => setTab("revenue")} />
         <Stat label="Overdue completions" value={overdue.length} accent={overdue.length > 0} onClick={() => setTab("overdue")} />
         <Stat label="Completed — awaiting review" value={completionsNeedingReview} accent={completionsNeedingReview > 0} onClick={() => setTab("completed")} />
+        <Stat label="Cancellation requests" value={pendingCancellationCount} accent={pendingCancellationCount > 0} onClick={() => setTab("cancellations")} />
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
@@ -162,6 +172,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
           { id: "completed", label: `Completed jobs (${completionsNeedingReview}/${completedJobs.length})` },
+          { id: "cancellations", label: `Cancellation requests (${pendingCancellationCount}/${cancellationRequests.length})` },
           { id: "support", label: `Open chat tickets (${openSupportChats.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "support") setSupportSubTab("open"); }} style={{
@@ -256,7 +267,7 @@ export function AdminDashboard({ session, setToast }) {
 
       {tab === "revenue" && (
         <Panel title="Revenue by month">
-          <RevenueTab jobs={jobs} />
+          <RevenueTab jobs={jobs} fullPaymentSummary={fullPaymentSummary} />
         </Panel>
       )}
 
@@ -306,6 +317,12 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "completed" && (
         <Panel title="Completed jobs — before/after photos & confirmations">
           <CompletionReview completedJobs={completedJobs} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+        </Panel>
+      )}
+
+      {tab === "cancellations" && (
+        <Panel title="Cancellation requests">
+          <CancellationRequestsTab requests={cancellationRequests} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
         </Panel>
       )}
 

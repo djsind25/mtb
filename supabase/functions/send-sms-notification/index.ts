@@ -29,6 +29,8 @@ const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link:
   newMessage: (_title, body, link) => `New MyTrashBid message: ${body ?? ""} ${link}`,
   adminMessage: (_title, body, link) => `MyTrashBid support: ${body ?? ""} ${link}`,
   jobMarkedDone: (title, _body, link) => `Your hauler marked "${title}" complete — review the photos & acknowledge. ${link}`,
+  cancellationRequested: (title, _body, link) => `A cancellation was requested for "${title}" — it's under review by MyTrashBid. ${link}`,
+  jobCancelled: (title, _body, link) => `"${title}" was cancelled by MyTrashBid. ${link}`,
 };
 
 async function sendSms(to: string, body: string): Promise<boolean> {

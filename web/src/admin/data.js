@@ -228,3 +228,87 @@ export async function setDefaultPaymentMode(mode) {
   const { error } = await supabase.rpc("set_default_payment_mode", { p_mode: mode });
   if (error) throw error;
 }
+
+export async function loadCancellationRequests() {
+  const { data: requests, error } = await supabase.from("cancellation_requests").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  if (requests.length === 0) return [];
+
+  const jobIds = [...new Set(requests.map(r => r.job_id))];
+  const chatIds = [...new Set(requests.map(r => r.chat_id))];
+  const [{ data: jobs, error: jobsError }, { data: chats, error: chatsError }] = await Promise.all([
+    supabase.from("jobs").select("id, title, zip").in("id", jobIds),
+    supabase.from("chats").select("id, customer_id, hauler_id, bid_amount").in("id", chatIds),
+  ]);
+  if (jobsError) throw jobsError;
+  if (chatsError) throw chatsError;
+  const jobById = Object.fromEntries((jobs || []).map(j => [j.id, j]));
+  const chatById = Object.fromEntries((chats || []).map(c => [c.id, c]));
+
+  const peopleIds = [...new Set([...(chats || []).flatMap(c => [c.customer_id, c.hauler_id]), ...requests.map(r => r.requested_by)])];
+  const { data: people, error: peopleError } = await supabase.from("public_profiles").select("id, name, business_name").in("id", peopleIds);
+  if (peopleError) throw peopleError;
+  const nameById = Object.fromEntries((people || []).map(p => [p.id, p.business_name || p.name]));
+
+  // job_refundable_charges is only meaningful (and only needed, to default the admin's refund
+  // input) while a request is still pending — a resolved one already has its own refund/retained
+  // amounts recorded.
+  return Promise.all(requests.map(async r => {
+    const chat = chatById[r.chat_id];
+    let heldAmount = null;
+    if (r.status === "pending") {
+      const { data: charges, error: chargesError } = await supabase.rpc("job_refundable_charges", { p_job_id: r.job_id });
+      if (!chargesError) heldAmount = (charges || []).reduce((sum, c) => sum + Number(c.refundable), 0);
+    }
+    return {
+      ...r,
+      jobTitle: jobById[r.job_id]?.title,
+      zip: jobById[r.job_id]?.zip,
+      customerName: chat ? nameById[chat.customer_id] : undefined,
+      haulerName: chat ? nameById[chat.hauler_id] : undefined,
+      requestedByName: nameById[r.requested_by],
+      bidAmount: chat?.bid_amount,
+      heldAmount,
+    };
+  }));
+}
+
+export async function processCancellationRefund({ requestId, jobId, refundAmount }) {
+  const { data, error } = await supabase.functions.invoke("process-cancellation-refund", { body: { requestId, jobId, refundAmount } });
+  if (error) {
+    const message = error.context?.body ? (await error.context.json?.().catch(() => null))?.message : null;
+    throw new Error(message || error.message || "Could not process refund.");
+  }
+  return data;
+}
+
+// Full-payment accounting, additive to RevenueTab's existing deposit-mode GMV columns:
+// - fundsHeld: booked full-mode jobs whose commission hasn't been earned (or the job cancelled) yet.
+// - releasedToHaulers / platformEarned: split of every chat whose commission_status flipped to
+//   'earned' via customer_acknowledge_completion — a bookkeeping event, not an actual Stripe
+//   transfer (haulers aren't Connect accounts; this is what the admin pays out against off-platform).
+// - totalRefunded: every succeeded payments row of kind='refund', switch-bid deltas and
+//   cancellations alike.
+export async function loadFullPaymentSummary() {
+  const [{ data: chats, error: chatsError }, { data: payments, error: paymentsError }] = await Promise.all([
+    supabase.from("chats").select("bid_amount, commission, commission_status, jobs!inner(status)").eq("payment_mode", "full").is("superseded_at", null),
+    supabase.from("payments").select("amount, kind").eq("status", "succeeded"),
+  ]);
+  if (chatsError) throw chatsError;
+  if (paymentsError) throw paymentsError;
+
+  const fundsHeld = (chats || [])
+    .filter(c => c.commission_status === "held" && c.jobs?.status === "booked")
+    .reduce((sum, c) => sum + Number(c.bid_amount), 0);
+  const releasedToHaulers = (chats || [])
+    .filter(c => c.commission_status === "earned")
+    .reduce((sum, c) => sum + (Number(c.bid_amount) - Number(c.commission)), 0);
+  const platformEarned = (chats || [])
+    .filter(c => c.commission_status === "earned")
+    .reduce((sum, c) => sum + Number(c.commission), 0);
+  const totalRefunded = (payments || [])
+    .filter(p => p.kind === "refund")
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  return { fundsHeld, releasedToHaulers, platformEarned, totalRefunded };
+}

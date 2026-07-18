@@ -10,10 +10,16 @@ function monthKey(dateStr) {
 
 // Shared by the stat cards (current month only) and this tab (full history) so the two never
 // drift out of sync — both derive from the same already-loaded `jobs` array, no extra query.
+//
+// Deposit-mode jobs only: the 10%/90% split here means "collected now" / "paid hauler-direct
+// off-platform," which is only true for deposit mode. A full-payment job's split isn't resolved
+// until completion (or a cancellation refund) — that's what loadFullPaymentSummary's held/
+// released/earned/refunded figures cover instead, additive alongside this table rather than
+// folded into the same GMV number.
 export function buildMonthlyRevenue(jobs) {
   const byMonth = new Map();
   for (const j of jobs) {
-    if (j.status !== "booked") continue;
+    if (j.status !== "booked" || j.payment_mode !== "deposit") continue;
     const bid = (j.bids || []).find(b => b.id === j.accepted_bid_id);
     if (!bid) continue;
     const key = monthKey(j.accepted_at || j.created_at);
@@ -48,7 +54,32 @@ function downloadCsv(rows) {
   URL.revokeObjectURL(url);
 }
 
-export function RevenueTab({ jobs }) {
+function FullPaymentSummary({ summary }) {
+  if (!summary) return null;
+  const cards = [
+    { label: "Funds currently held", value: summary.fundsHeld, color: C.amber, bg: C.amberLight },
+    { label: "Released to haulers", value: summary.releasedToHaulers, color: C.pineDeep, bg: C.grayLight },
+    { label: "Platform 10% earned", value: summary.platformEarned, color: C.teal, bg: C.tealLight },
+    { label: "Total refunded", value: summary.totalRefunded, color: C.red, bg: C.redLight },
+  ];
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <p style={{ fontSize: 12.5, color: C.gray, margin: "0 0 10px" }}>
+        Full-payment jobs (charge-and-hold) — additive to the deposit-mode table below, since every job contributes to one model or the other, never both.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
+        {cards.map(c => (
+          <div key={c.label} style={{ background: c.bg, borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: C.gray, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 4 }}>{c.label}</div>
+            <div style={{ fontFamily: mono, fontSize: 17, fontWeight: 700, color: c.color }}>${c.value.toFixed(2)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function RevenueTab({ jobs, fullPaymentSummary }) {
   const rows = buildMonthlyRevenue(jobs);
   const totals = rows.reduce((acc, r) => ({
     jobCount: acc.jobCount + r.jobCount, gmv: acc.gmv + r.gmv, deposit: acc.deposit + r.deposit, haulerDirect: acc.haulerDirect + r.haulerDirect,
@@ -56,8 +87,10 @@ export function RevenueTab({ jobs }) {
 
   return (
     <div>
+      <FullPaymentSummary summary={fullPaymentSummary} />
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <p style={{ fontSize: 12.5, color: C.gray, margin: 0 }}>Booked-job revenue by month, based on each job's accepted-bid amount.</p>
+        <p style={{ fontSize: 12.5, color: C.gray, margin: 0 }}>Deposit-mode revenue by month, based on each job's accepted-bid amount.</p>
         <Btn size="sm" full={false} onClick={() => downloadCsv(rows)} disabled={rows.length === 0}>⬇ Export CSV</Btn>
       </div>
 

@@ -33,6 +33,8 @@ const EVENT_SUBJECTS: Record<string, string> = {
   reminderOverdue: "Please confirm job completion",
   jobMarkedDone: "Your hauler marked the job complete",
   bidSwitchedOut: "Customer switched to another hauler",
+  cancellationRequested: "Cancellation requested",
+  jobCancelled: "Job cancelled",
 };
 
 export default {

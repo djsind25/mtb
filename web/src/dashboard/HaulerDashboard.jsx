@@ -78,6 +78,10 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     await loadAll();
   }
 
+  function handleCancellationChanged() {
+    loadAll();
+  }
+
   const myBidJobIds = new Set(myBidJobs.map(j => j.id));
   // Legacy jobs with no stated timeline are grouped under "Flexible" for filtering purposes
   // (even though their card shows no badge at all — see timelineMeta in theme.js).
@@ -149,7 +153,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
             <div style={{ display: "grid", gap: 12 }}>
               {myBidJobs.length === 0 && <CenteredNote>You haven't submitted any bids yet.</CenteredNote>}
               {myBidJobs.map(job => (
-                <HaulerBidStatusCard key={job.id} job={job} session={session} onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone} setToast={setToast} />
+                <HaulerBidStatusCard key={job.id} job={job} session={session} onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone} onCancellationChanged={handleCancellationChanged} setToast={setToast} />
               ))}
             </div>
           </>

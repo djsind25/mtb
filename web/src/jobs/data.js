@@ -51,6 +51,15 @@ async function attachSwitchedOutFlag(jobs, haulerId) {
   return jobs.map(j => ({ ...j, wasAccepted: everAccepted.has(j.id) }));
 }
 
+async function attachPendingCancellation(jobs) {
+  const jobIds = jobs.map(j => j.id);
+  if (jobIds.length === 0) return jobs;
+  const { data: requests, error } = await supabase.from("cancellation_requests").select("job_id").eq("status", "pending").in("job_id", jobIds);
+  if (error) throw error;
+  const pending = new Set((requests || []).map(r => r.job_id));
+  return jobs.map(j => ({ ...j, pendingCancellation: pending.has(j.id) }));
+}
+
 export async function loadCustomerJobs(customerId) {
   const { data: jobs, error } = await supabase.from("jobs").select("*").eq("customer_id", customerId).order("created_at", { ascending: false });
   if (error) throw error;
@@ -62,7 +71,7 @@ export async function loadCustomerJobs(customerId) {
     bids = await attachHaulerNames(data);
   }
   const withBids = jobs.map(j => ({ ...j, bids: bids.filter(b => b.job_id === j.id) }));
-  return attachChatIds(withBids);
+  return attachPendingCancellation(await attachChatIds(withBids));
 }
 
 export async function loadOpenJobsForHauler() {
@@ -79,7 +88,7 @@ export async function loadMyBidJobs(haulerId) {
   const { data: jobs, error: jobsError } = await supabase.from("jobs").select("*").in("id", jobIds);
   if (jobsError) throw jobsError;
   const withBids = jobs.map(j => ({ ...j, myBid: myBids.find(b => b.job_id === j.id) }));
-  return attachSwitchedOutFlag(await attachChatIds(withBids), haulerId);
+  return attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId));
 }
 
 export async function loadJobPhotos(jobId) {
@@ -141,6 +150,11 @@ export async function acceptBid({ jobId, bidId }) {
     throw new Error(message || error.message || "Could not start payment.");
   }
   return data; // { clientSecret, chatId, deposit, balanceDue, commission, bidAmount }
+}
+
+export async function requestCancellation({ jobId, reason }) {
+  const { error } = await supabase.rpc("request_cancellation", { p_job_id: jobId, p_reason: reason });
+  if (error) throw new Error(error.message || "Could not request cancellation.");
 }
 
 export async function previewBidSwitch({ jobId, newBidId }) {
