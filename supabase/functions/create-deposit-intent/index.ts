@@ -41,7 +41,12 @@ export default {
       const intent = await stripe.paymentIntents.create({
         amount: Math.round(deposit * 100),
         currency: "usd",
-        automatic_payment_methods: { enabled: true },
+        // allow_redirects: "never" — the frontend confirms with redirect: "if_required" and no
+        // return_url; without this, Stripe would offer redirect-based methods (Klarna, Affirm,
+        // Amazon Pay) that require one, and confirmation fails. Those don't fit an escrow-hold
+        // model well anyway (refunding/holding works differently than a card); card, Cash App,
+        // and Link all still work fine with no redirect.
+        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
         metadata: { jobId, bidId, chatId, customerId: ctx.userClaims!.id },
       });
 

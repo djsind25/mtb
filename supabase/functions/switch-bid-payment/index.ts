@@ -113,7 +113,9 @@ export default {
       const intent = await stripe.paymentIntents.create({
         amount: Math.round(delta * 100),
         currency: "usd",
-        automatic_payment_methods: { enabled: true },
+        // See create-deposit-intent for why: redirect-based methods need a return_url we don't
+        // supply, and this app confirms in-place without navigating away.
+        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
         metadata: { jobId, newBidId, customerId, currentChatId, kind: "bidSwitchDelta" },
       });
       return Response.json({ finalized: false, clientSecret: intent.client_secret, delta });
