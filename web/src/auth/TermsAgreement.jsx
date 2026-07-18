@@ -22,20 +22,28 @@ export function TermsAgreement({ checked, onChange }) {
           <strong style={{ color: C.ink, display: "block", marginBottom: 6 }}>MyTrashBid Terms of Service (summary)</strong>
           <p style={{ margin: "0 0 8px" }}>
             MyTrashBid connects customers with independent local haulers. Customers post jobs and
-            review bids; accepting a bid charges a 10% deposit through MyTrashBid, and the
-            remaining balance is settled directly between customer and hauler. Chats between
+            review bids; accepting a bid processes payment through MyTrashBid under whichever
+            payment model applies to that job — either the full bid amount, held securely and
+            released to the hauler once the job is confirmed complete by both sides, or a deposit
+            with the remaining balance settled directly between customer and hauler. Chats between
             matched users are monitored to keep the marketplace fair.
+          </p>
+          <strong style={{ color: C.ink, display: "block", marginBottom: 4 }}>Binding bids</strong>
+          <p style={{ margin: "0 0 8px" }}>
+            This bid is the agreed price for the job as described. Haulers may not demand
+            additional payment on-site for the same scope. A hauler has no mechanism in the app to
+            change the price of a job after a bid is accepted.
           </p>
           <strong style={{ color: C.ink, display: "block", marginBottom: 4 }}>Platform abuse &amp; account suspension</strong>
           <p style={{ margin: "0 0 6px" }}>The following are prohibited and may result in a warning, suspension, or permanent deactivation of your account, at MyTrashBid's discretion:</p>
           <ul style={{ margin: "0 0 8px", paddingLeft: 18 }}>
-            <li>Sharing contact or payment info to arrange a job off-platform to avoid the deposit</li>
+            <li>Sharing contact or payment info to arrange a job off-platform to avoid payment through MyTrashBid</li>
             <li>Harassing, threatening, or abusive communication toward another user</li>
             <li>Posting fraudulent jobs, fake bids, or manipulating reviews</li>
             <li>Repeated no-shows or failure to complete a confirmed, accepted job</li>
           </ul>
           <p style={{ margin: 0 }}>
-            Deposits already collected are non-refundable where an account is suspended for cause.
+            Payments already collected are non-refundable where an account is suspended for cause.
             This summary is not a substitute for the full Terms of Service and Privacy Policy.
           </p>
         </div>

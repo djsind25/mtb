@@ -61,8 +61,10 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
 
   const otherName = viewer === "customer" ? chat.businessName : chat.customerName;
   const otherIsBiz = viewer === "customer";
+  const isFull = chat.payment_mode === "full";
   const deposit = chat.deposit;
   const balanceDue = chat.balance_due;
+  const haulerCut = chat.bid_amount - chat.commission;
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 16px 0", display: "flex", flexDirection: "column", height: "calc(100vh - 64px)" }}>
@@ -86,7 +88,11 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
           </button>
           {bannerExpanded && (
             <div style={{ fontSize: 12, color: "#6B5103", lineHeight: 1.55, marginTop: 8, paddingLeft: 22 }}>
-              Paying your hauler the remaining balance directly is expected and fine. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip the deposit that keeps this service running. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.
+              {chat?.payment_mode === "full" ? (
+                <>Your payment is held securely and released once the job is confirmed complete — there's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+              ) : (
+                <>Paying your hauler the remaining balance directly is expected and fine. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip the deposit that keeps this service running. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+              )}
             </div>
           )}
         </div>
@@ -94,16 +100,25 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
         <div style={{ background: C.sand, padding: "12px 16px", borderBottom: `1px solid ${C.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontFamily: mono, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>${chat.bid_amount} total</span>
-            <Badge color={C.teal} bg={C.tealLight}>✓ Deposit paid</Badge>
+            <Badge color={C.teal} bg={C.tealLight}>{isFull ? "✓ Held by MyTrashBid" : "✓ Deposit paid"}</Badge>
           </div>
-          <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-            <span>Deposit paid to MyTrashBid (10%)</span>
-            <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${deposit.toFixed(2)}</span>
-          </div>
-          <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between" }}>
-            <span>{viewer === "hauler" ? "You collect directly at completion" : "Pay hauler directly at completion"}</span>
-            <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${balanceDue.toFixed(2)}</span>
-          </div>
+          {isFull ? (
+            <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between" }}>
+              <span>{viewer === "hauler" ? "You receive at completion (90%)" : "Released to hauler at completion (90%)"}</span>
+              <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${haulerCut.toFixed(2)}</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                <span>Deposit paid to MyTrashBid (10%)</span>
+                <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${deposit.toFixed(2)}</span>
+              </div>
+              <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between" }}>
+                <span>{viewer === "hauler" ? "You collect directly at completion" : "Pay hauler directly at completion"}</span>
+                <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${balanceDue.toFixed(2)}</span>
+              </div>
+            </>
+          )}
         </div>
 
         {chat.reviews_unlocked && (

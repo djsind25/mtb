@@ -163,7 +163,7 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
                 <div style={{ marginTop: 14 }}>
                   {tally}
                   <div style={{ display: "grid", gap: 10 }}>
-                    {bids.map(bid => <BidRow key={bid.id} bid={bid} jobId={job.id} onAccepted={onAccepted} setToast={setToast} />)}
+                    {bids.map(bid => <BidRow key={bid.id} bid={bid} jobId={job.id} paymentMode={job.payment_mode} onAccepted={onAccepted} setToast={setToast} />)}
                   </div>
                 </div>
               )}
@@ -174,7 +174,7 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
             <div>
               {tally}
               <div style={{ display: "grid", gap: 10 }}>
-                {bids.map(bid => <BidRow key={bid.id} bid={bid} jobId={job.id} onAccepted={onAccepted} setToast={setToast} />)}
+                {bids.map(bid => <BidRow key={bid.id} bid={bid} jobId={job.id} paymentMode={job.payment_mode} onAccepted={onAccepted} setToast={setToast} />)}
               </div>
             </div>
           )}

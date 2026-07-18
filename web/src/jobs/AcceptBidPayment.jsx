@@ -33,15 +33,19 @@ function PayForm({ onSuccess, onCancel, depositLabel }) {
   );
 }
 
-export function AcceptBidPayment({ clientSecret, depositLabel, onSuccess, onCancel }) {
+export function AcceptBidPayment({ clientSecret, depositLabel, isFull, onSuccess, onCancel }) {
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
       <div style={{ background: C.paper, borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}` }}>
-        <div style={{ fontFamily: serif, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>Pay deposit to lock in</div>
-        <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>Your money is held by MyTrashBid and this deposit is MyTrashBid's fee — the rest is settled directly with your hauler.</div>
+        <div style={{ fontFamily: serif, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>{isFull ? "Pay in full to lock in" : "Pay deposit to lock in"}</div>
+        <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>
+          {isFull
+            ? `Your ${depositLabel} is held securely by MyTrashBid and released to your hauler when the job is confirmed complete on both ends — hauler and customer.`
+            : "Your money is held by MyTrashBid and this deposit is MyTrashBid's fee — the rest is settled directly with your hauler."}
+        </div>
         <Elements stripe={getStripe()} options={{ clientSecret }}>
           <PayForm onSuccess={onSuccess} onCancel={onCancel} depositLabel={depositLabel} />
         </Elements>

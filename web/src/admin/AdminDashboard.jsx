@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
-import { CenteredNote, Field } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs } from "./data";
+import { CenteredNote, Field, Btn } from "../ui/Primitives";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, setDefaultPaymentMode } from "./data";
 import { loadSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
@@ -29,6 +29,8 @@ export function AdminDashboard({ session, setToast }) {
   const [haulerDocs, setHaulerDocs] = useState([]);
   const [adminInvites, setAdminInvites] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
+  const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
+  const [togglingPaymentMode, setTogglingPaymentMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
@@ -38,12 +40,25 @@ export function AdminDashboard({ session, setToast }) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, j, f, o, sc, hd, ai, cj] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(), loadAdminInvites(), loadCompletedJobs()]);
-    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj);
+    const [u, j, f, o, sc, hd, ai, cj, pm] = await Promise.all([loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(), loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode()]);
+    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
     setLoading(false);
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  async function togglePaymentMode() {
+    const next = defaultPaymentMode === "full" ? "deposit" : "full";
+    setTogglingPaymentMode(true);
+    try {
+      await setDefaultPaymentMode(next);
+      setDefaultPaymentModeState(next);
+      setToast(`New jobs now default to ${next === "full" ? "full payment (held until complete)" : "deposit-only"}.`);
+    } catch (e) {
+      setToast(e.message || "Could not change the payment mode.");
+    }
+    setTogglingPaymentMode(false);
+  }
 
   if (loading) return <CenteredNote>Loading admin dashboard…</CenteredNote>;
 
@@ -104,12 +119,21 @@ export function AdminDashboard({ session, setToast }) {
         padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
       }}>
         <span style={{ fontSize: 18 }}>💳</span>
-        <div style={{ fontSize: 12.5, color: C.pineDeep, lineHeight: 1.55 }}>
-          <strong>Active payment model: Deposit-only (launch model)</strong>
+        <div style={{ fontSize: 12.5, color: C.pineDeep, lineHeight: 1.55, flex: 1 }}>
+          <strong>Default payment model for new jobs: {defaultPaymentMode === "full" ? "Full payment, held until complete" : "Deposit-only (launch model)"}</strong>
           <div style={{ color: C.gray, marginTop: 3 }}>
-            Customers prepay a 10% deposit (our revenue); the 90% balance is paid hauler-direct, off-platform. The
-            payment_mode seam is in place so a future full-payment/escrow mode can be enabled without a rebuild.
+            {defaultPaymentMode === "full"
+              ? "Customers pay the full bid amount up front, held by MyTrashBid and released to the hauler (90%, keeping our 10%) once the job is confirmed complete by both sides."
+              : "Customers prepay a 10% deposit (our revenue); the 90% balance is paid hauler-direct, off-platform."}
+            {" "}This only affects new jobs — every already-booked job keeps whatever mode it was created under.
           </div>
+          {session.superAdmin && (
+            <div style={{ marginTop: 10 }}>
+              <Btn size="sm" full={false} variant="ghost" disabled={togglingPaymentMode} onClick={togglePaymentMode}>
+                {togglingPaymentMode ? "Switching…" : `Switch new jobs to ${defaultPaymentMode === "full" ? "deposit-only" : "full payment"}`}
+              </Btn>
+            </div>
+          )}
         </div>
       </div>
 

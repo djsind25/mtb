@@ -12,6 +12,7 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
 
   const completionOverdue = won && !job.completed && !job.haulerDoneAt && isExpired(job.complete_by);
   const completionDaysLeft = won && !job.completed && !job.haulerDoneAt ? daysLeft(job.complete_by) : null;
+  const isFull = job.payment_mode === "full";
 
   const [counts, setCounts] = useState({ before: 0, after: 0 });
   const [marking, setMarking] = useState(false);
@@ -35,7 +36,11 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
       </div>
       {won && (
         <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
-          You collect <strong style={{ color: C.pineDeep }}>${(myBid.amount * 0.9).toFixed(2)}</strong> (90% after the platform fee).
+          {isFull ? (
+            <>You'll receive <strong style={{ color: C.pineDeep }}>${(myBid.amount * 0.9).toFixed(2)}</strong> (90% after the platform fee) once the job is confirmed complete by both you and the customer.</>
+          ) : (
+            <>You collect <strong style={{ color: C.pineDeep }}>${(myBid.amount * 0.9).toFixed(2)}</strong> (90% after the platform fee).</>
+          )}
         </div>
       )}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>

@@ -4,12 +4,15 @@ import { Badge, Btn } from "../ui/Primitives";
 import { acceptBid } from "./data";
 import { AcceptBidPayment } from "./AcceptBidPayment";
 
-export function BidRow({ bid, jobId, onAccepted, setToast }) {
+export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
   const [starting, setStarting] = useState(false);
   const [payment, setPayment] = useState(null); // { clientSecret, chatId, deposit, balanceDue }
   const bidExpired = isExpired(bid.expires_at);
-  const depositNow = +(bid.amount * COMMISSION_RATE).toFixed(2);
-  const balanceDue = +(bid.amount - depositNow).toFixed(2);
+  const isFull = paymentMode === "full";
+  // Display-only mirror of price_breakdown() — the server always recomputes this authoritatively
+  // in accept_bid(), this is purely so the customer sees the right numbers before they commit.
+  const depositNow = isFull ? bid.amount : +(bid.amount * COMMISSION_RATE).toFixed(2);
+  const balanceDue = isFull ? 0 : +(bid.amount - depositNow).toFixed(2);
 
   async function startAccept() {
     setStarting(true);
@@ -24,7 +27,9 @@ export function BidRow({ bid, jobId, onAccepted, setToast }) {
 
   function handlePaid() {
     setPayment(null);
-    setToast(`Job locked in for $${payment.deposit.toFixed(2)} deposit! Chat unlocked. $${payment.balanceDue.toFixed(2)} due to your hauler at completion.`);
+    setToast(isFull
+      ? `Job locked in! $${payment.deposit.toFixed(2)} is held securely by MyTrashBid and released to your hauler once the job is confirmed complete.`
+      : `Job locked in for $${payment.deposit.toFixed(2)} deposit! Chat unlocked. $${payment.balanceDue.toFixed(2)} due to your hauler at completion.`);
     onAccepted(payment.chatId);
   }
 
@@ -56,21 +61,32 @@ export function BidRow({ bid, jobId, onAccepted, setToast }) {
         <div style={{ fontSize: 12, color: C.red }}>This bid expired and can no longer be accepted. The hauler can renew it to reopen it.</div>
       ) : (
         <>
-          <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-              <span style={{ color: C.gray }}>Pay now to lock in (10% deposit)</span>
-              <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
+          {isFull ? (
+            <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: C.gray }}>Pay in full — held until job is complete</span>
+                <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
+              </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: C.gray }}>Pay hauler at completion</span>
-              <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${balanceDue.toFixed(2)}</span>
+          ) : (
+            <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ color: C.gray }}>Pay now to lock in (10% deposit)</span>
+                <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: C.gray }}>Pay hauler at completion</span>
+                <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${balanceDue.toFixed(2)}</span>
+              </div>
             </div>
-          </div>
+          )}
           <Btn size="sm" disabled={starting} onClick={startAccept}>
-            {starting ? "Starting payment…" : `Lock in job for $${depositNow.toFixed(2)} deposit`}
+            {starting ? "Starting payment…" : isFull ? `Pay $${depositNow.toFixed(2)} & lock in job` : `Lock in job for $${depositNow.toFixed(2)} deposit`}
           </Btn>
           <div style={{ fontSize: 10.5, color: C.gray, marginTop: 6, textAlign: "center" }}>
-            The ${balanceDue.toFixed(2)} balance is paid directly to your hauler — cash, check, or their preferred method.
+            {isFull
+              ? "This bid is the agreed price for the job as described — haulers may not demand additional payment on-site for the same scope."
+              : `The $${balanceDue.toFixed(2)} balance is paid directly to your hauler — cash, check, or their preferred method. This bid is the agreed price; haulers may not demand extra on-site for the same scope.`}
           </div>
         </>
       )}
@@ -79,6 +95,7 @@ export function BidRow({ bid, jobId, onAccepted, setToast }) {
         <AcceptBidPayment
           clientSecret={payment.clientSecret}
           depositLabel={`$${payment.deposit.toFixed(2)}`}
+          isFull={isFull}
           onSuccess={handlePaid}
           onCancel={() => setPayment(null)}
         />

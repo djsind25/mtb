@@ -217,3 +217,14 @@ export async function reviewCompletion(jobId) {
   const { error } = await supabase.rpc("admin_review_completion", { p_job_id: jobId });
   if (error) throw error;
 }
+
+export async function loadDefaultPaymentMode() {
+  const { data, error } = await supabase.from("app_config").select("value").eq("key", "default_payment_mode").single();
+  if (error) throw error;
+  return data.value;
+}
+
+export async function setDefaultPaymentMode(mode) {
+  const { error } = await supabase.rpc("set_default_payment_mode", { p_mode: mode });
+  if (error) throw error;
+}
