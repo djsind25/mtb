@@ -244,8 +244,12 @@ export function AccountTab({ session, setToast }) {
                 <div style={{ fontSize: 11.5, color: C.gray }}>{h.otherParty || "—"} · {new Date(h.createdAt).toLocaleDateString()}</div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep, marginBottom: 3 }}>${Number(h.amount).toFixed(2)}</div>
-                <Badge color={h.status === "refunded" ? C.red : C.teal} bg={h.status === "refunded" ? C.redLight : C.tealLight}>{h.status}</Badge>
+                <div style={{ fontFamily: mono, fontWeight: 700, color: h.kind === "refund" ? C.red : C.pineDeep, marginBottom: 3 }}>
+                  {h.kind === "refund" ? "−" : ""}${Number(h.amount).toFixed(2)}
+                </div>
+                <Badge color={h.kind === "refund" || h.status === "refunded" ? C.red : C.teal} bg={h.kind === "refund" || h.status === "refunded" ? C.redLight : C.tealLight}>
+                  {h.kind === "refund" ? "refund" : h.status}
+                </Badge>
               </div>
             </div>
           ))}

@@ -47,7 +47,7 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
         {won && job.completed && <Badge color={C.teal} bg={C.tealLight}>✓ Job complete</Badge>}
         {won && !job.completed && job.haulerDoneAt && <Badge color={C.amber} bg={C.amberLight}>Awaiting customer acknowledgment</Badge>}
         {won && !job.completed && !job.haulerDoneAt && <Badge color={C.teal} bg={C.tealLight}>✓ You won this job</Badge>}
-        {lost && <Badge color={C.gray} bg={C.grayLight}>Customer chose another hauler</Badge>}
+        {lost && <Badge color={C.gray} bg={C.grayLight}>{job.wasAccepted ? "Customer switched to another hauler" : "Customer chose another hauler"}</Badge>}
         {pending && !bidExpired && <Badge color={C.ember} bg={C.emberLight}>Pending — awaiting customer decision</Badge>}
         {bidExpired && <Badge color={C.red} bg={C.redLight}>Bid expired — no longer acceptable</Badge>}
         {pending && <Badge color={C.gray} bg={C.grayLight}>{expiryLabel(myBid?.expires_at)}</Badge>}

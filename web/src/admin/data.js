@@ -34,7 +34,7 @@ export async function loadJobsWithBids() {
 
   const bookedJobIds = jobs.filter(j => j.status === "booked").map(j => j.id);
   const { data: chats, error: chatsError } = bookedJobIds.length
-    ? await supabase.from("chats").select("id, job_id").in("job_id", bookedJobIds)
+    ? await supabase.from("chats").select("id, job_id").in("job_id", bookedJobIds).is("superseded_at", null)
     : { data: [], error: null };
   if (chatsError) throw chatsError;
   const chatIdByJobId = Object.fromEntries(chats.map(c => [c.job_id, c.id]));

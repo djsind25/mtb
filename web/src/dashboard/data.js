@@ -5,7 +5,7 @@ export async function loadCustomerStats(customerId) {
   const [{ data: jobs, error: jobsError }, { data: payments, error: paymentsError }] = await Promise.all([
     supabase.from("jobs").select("id, status, completed").eq("customer_id", customerId),
     // RLS already scopes this to jobs this customer owns — no extra filter needed.
-    supabase.from("payments").select("amount").eq("status", "succeeded"),
+    supabase.from("payments").select("amount, kind").eq("status", "succeeded"),
   ]);
   if (jobsError) throw jobsError;
   if (paymentsError) throw paymentsError;
@@ -13,7 +13,9 @@ export async function loadCustomerStats(customerId) {
   const active = jobs.filter(j => j.status === "open" || j.status === "pending_verification").length;
   const inProgress = jobs.filter(j => j.status === "booked" && !j.completed).length;
   const completed = jobs.filter(j => j.status === "booked" && j.completed).length;
-  const totalSpent = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  // Net of refunds (e.g. a switch-hauler delta) — a refund row would otherwise add to "spent"
+  // instead of subtracting from it.
+  const totalSpent = payments.reduce((sum, p) => sum + (p.kind === "refund" ? -Number(p.amount) : Number(p.amount)), 0);
 
   const openJobIds = jobs.filter(j => j.status === "open").map(j => j.id);
   let bidsWaiting = 0;
@@ -31,7 +33,9 @@ export async function loadHaulerStats(haulerId) {
   const [openJobs, { data: myBids, error: bidsError }, { data: chats, error: chatsError }] = await Promise.all([
     loadOpenJobsForHauler(),
     supabase.from("bids").select("job_id, expires_at").eq("hauler_id", haulerId),
-    supabase.from("chats").select("bid_amount, commission_status, jobs(completed)").eq("hauler_id", haulerId),
+    // superseded_at is null: a hauler switched out of a job keeps their (historical) chat row,
+    // but it shouldn't keep contributing to "won"/"completed" once someone else is doing the job.
+    supabase.from("chats").select("bid_amount, commission_status, jobs(completed)").eq("hauler_id", haulerId).is("superseded_at", null),
   ]);
   if (bidsError) throw bidsError;
   if (chatsError) throw chatsError;
@@ -49,7 +53,7 @@ export async function loadHaulerStats(haulerId) {
 export async function loadCustomerPayments(customerId) {
   const { data, error } = await supabase
     .from("payments")
-    .select("id, amount, status, created_at, job_id, chat_id, jobs(title), chats(hauler_id)")
+    .select("id, amount, status, kind, created_at, job_id, chat_id, jobs(title), chats(hauler_id)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   const haulerIds = [...new Set(data.map(p => p.chats?.hauler_id).filter(Boolean))];
@@ -60,6 +64,7 @@ export async function loadCustomerPayments(customerId) {
     otherParty: haulerById[p.chats?.hauler_id]?.business_name,
     amount: p.amount,
     status: p.status,
+    kind: p.kind,
     createdAt: p.created_at,
   }));
 }
@@ -67,7 +72,7 @@ export async function loadCustomerPayments(customerId) {
 export async function loadHaulerEarnings(haulerId) {
   const { data, error } = await supabase
     .from("payments")
-    .select("id, amount, status, created_at, job_id, chat_id, jobs(title), chats(customer_id)")
+    .select("id, amount, status, kind, created_at, job_id, chat_id, jobs(title), chats(customer_id)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   const customerIds = [...new Set(data.map(p => p.chats?.customer_id).filter(Boolean))];
@@ -78,6 +83,7 @@ export async function loadHaulerEarnings(haulerId) {
     otherParty: customerById[p.chats?.customer_id]?.name,
     amount: p.amount,
     status: p.status,
+    kind: p.kind,
     createdAt: p.created_at,
   }));
 }

@@ -19,10 +19,14 @@ async function attachHaulerNames(bids) {
   }));
 }
 
+// superseded_at is null resolves the *current* chat — a job can accumulate historical chats from
+// past hauler switches (see 20260723000000_switch_accepted_bid.sql), but every caller here wants
+// the one that's actually active. Without this filter, multiple rows could share a job_id and
+// which one "wins" in byJobId would be an accident of query order.
 async function attachChatIds(jobs) {
   const jobIds = jobs.map(j => j.id);
   if (jobIds.length === 0) return jobs;
-  const { data: chats, error } = await supabase.from("chats").select("id, job_id, hauler_done_at, customer_ack_at").in("job_id", jobIds);
+  const { data: chats, error } = await supabase.from("chats").select("id, job_id, hauler_done_at, customer_ack_at").in("job_id", jobIds).is("superseded_at", null);
   if (error) throw error;
   const byJobId = Object.fromEntries((chats || []).map(c => [c.job_id, c]));
   return jobs.map(j => ({
@@ -31,6 +35,20 @@ async function attachChatIds(jobs) {
     haulerDoneAt: byJobId[j.id]?.hauler_done_at,
     customerAckAt: byJobId[j.id]?.customer_ack_at,
   }));
+}
+
+// A hauler's bid can lose the job two different ways: the customer picked someone else up front
+// (generic "chose another hauler"), or this hauler *was* accepted and later got switched out
+// (should read "customer switched to another hauler" instead). Any chat row at all for this
+// hauler+job — even a superseded one — means the latter, since the current chat's hauler_id
+// wouldn't be them if they no longer hold the job.
+async function attachSwitchedOutFlag(jobs, haulerId) {
+  const jobIds = jobs.map(j => j.id);
+  if (jobIds.length === 0) return jobs;
+  const { data: chats, error } = await supabase.from("chats").select("job_id").eq("hauler_id", haulerId).in("job_id", jobIds);
+  if (error) throw error;
+  const everAccepted = new Set((chats || []).map(c => c.job_id));
+  return jobs.map(j => ({ ...j, wasAccepted: everAccepted.has(j.id) }));
 }
 
 export async function loadCustomerJobs(customerId) {
@@ -61,7 +79,7 @@ export async function loadMyBidJobs(haulerId) {
   const { data: jobs, error: jobsError } = await supabase.from("jobs").select("*").in("id", jobIds);
   if (jobsError) throw jobsError;
   const withBids = jobs.map(j => ({ ...j, myBid: myBids.find(b => b.job_id === j.id) }));
-  return attachChatIds(withBids);
+  return attachSwitchedOutFlag(await attachChatIds(withBids), haulerId);
 }
 
 export async function loadJobPhotos(jobId) {
@@ -123,6 +141,29 @@ export async function acceptBid({ jobId, bidId }) {
     throw new Error(message || error.message || "Could not start payment.");
   }
   return data; // { clientSecret, chatId, deposit, balanceDue, commission, bidAmount }
+}
+
+export async function previewBidSwitch({ jobId, newBidId }) {
+  const { data, error } = await supabase.rpc("preview_bid_switch", { p_job_id: jobId, p_new_bid_id: newBidId }).single();
+  if (error) throw new Error(error.message || "Could not preview this switch.");
+  return data; // { current_bid_amount, new_bid_amount, delta, current_chat_id }
+}
+
+async function invokeSwitchBid(body) {
+  const { data, error } = await supabase.functions.invoke("switch-bid-payment", { body });
+  if (error) {
+    const message = error.context?.body ? (await error.context.json?.().catch(() => null))?.message : null;
+    throw new Error(message || error.message || "Could not switch haulers.");
+  }
+  return data; // { finalized: true, chat_id, delta } or { finalized: false, clientSecret, delta }
+}
+
+export function startBidSwitch({ jobId, newBidId }) {
+  return invokeSwitchBid({ jobId, newBidId });
+}
+
+export function confirmBidSwitch({ jobId, newBidId, paymentIntentId }) {
+  return invokeSwitchBid({ jobId, newBidId, paymentIntentId });
 }
 
 export async function loadCompletionPhotos(jobId) {

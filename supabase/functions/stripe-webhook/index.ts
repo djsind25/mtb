@@ -40,7 +40,12 @@ export default {
         break;
       }
       case "charge.refunded": {
+        // Fires on every refund, partial or full — charge.refunded (the boolean) only flips to
+        // true once the charge's full amount has been returned. A partial refund (e.g. a switch-
+        // bid delta) must NOT mark the original charge row as refunded; that refund is already
+        // recorded as its own payments row (kind='refund') by finalize_bid_switch.
         const charge = event.data.object as Stripe.Charge;
+        if (!charge.refunded) break;
         const intentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
         if (intentId) {
           await ctx.supabaseAdmin.from("payments").update({ status: "refunded" }).eq("stripe_payment_intent_id", intentId);

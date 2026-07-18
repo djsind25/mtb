@@ -5,15 +5,19 @@ import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
 import { CompletionPhotos } from "./CompletionPhotos";
 import { TimelinePicker } from "./TimelinePicker";
+import { SwitchHaulerPicker } from "./SwitchHaulerPicker";
 
-export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, setToast }) {
+export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
   const [editingTimeline, setEditingTimeline] = useState(false);
   const [pendingTimeline, setPendingTimeline] = useState(job.timeline);
   const [savingTimeline, setSavingTimeline] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const bids = job.bids || [];
+  const canSwitchHauler = job.status === "booked" && !job.completed && !job.haulerDoneAt
+    && job.payment_mode === "full" && bids.some(b => b.id !== job.accepted_bid_id);
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline);
 
@@ -148,7 +152,15 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onOpenChat, o
                   <div style={{ marginBottom: 10 }}>
                     <Badge color={C.gray} bg={C.grayLight}>In progress — your hauler will mark it complete with photos</Badge>
                   </div>
-                  <Btn variant="teal" onClick={() => onOpenChat(job.chatId)}>Open chat</Btn>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <Btn variant="teal" full={false} onClick={() => onOpenChat(job.chatId)}>Open chat</Btn>
+                    {canSwitchHauler && (
+                      <Btn variant="ghost" full={false} onClick={() => setSwitching(true)}>Switch hauler</Btn>
+                    )}
+                  </div>
+                  {switching && (
+                    <SwitchHaulerPicker job={job} onSwitched={onSwitched} setToast={setToast} onClose={() => setSwitching(false)} />
+                  )}
                 </>
               )}
             </div>
