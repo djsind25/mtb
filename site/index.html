@@ -774,7 +774,15 @@
     if (error || !ok) {
       banner.style.background = '#FBEAE8';
       banner.style.color = 'var(--red)';
-      banner.textContent = "That verification link is invalid or has already been used.";
+      // Could mean genuinely already verified, or — just as likely — this is an older email and
+      // resend_verification_email() regenerated the token since it was sent (deliberate: keeps a
+      // previously-leaked link from working forever). Either way "already been used" asserts a
+      // specific cause we can't actually confirm, and dead-ends someone who's still unverified.
+      // Point them at the one place they can always get a fresh link instead of guessing why this
+      // one didn't work.
+      banner.innerHTML = "This verification link isn't active anymore — it may have already been used, " +
+        "or a newer verification email was sent since (only the most recent link works). " +
+        "<a href=\"" + APP_URL + "/\">Log in to your dashboard</a> and use \"Resend verification email\" to get a fresh one.";
     } else {
       banner.style.background = 'var(--mint)';
       banner.style.color = 'var(--green-deep)';
