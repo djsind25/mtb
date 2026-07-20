@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { C, mono, expiryLabel, isExpired, daysLeft } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "./CompletionPhotos";
+import { JobPhotos } from "./JobPhotos";
 import { RequestCancellationControl } from "./RequestCancellationControl";
 
 export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, setToast }) {
@@ -45,6 +46,9 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
         <span style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{job.title}</span>
         <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${myBid?.amount}</span>
       </div>
+      {/* Same album the customer can add to from chat mid-conversation — this card never showed
+          it before, so anything added post-booking was invisible from "My Bids". */}
+      <JobPhotos jobId={job.id} />
       {won && (
         <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
           {isFull ? (

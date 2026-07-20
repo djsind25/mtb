@@ -3,6 +3,7 @@ import { C, mono } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { Avatar, Badge, CenteredNote } from "../ui/Primitives";
 import { loadChat, loadMessages, sendMessage, markChatRead } from "./data";
+import { addJobPhotos } from "../jobs/data";
 import { ChatBubble } from "./ChatBubble";
 import { ReviewPanel } from "./ReviewPanel";
 
@@ -12,7 +13,9 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
   const [draft, setDraft] = useState("");
   const [bannerExpanded, setBannerExpanded] = useState(false);
   const [sending, setSending] = useState(false);
+  const [addingPhotos, setAddingPhotos] = useState(false);
   const scrollRef = useRef(null);
+  const photoInputRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +60,27 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
       setToast(e.message || "Could not send message.");
     }
     setSending(false);
+  }
+
+  // For when the hauler asks to see more of the item before finalizing — the customer adds
+  // photos right from the conversation instead of navigating back to the job post. They land in
+  // the same Job Photos album postJob() created (addJobPhotos), and a normal chat message (not a
+  // spoofable "system" one — see note below) tells the hauler where to find them, which also
+  // gets them the exact same email/SMS notification any other new message would.
+  async function handleAddPhotos(fileList) {
+    const files = Array.from(fileList || []).filter(f => f.type.startsWith("image/") || /\.hei[cf]$/i.test(f.name));
+    if (files.length === 0) return;
+    setAddingPhotos(true);
+    try {
+      const uploaded = await addJobPhotos({ jobId: chat.job_id, files });
+      const note = uploaded.length === 1
+        ? "📷 Added 1 new photo to this job's Photo Album."
+        : `📷 Added ${uploaded.length} new photos to this job's Photo Album.`;
+      await sendMessage({ chatId, senderRole: viewer, senderId: session.id, text: note });
+    } catch (e) {
+      setToast(e.message || "Could not add photos.");
+    }
+    setAddingPhotos(false);
   }
 
   const otherName = viewer === "customer" ? chat.businessName : chat.customerName;
@@ -131,6 +155,18 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
 
         <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 12px" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            {viewer === "customer" && (
+              <>
+                <input ref={photoInputRef} type="file" accept="image/*,.heic,.heif" multiple style={{ display: "none" }}
+                  onChange={e => { handleAddPhotos(e.target.files); e.target.value = ""; }} />
+                <button onClick={() => photoInputRef.current?.click()} disabled={addingPhotos} title="Add photos to this job"
+                  aria-label="Add photos to this job" style={{
+                    width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${C.line}`,
+                    cursor: addingPhotos ? "default" : "pointer", background: C.paper,
+                    color: C.gray, fontSize: 15, opacity: addingPhotos ? 0.6 : 1,
+                  }}>{addingPhotos ? "…" : "📷"}</button>
+              </>
+            )}
             <textarea value={draft} onChange={e => setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Message about this job…" rows={1}

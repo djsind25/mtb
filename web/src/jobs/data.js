@@ -101,6 +101,26 @@ export async function loadJobPhotos(jobId) {
   return withUrls;
 }
 
+// Lets the customer add more photos to the job's own album mid-conversation (e.g. the hauler
+// asks to see something more closely before finalizing) — same bucket/table postJob() writes to
+// at creation time, so these just become part of the same album, no separate "chat photos" set.
+// job_photos_insert (RLS) only checks customer_owns_job(), no status restriction, so this works
+// the same whether the job is still open or already booked. toJpegIfHeic is defined further down
+// in this file but hoisted, so it's available here too.
+export async function addJobPhotos({ jobId, files }) {
+  const uploaded = [];
+  for (const file of files || []) {
+    const jpeg = await toJpegIfHeic(file);
+    const path = `${jobId}/${crypto.randomUUID()}-${jpeg.name}`;
+    const { error: uploadError } = await supabase.storage.from("job-photos").upload(path, jpeg);
+    if (uploadError) throw uploadError;
+    const { error: rowError } = await supabase.from("job_photos").insert({ job_id: jobId, storage_path: path, original_name: jpeg.name });
+    if (rowError) throw rowError;
+    uploaded.push(jpeg.name);
+  }
+  return uploaded;
+}
+
 export async function postJob({ customerId, title, description, zip, photos, serviceType, dumpsterType, rentalStartDate, rentalEndDate, timeline }) {
   const row = { customer_id: customerId, title, description, zip, timeline };
   if (serviceType === "rental") {
