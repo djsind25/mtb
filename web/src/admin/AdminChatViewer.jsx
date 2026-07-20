@@ -42,8 +42,18 @@ export function AdminChatViewer({ chatId, onClose }) {
 
         {chat && (
           <div style={{ padding: "10px 20px", borderBottom: `1px solid ${C.line}`, display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <Badge color={C.teal} bg={C.tealLight}>Deposit ${chat.deposit?.toFixed(2)}</Badge>
-            <Badge color={C.gray} bg={C.grayLight}>Balance ${chat.balance_due?.toFixed(2)}</Badge>
+            {chat.payment_mode === "full" ? (
+              chat.commission_status === "earned" ? (
+                <Badge color={C.teal} bg={C.tealLight}>Released ${chat.bid_amount?.toFixed(2)} (full payment)</Badge>
+              ) : (
+                <Badge color={C.amber} bg={C.amberLight}>Held ${chat.bid_amount?.toFixed(2)} (full payment)</Badge>
+              )
+            ) : (
+              <>
+                <Badge color={C.teal} bg={C.tealLight}>Deposit ${chat.deposit?.toFixed(2)}</Badge>
+                <Badge color={C.gray} bg={C.grayLight}>Balance ${chat.balance_due?.toFixed(2)}</Badge>
+              </>
+            )}
             {chat.reviews_unlocked && <Badge color={C.teal} bg={C.tealLight}>Reviews unlocked</Badge>}
           </div>
         )}

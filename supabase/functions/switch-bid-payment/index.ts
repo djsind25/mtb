@@ -3,8 +3,9 @@
 // Lets a customer reassign a booked job's accepted hauler to a different bidder before work
 // begins. Held funds stay held — only the delta between the old and new bid amount moves:
 //   - delta == 0: no Stripe call at all, switch finalizes immediately.
-//   - delta < 0: refunds the difference against the job's most recent successful charge, then
-//     finalizes immediately (refunds are synchronous — no card interaction needed).
+//   - delta < 0: refunds the difference, split across as many of the job's succeeded charges as
+//     it takes (oldest-first), then finalizes immediately (refunds are synchronous — no card
+//     interaction needed).
 //   - delta > 0: creates a PaymentIntent for just the difference and returns its clientSecret;
 //     the switch itself does NOT happen yet. The frontend confirms payment client-side (same
 //     Stripe Elements pattern as accepting a bid), then calls this function again with
@@ -78,30 +79,48 @@ export default {
     }
 
     if (delta < 0) {
-      const { data: latestCharge, error: chargeError } = await ctx.supabaseAdmin
-        .rpc("latest_job_charge", { p_job_id: jobId })
-        .single();
-      if (chargeError || !latestCharge?.stripe_payment_intent_id) {
+      // A job switched more than once can have refundable balance spread across more than one
+      // succeeded PaymentIntent — split the refund across as many of them (oldest-first) as it
+      // takes, same approach process-cancellation-refund uses for cancellations. All-or-nothing:
+      // if any refund in the split fails, don't finalize the switch (the old hauler stays
+      // assigned) — whatever partial amount already moved is real money that needs a human to
+      // reconcile via Stripe directly, same as this function's original single-charge failure
+      // mode, just now possibly non-zero instead of always zero.
+      const { data: charges, error: chargesError } = await ctx.supabaseAdmin
+        .rpc("job_refundable_charges_for_switch", { p_job_id: jobId });
+      if (chargesError || !charges?.length) {
         return Response.json({ message: "Could not find the original payment to refund against." }, { status: 400 });
       }
-      try {
-        await stripe.refunds.create({
-          payment_intent: latestCharge.stripe_payment_intent_id,
-          amount: Math.round(-delta * 100),
-        });
-      } catch (err) {
-        console.error("switch-bid-payment: refund failed:", err);
-        return Response.json({ message: "Could not process the refund for this switch. Please try again or contact support." }, { status: 502 });
+
+      let remaining = Math.round(-delta * 100);
+      const refunds: { stripe_payment_intent_id: string; amount: number }[] = [];
+      for (const charge of charges) {
+        if (remaining <= 0) break;
+        const refundableCents = Math.round(Number(charge.refundable) * 100);
+        if (refundableCents <= 0) continue;
+        const take = Math.min(remaining, refundableCents);
+        try {
+          await stripe.refunds.create({ payment_intent: charge.stripe_payment_intent_id, amount: take });
+          refunds.push({ stripe_payment_intent_id: charge.stripe_payment_intent_id, amount: take / 100 });
+          remaining -= take;
+        } catch (err) {
+          console.error("switch-bid-payment: refund failed partway through the split:", err, { requestId: jobId, refundedSoFar: refunds });
+          return Response.json({ message: "Could not process the refund for this switch. Please try again or contact support." }, { status: 502 });
+        }
+      }
+      if (remaining > 0) {
+        console.error("switch-bid-payment: refundable charges did not cover the full delta", { jobId, shortBy: remaining, refunds });
+        return Response.json({ message: "Could not refund the full amount for this switch. Contact support." }, { status: 502 });
       }
 
       const { data: finalized, error: finalizeError } = await ctx.supabaseAdmin
         .rpc("finalize_bid_switch", {
           p_job_id: jobId, p_new_bid_id: newBidId, p_customer_id: customerId,
-          p_kind: "refund", p_amount: -delta, p_stripe_payment_intent_id: latestCharge.stripe_payment_intent_id,
+          p_refunds: refunds,
         })
         .single();
       if (finalizeError || !finalized) {
-        console.error("switch-bid-payment: finalize after successful refund failed:", finalizeError);
+        console.error("switch-bid-payment: finalize after successful refund failed:", finalizeError, { refunds });
         return Response.json({ message: "The refund went through but we couldn't complete the switch. Contact support." }, { status: 502 });
       }
       return Response.json({ finalized: true, ...finalized });

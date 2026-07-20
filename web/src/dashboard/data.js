@@ -13,6 +13,7 @@ export async function loadCustomerStats(customerId) {
   const active = jobs.filter(j => j.status === "open" || j.status === "pending_verification").length;
   const inProgress = jobs.filter(j => j.status === "booked" && !j.completed).length;
   const completed = jobs.filter(j => j.status === "booked" && j.completed).length;
+  const cancelled = jobs.filter(j => j.status === "cancelled").length;
   // Net of refunds (e.g. a switch-hauler delta) — a refund row would otherwise add to "spent"
   // instead of subtracting from it.
   const totalSpent = payments.reduce((sum, p) => sum + (p.kind === "refund" ? -Number(p.amount) : Number(p.amount)), 0);
@@ -26,7 +27,7 @@ export async function loadCustomerStats(customerId) {
     bidsWaiting = count || 0;
   }
 
-  return { active, bidsWaiting, inProgress, completed, totalSpent };
+  return { active, bidsWaiting, inProgress, completed, cancelled, totalSpent };
 }
 
 export async function loadHaulerStats(haulerId) {
@@ -35,7 +36,7 @@ export async function loadHaulerStats(haulerId) {
     supabase.from("bids").select("job_id, expires_at").eq("hauler_id", haulerId),
     // superseded_at is null: a hauler switched out of a job keeps their (historical) chat row,
     // but it shouldn't keep contributing to "won"/"completed" once someone else is doing the job.
-    supabase.from("chats").select("bid_amount, commission_status, jobs(completed)").eq("hauler_id", haulerId).is("superseded_at", null),
+    supabase.from("chats").select("bid_amount, commission, commission_status, jobs(completed)").eq("hauler_id", haulerId).is("superseded_at", null),
   ]);
   if (bidsError) throw bidsError;
   if (chatsError) throw chatsError;
@@ -45,7 +46,9 @@ export async function loadHaulerStats(haulerId) {
   const activeBids = myBids.filter(b => openJobIds.has(b.job_id) && b.expires_at > now).length;
   const won = chats.length;
   const completed = chats.filter(c => c.jobs?.completed).length;
-  const totalEarned = chats.filter(c => c.commission_status === "earned").reduce((sum, c) => sum + Number(c.bid_amount), 0);
+  // Net of the platform's cut, not the raw bid amount — matches how ChatThread.jsx and
+  // loadFullPaymentSummary compute the hauler's actual payout elsewhere.
+  const totalEarned = chats.filter(c => c.commission_status === "earned").reduce((sum, c) => sum + (Number(c.bid_amount) - Number(c.commission)), 0);
 
   return { openNearby: openJobs.length, activeBids, won, completed, totalEarned };
 }

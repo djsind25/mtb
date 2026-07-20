@@ -227,7 +227,8 @@ export async function uploadCompletionPhoto({ jobId, haulerId, phase, file }) {
 }
 
 export async function deleteCompletionPhoto(photoId, storagePath) {
-  await supabase.storage.from("completion-photos").remove([storagePath]);
+  const { error: storageError } = await supabase.storage.from("completion-photos").remove([storagePath]);
+  if (storageError) throw storageError;
   const { error } = await supabase.from("job_completion_photos").delete().eq("id", photoId);
   if (error) throw error;
 }

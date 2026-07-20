@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { C, mono, expiryLabel, isExpired, daysLeft } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "./CompletionPhotos";
@@ -19,6 +19,15 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
   const [counts, setCounts] = useState({ before: 0, after: 0 });
   const [marking, setMarking] = useState(false);
   const canMarkDone = counts.before > 0 && counts.after > 0;
+
+  // Must be stable across renders: CompletionPhotos' reload() is a useCallback depending on
+  // this prop, feeding a useEffect keyed on reload's identity. A fresh inline function here
+  // every render would recreate reload every render, re-firing that effect every render — each
+  // firing calls this, which calls setCounts, which re-renders this component, which recreates
+  // the inline function again — an unbroken fetch/render loop.
+  const handlePhotosChanged = useCallback((p) => {
+    setCounts({ before: p.filter(x => x.phase === "before").length, after: p.filter(x => x.phase === "after").length });
+  }, []);
 
   async function markDone() {
     setMarking(true);
@@ -68,7 +77,7 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
           {!job.completed && !job.haulerDoneAt && (
             <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 6, paddingTop: 12, marginBottom: 4 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Complete this job</div>
-              <CompletionPhotos jobId={job.id} haulerId={session.id} onChange={(p) => setCounts({ before: p.filter(x => x.phase === "before").length, after: p.filter(x => x.phase === "after").length })} setToast={setToast} />
+              <CompletionPhotos jobId={job.id} haulerId={session.id} onChange={handlePhotosChanged} setToast={setToast} />
             </div>
           )}
           {/* Marked done, waiting on the customer: show the submitted photos read-only. */}

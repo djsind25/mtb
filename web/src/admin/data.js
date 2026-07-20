@@ -287,12 +287,15 @@ export async function processCancellationRefund({ requestId, jobId, refundAmount
 // - releasedToHaulers / platformEarned: split of every chat whose commission_status flipped to
 //   'earned' via customer_acknowledge_completion — a bookkeeping event, not an actual Stripe
 //   transfer (haulers aren't Connect accounts; this is what the admin pays out against off-platform).
-// - totalRefunded: every succeeded payments row of kind='refund', switch-bid deltas and
-//   cancellations alike.
+// - totalRefunded: every succeeded payments row of kind='refund' *for a full-payment job* —
+//   switch-bid deltas and cancellations alike. request_cancellation has no payment_mode
+//   restriction (only hauler-switching is full-mode-only), so a deposit-mode job's cancellation
+//   refund is also kind='refund' and must be excluded here or it inflates this full-payment-only
+//   figure with money that belongs to the deposit-mode table instead.
 export async function loadFullPaymentSummary() {
   const [{ data: chats, error: chatsError }, { data: payments, error: paymentsError }] = await Promise.all([
     supabase.from("chats").select("bid_amount, commission, commission_status, jobs!inner(status)").eq("payment_mode", "full").is("superseded_at", null),
-    supabase.from("payments").select("amount, kind").eq("status", "succeeded"),
+    supabase.from("payments").select("amount, kind, jobs!inner(payment_mode)").eq("status", "succeeded").eq("jobs.payment_mode", "full"),
   ]);
   if (chatsError) throw chatsError;
   if (paymentsError) throw paymentsError;

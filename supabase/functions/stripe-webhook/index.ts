@@ -48,7 +48,12 @@ export default {
         if (!charge.refunded) break;
         const intentId = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
         if (intentId) {
-          await ctx.supabaseAdmin.from("payments").update({ status: "refunded" }).eq("stripe_payment_intent_id", intentId);
+          // A kind='refund' row records which charge it refunded by storing that *charge's*
+          // PaymentIntent id in this same column (see 20260723000000_switch_accepted_bid.sql) —
+          // without this filter, a fully-refunded charge's own refund row(s) would also match
+          // and get silently flipped from 'succeeded' to 'refunded', dropping them out of every
+          // refund total that filters on status='succeeded'.
+          await ctx.supabaseAdmin.from("payments").update({ status: "refunded" }).eq("stripe_payment_intent_id", intentId).eq("kind", "charge");
         }
         break;
       }

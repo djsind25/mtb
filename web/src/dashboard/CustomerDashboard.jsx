@@ -109,6 +109,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
     { label: "Bids waiting on me", value: stats.bidsWaiting },
     { label: "Jobs in progress", value: stats.inProgress },
     { label: "Completed jobs", value: stats.completed },
+    { label: "Cancelled jobs", value: stats.cancelled },
     { label: "Total spent", value: `$${stats.totalSpent.toFixed(2)}` },
   ] : [];
 

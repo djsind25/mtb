@@ -43,12 +43,17 @@ export function AdminDashboard({ session, setToast }) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [u, j, f, o, sc, hd, ai, cj, pm, cr, fps] = await Promise.all([
-      loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
-      loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(),
-    ]);
-    setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
-    setCancellationRequests(cr); setFullPaymentSummary(fps);
+    try {
+      const [u, j, f, o, sc, hd, ai, cj, pm, cr, fps] = await Promise.all([
+        loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
+        loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(),
+      ]);
+      setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
+      setCancellationRequests(cr); setFullPaymentSummary(fps);
+    } catch (e) {
+      console.error("AdminDashboard: loadAll failed:", e);
+      setToast?.(e.message || "Could not load the admin dashboard. Try refreshing.");
+    }
     setLoading(false);
   }, []);
 
