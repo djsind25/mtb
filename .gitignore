@@ -5,6 +5,7 @@ build/
 
 # Supabase local dev secrets — never commit real keys
 supabase/.env
+supabase/.env.*
 supabase/.branches
 supabase/.temp
 
