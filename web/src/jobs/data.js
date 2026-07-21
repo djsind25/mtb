@@ -144,7 +144,10 @@ export async function postJob({ customerId, title, description, zip, photos, ser
 
 export async function submitBid({ jobId, haulerId, amount, note }) {
   const { error } = await supabase.from("bids").insert({ job_id: jobId, hauler_id: haulerId, amount: Number(amount), note });
-  if (error) throw error;
+  if (error) {
+    if (error.code === "42501") throw new Error("Please confirm Business License and Insurance are current.");
+    throw error;
+  }
 }
 
 export async function updateJobTimeline(jobId, timeline) {
