@@ -3,7 +3,7 @@ import { serif, C, MAX_RADIUS_MI, TIMELINE_OPTIONS } from "../theme";
 import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
 import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
-import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, renewBid, haulerMarkDone } from "../jobs/data";
+import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, updateBid, renewBid, haulerMarkDone } from "../jobs/data";
 import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
@@ -62,6 +62,16 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     }
   }
 
+  async function handleUpdateBid(bidId, amount, note) {
+    try {
+      await updateBid({ bidId, amount, note });
+      setToast("Bid updated.");
+      await loadAll();
+    } catch (e) {
+      setToast(e.message || "Could not update your bid.");
+    }
+  }
+
   async function handleRenewBid(bidId) {
     try {
       await renewBid(bidId);
@@ -82,7 +92,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     loadAll();
   }
 
-  const myBidJobIds = new Set(myBidJobs.map(j => j.id));
+  const myBidByJobId = Object.fromEntries(myBidJobs.map(j => [j.id, j.myBid]));
   // Legacy jobs with no stated timeline are grouped under "Flexible" for filtering purposes
   // (even though their card shows no badge at all — see timelineMeta in theme.js).
   const filteredOpenJobs = timelineFilter === "all" ? openJobs : openJobs.filter(j => (j.timeline || "flexible") === timelineFilter);
@@ -139,7 +149,8 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
               {openJobs.length === 0 && <CenteredNote>No open jobs within {MAX_RADIUS_MI} miles right now. Check back soon.</CenteredNote>}
               {openJobs.length > 0 && filteredOpenJobs.length === 0 && <CenteredNote>No open jobs match that timeline right now.</CenteredNote>}
               {filteredOpenJobs.map(job => (
-                <HaulerJobCard key={job.id} job={job} alreadyBid={myBidJobIds.has(job.id)} onBid={handleBid} />
+                <HaulerJobCard key={job.id} job={job} myBid={myBidByJobId[job.id]} haulerId={session.id}
+                  onBid={handleBid} onUpdateBid={handleUpdateBid} setToast={setToast} />
               ))}
             </div>
           </>

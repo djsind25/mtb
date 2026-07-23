@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { C, expiryLabel, isExpired, timelineMeta } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
+import { JobQuestions } from "./JobQuestions";
+import { JobUpdates } from "./JobUpdates";
+import { addJobPhotos } from "./data";
 import { CompletionPhotos } from "./CompletionPhotos";
 import { TimelinePicker } from "./TimelinePicker";
 import { SwitchHaulerPicker } from "./SwitchHaulerPicker";
@@ -11,6 +14,24 @@ import { RequestCancellationControl } from "./RequestCancellationControl";
 export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
+  const [addingPhotos, setAddingPhotos] = useState(false);
+  const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
+  const photoInputRef = useRef(null);
+
+  // JobPhotos only loads on mount — remounting it via a changed key is the simplest way to
+  // pick up what was just uploaded, without needing a reload prop on that shared component.
+  async function handleAddPhotos(fileList) {
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
+    setAddingPhotos(true);
+    try {
+      await addJobPhotos({ jobId: job.id, files });
+      setPhotoRefreshKey(k => k + 1);
+    } catch (e) {
+      setToast(e.message || "Could not add photos.");
+    }
+    setAddingPhotos(false);
+  }
   const [acknowledging, setAcknowledging] = useState(false);
   const [editingTimeline, setEditingTimeline] = useState(false);
   const [pendingTimeline, setPendingTimeline] = useState(job.timeline);
@@ -70,7 +91,17 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, o
       </button>
       {expanded && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
-          <JobPhotos jobId={job.id} />
+          <JobPhotos jobId={job.id} key={photoRefreshKey} />
+          <div style={{ marginBottom: 14 }}>
+            <input ref={photoInputRef} type="file" accept="image/*,.heic,.heif" multiple style={{ display: "none" }}
+              onChange={e => { handleAddPhotos(e.target.files); e.target.value = ""; }} />
+            <Btn size="sm" full={false} variant="ghost" disabled={addingPhotos} onClick={() => photoInputRef.current?.click()}>
+              {addingPhotos ? "Adding…" : "📷 Add photos"}
+            </Btn>
+          </div>
+
+          <JobUpdates jobId={job.id} viewerRole="customer" jobOpen={job.status === "open" && !jobExpired} setToast={setToast} />
+          <JobQuestions jobId={job.id} viewerRole="customer" jobOpen={job.status === "open" && !jobExpired} setToast={setToast} />
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: editingTimeline ? 8 : 14 }}>
             <span style={{ fontSize: 12, color: C.gray, fontWeight: 600 }}>Timeline:</span>

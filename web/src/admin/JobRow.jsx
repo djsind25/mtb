@@ -2,6 +2,8 @@ import { useState } from "react";
 import { C, mono, expiryLabel, isExpired, timelineMeta } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
+import { JobQuestions } from "../jobs/JobQuestions";
+import { JobUpdates } from "../jobs/JobUpdates";
 
 export function JobRow({ job }) {
   const timeline = timelineMeta(job.timeline);
@@ -36,6 +38,8 @@ export function JobRowExpanded({ job }) {
       </button>
       {open && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 14px" }}>
+          <JobUpdates jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
+          <JobQuestions jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
           {job.status === "booked" && job.chatId && (
             <div style={{ marginBottom: 10 }}>
               <Btn size="sm" full={false} variant="teal" onClick={() => setViewingChat(true)}>💬 View conversation</Btn>

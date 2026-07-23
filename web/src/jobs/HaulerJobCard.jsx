@@ -2,17 +2,24 @@ import { useState } from "react";
 import { C, expiryLabel, timelineMeta } from "../theme";
 import { Badge, Field, Btn } from "../ui/Primitives";
 import { JobPhotos } from "./JobPhotos";
+import { JobQuestions } from "./JobQuestions";
+import { JobUpdates } from "./JobUpdates";
 
 function formatDate(iso) {
   if (!iso) return "—";
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function HaulerJobCard({ job, alreadyBid, onBid }) {
+export function HaulerJobCard({ job, myBid, haulerId, onBid, onUpdateBid, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [editingBid, setEditingBid] = useState(false);
+  const [editAmount, setEditAmount] = useState("");
+  const [editNote, setEditNote] = useState("");
+  const [savingBid, setSavingBid] = useState(false);
+  const alreadyBid = !!myBid;
   const isRental = job.service_type === "rental";
   const timeline = timelineMeta(job.timeline);
 
@@ -20,6 +27,19 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
     setSubmitting(true);
     await onBid(job.id, amount, note);
     setSubmitting(false);
+  }
+
+  function startEditBid() {
+    setEditAmount(String(myBid.amount));
+    setEditNote(myBid.note || "");
+    setEditingBid(true);
+  }
+
+  async function saveBidEdit() {
+    setSavingBid(true);
+    await onUpdateBid(myBid.id, editAmount, editNote);
+    setSavingBid(false);
+    setEditingBid(false);
   }
 
   return (
@@ -64,8 +84,32 @@ export function HaulerJobCard({ job, alreadyBid, onBid }) {
               </span>
             </div>
           )}
+          <JobUpdates jobId={job.id} viewerRole="hauler" jobOpen setToast={setToast} />
+          <JobQuestions jobId={job.id} viewerRole="hauler" haulerId={haulerId} jobOpen setToast={setToast} />
+
           {alreadyBid ? (
-            <Badge color={C.teal} bg={C.tealLight}>✓ You already bid on this job</Badge>
+            editingBid ? (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                  <Field label="Your bid ($)" value={editAmount} onChange={setEditAmount} type="number" placeholder="175" />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Message to customer</label>
+                  <textarea value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Why pick you?" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "10px 13px", fontSize: 13.5, fontFamily: "inherit", outline: "none", minHeight: 60, resize: "vertical" }} />
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn size="sm" full={false} variant="ghost" onClick={() => setEditingBid(false)}>Cancel</Btn>
+                  <Btn size="sm" full={false} disabled={!editAmount || savingBid} onClick={saveBidEdit}>{savingBid ? "Saving…" : "Save changes"}</Btn>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <Badge color={C.teal} bg={C.tealLight}>✓ You already bid ${myBid.amount} on this job</Badge>
+                <button onClick={startEditBid} style={{ background: "none", border: "none", color: C.teal, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
+                  Edit bid
+                </button>
+              </div>
+            )
           ) : (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>

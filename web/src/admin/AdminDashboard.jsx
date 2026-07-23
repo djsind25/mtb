@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, setDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, setDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary } from "./data";
 import { loadSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
@@ -44,10 +44,13 @@ export function AdminDashboard({ session, setToast }) {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, j, f, o, sc, hd, ai, cj, pm, cr, fps] = await Promise.all([
-        loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps] = await Promise.all([
+        loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
         loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(),
       ]);
+      // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
+      // and job updates, each tagged so FlagRow knows which "view more" action applies.
+      const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
       setCancellationRequests(cr); setFullPaymentSummary(fps);
     } catch (e) {

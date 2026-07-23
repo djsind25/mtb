@@ -18,6 +18,8 @@ const EVENT_LABELS = {
   jobBooked: "Your job is booked",
   documentExpiring: "Verification document expiring soon",
   documentExpired: "Verification document expired",
+  jobQuestionAsked: "New question on your job",
+  questionAnswered: "Your question was answered",
 };
 
 // Only the specific text-message categories asked for per role — adminMessage (a support reply)
@@ -28,11 +30,13 @@ const SMS_EVENT_LABELS = {
     newJobNearby: "New jobs near you (hourly summary, not one text per job)",
     bidAccepted: "You won a job",
     newMessage: "New message from a customer",
+    questionAnswered: "Your question was answered",
   },
   customer: {
     jobBooked: "Your job is booked",
     newMessage: "New message from a hauler",
     adminMessage: "New message from support",
+    jobQuestionAsked: "New question on your job",
   },
 };
 

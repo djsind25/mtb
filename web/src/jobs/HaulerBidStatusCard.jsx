@@ -3,6 +3,8 @@ import { C, mono, expiryLabel, isExpired, daysLeft } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "./CompletionPhotos";
 import { JobPhotos } from "./JobPhotos";
+import { JobQuestions } from "./JobQuestions";
+import { JobUpdates } from "./JobUpdates";
 import { RequestCancellationControl } from "./RequestCancellationControl";
 
 export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, setToast }) {
@@ -49,6 +51,12 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
       {/* Same album the customer can add to from chat mid-conversation — this card never showed
           it before, so anything added post-booking was invisible from "My Bids". */}
       <JobPhotos jobId={job.id} />
+      {/* Once a job books it drops out of Browse Jobs entirely, so this is the only place a
+          winning hauler can still see the Q&A/updates history — read-only once not open. Uses
+          the job's own expiry (matching job_is_open_for_bid, the real server-side gate), not the
+          bid's separate expiry — those are two different clocks. */}
+      <JobUpdates jobId={job.id} viewerRole="hauler" jobOpen={job.status === "open" && !isExpired(job.expires_at)} setToast={setToast} />
+      <JobQuestions jobId={job.id} viewerRole="hauler" haulerId={session.id} jobOpen={job.status === "open" && !isExpired(job.expires_at)} setToast={setToast} />
       {won && (
         <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
           {isFull ? (
