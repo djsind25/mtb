@@ -10,6 +10,8 @@ export function mapProfileToSession(profile) {
     zip: profile.zip,
     avatar: profile.avatar || (profile.role === "hauler" ? "🚛" : profile.role === "admin" ? "🛡️" : "👤"),
     verified: profile.verified,
+    licenseActive: !!profile.license_active,
+    insuranceActive: !!profile.insurance_active,
     rating: profile.rating,
     notificationPrefs: profile.notification_prefs,
     active: profile.active,

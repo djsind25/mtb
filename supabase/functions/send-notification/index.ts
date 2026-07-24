@@ -35,6 +35,8 @@ const EVENT_SUBJECTS: Record<string, string> = {
   bidSwitchedOut: "Customer switched to another hauler",
   cancellationRequested: "Cancellation requested",
   jobCancelled: "Job cancelled",
+  jobQuestionAsked: "New question on your job",
+  questionAnswered: "Your question was answered",
 };
 
 export default {

@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabaseClient";
 async function attachHaulerNames(bids) {
   const haulerIds = [...new Set(bids.map(b => b.hauler_id))];
   if (haulerIds.length === 0) return bids;
-  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name, rating, rating_count, verified, license_active, insurance_active").in("id", haulerIds);
+  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name, rating, rating_count, verified, license_active, insurance_active, created_at").in("id", haulerIds);
   const byId = Object.fromEntries((haulers || []).map(h => [h.id, h]));
   return bids.map(b => ({
     ...b,
@@ -16,6 +16,7 @@ async function attachHaulerNames(bids) {
     verified: byId[b.hauler_id]?.verified,
     licenseActive: byId[b.hauler_id]?.license_active,
     insuranceActive: byId[b.hauler_id]?.insurance_active,
+    haulerSince: byId[b.hauler_id]?.created_at,
   }));
 }
 
@@ -80,14 +81,20 @@ export async function loadOpenJobsForHauler() {
   return data;
 }
 
+// list_my_bid_jobs_for_hauler() returns each row as a nested { job, city, state, bid_count } —
+// job_count needs a security-definer RPC because bids_select RLS only lets a hauler see their own
+// bid rows (sealed bidding), so a plain client-side count over `bids` would silently return 0 or 1
+// instead of the real total.
 export async function loadMyBidJobs(haulerId) {
   const { data: myBids, error } = await supabase.from("bids").select("*").eq("hauler_id", haulerId);
   if (error) throw error;
   if (myBids.length === 0) return [];
-  const jobIds = myBids.map(b => b.job_id);
-  const { data: jobs, error: jobsError } = await supabase.from("jobs").select("*").in("id", jobIds);
+  const { data: rows, error: jobsError } = await supabase.rpc("list_my_bid_jobs_for_hauler");
   if (jobsError) throw jobsError;
-  const withBids = jobs.map(j => ({ ...j, myBid: myBids.find(b => b.job_id === j.id) }));
+  const withBids = rows.map(r => ({
+    ...r.job, city: r.city, state: r.state, bid_count: r.bid_count,
+    myBid: myBids.find(b => b.job_id === r.job.id),
+  }));
   return attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId));
 }
 
@@ -121,6 +128,48 @@ export async function addJobPhotos({ jobId, files }) {
   return uploaded;
 }
 
+// Q&A reads always go through job_questions_public, never the base table — that view is what
+// anonymizes hauler_id from every reader except the job's own customer and admins (the base
+// table has no select grant for a good reason: a client working around a "hide the name" UI
+// convention by just querying the table directly shouldn't be possible).
+export async function loadJobQuestions(jobId) {
+  const { data, error } = await supabase.from("job_questions_public").select("*").eq("job_id", jobId).order("created_at", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+// job_questions_public anonymizes hauler_id even for the asker's own rows (that's deliberate —
+// it's the same view every other hauler reads), so a hauler can't tell "how many of these are
+// mine" from that data. job_questions_select's RLS does let a hauler read their OWN rows off the
+// base table (hauler_id = auth.uid()), so this queries that directly instead.
+export async function countMyOpenQuestions({ jobId, haulerId }) {
+  const { count, error } = await supabase.from("job_questions").select("id", { count: "exact", head: true })
+    .eq("job_id", jobId).eq("hauler_id", haulerId).is("answer", null);
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function askJobQuestion({ jobId, haulerId, text }) {
+  const { error } = await supabase.from("job_questions").insert({ job_id: jobId, hauler_id: haulerId, question: text });
+  if (error) throw error;
+}
+
+export async function answerJobQuestion({ questionId, answerText }) {
+  const { error } = await supabase.from("job_questions").update({ answer: answerText, answered_at: new Date().toISOString() }).eq("id", questionId);
+  if (error) throw error;
+}
+
+export async function loadJobUpdates(jobId) {
+  const { data, error } = await supabase.from("job_updates_public").select("*").eq("job_id", jobId).order("created_at", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function postJobUpdate({ jobId, text }) {
+  const { error } = await supabase.from("job_updates").insert({ job_id: jobId, text });
+  if (error) throw error;
+}
+
 export async function postJob({ customerId, title, description, zip, photos, serviceType, dumpsterType, rentalStartDate, rentalEndDate, timeline }) {
   const row = { customer_id: customerId, title, description, zip, timeline };
   if (serviceType === "rental") {
@@ -146,6 +195,14 @@ export async function submitBid({ jobId, haulerId, amount, note }) {
   const { error } = await supabase.from("bids").insert({ job_id: jobId, hauler_id: haulerId, amount: Number(amount), note });
   if (error) {
     if (error.code === "42501") throw new Error("Please confirm Business License and Insurance are current.");
+    throw error;
+  }
+}
+
+export async function updateBid({ bidId, amount, note }) {
+  const { error } = await supabase.from("bids").update({ amount: Number(amount), note }).eq("id", bidId);
+  if (error) {
+    if (error.code === "42501") throw new Error("This bid can no longer be edited — it may have expired or already been accepted.");
     throw error;
   }
 }

@@ -32,6 +32,8 @@ const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link:
   cancellationRequested: (title, _body, link) => `A cancellation was requested for "${title}" — it's under review by MyTrashBid. ${link}`,
   jobCancelled: (title, _body, link) => `"${title}" was cancelled by MyTrashBid. ${link}`,
   bidSwitchedOut: (title, body, link) => `${title}${body ? `: "${body}"` : ""}. ${link}`,
+  jobQuestionAsked: (title, _body, link) => `${title} ${link}`,
+  questionAnswered: (title, _body, link) => `${title} ${link}`,
 };
 
 async function sendSms(to: string, body: string): Promise<boolean> {

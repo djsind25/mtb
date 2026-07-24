@@ -51,3 +51,7 @@ export function expiryLabel(iso) {
   if (d === 1) return "1 day left";
   return `${d} days left`;
 }
+export function memberSinceLabel(iso) {
+  if (!iso) return null;
+  return `Member since ${new Date(iso).getFullYear()}`;
+}

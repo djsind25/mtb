@@ -84,6 +84,70 @@ export async function setFlagReviewed(messageId, reviewed) {
   if (error) throw error;
 }
 
+// job_questions_public already resolves real hauler_id for admins (the anonymity CASE only
+// hides it from other haulers) — same join shape as loadFlaggedMessages, just against a
+// different table and no chat_id to link a "view full conversation" button to.
+export async function loadFlaggedJobQuestions() {
+  const { data: rows, error } = await supabase.from("job_questions_public").select("*").not("flag_type", "is", null).order("created_at", { ascending: false });
+  if (error) throw error;
+  if (rows.length === 0) return [];
+
+  const jobIds = [...new Set(rows.map(r => r.job_id))];
+  const peopleIds = [...new Set(rows.map(r => r.hauler_id).filter(Boolean))];
+  const [{ data: jobs, error: jobsError }, { data: people, error: peopleError }] = await Promise.all([
+    supabase.from("jobs").select("id, title").in("id", jobIds),
+    peopleIds.length ? supabase.from("public_profiles").select("id, name, business_name").in("id", peopleIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (jobsError) throw jobsError;
+  if (peopleError) throw peopleError;
+  const jobTitleById = Object.fromEntries(jobs.map(j => [j.id, j.title]));
+  const nameById = Object.fromEntries((people || []).map(p => [p.id, p.business_name || p.name]));
+
+  return rows.map(r => ({
+    ...r,
+    kind: "question",
+    jobTitle: jobTitleById[r.job_id],
+    senderName: r.hauler_id ? nameById[r.hauler_id] : undefined,
+  }));
+}
+
+export async function setJobQuestionFlagReviewed(questionId, reviewed) {
+  const { error } = await supabase.from("job_questions").update({ flag_reviewed: reviewed }).eq("id", questionId);
+  if (error) throw error;
+}
+
+// job_updates has no author identity to resolve (always the job's own customer) — just the job
+// title, same as job_questions above minus the hauler-name lookup.
+export async function loadFlaggedJobUpdates() {
+  const { data: rows, error } = await supabase.from("job_updates_public").select("*").not("flag_type", "is", null).order("created_at", { ascending: false });
+  if (error) throw error;
+  if (rows.length === 0) return [];
+
+  const jobIds = [...new Set(rows.map(r => r.job_id))];
+  const { data: jobs, error: jobsError } = await supabase.from("jobs").select("id, title, customer_id").in("id", jobIds);
+  if (jobsError) throw jobsError;
+  const jobById = Object.fromEntries(jobs.map(j => [j.id, j]));
+
+  const customerIds = [...new Set(jobs.map(j => j.customer_id))];
+  const { data: people, error: peopleError } = customerIds.length
+    ? await supabase.from("public_profiles").select("id, name").in("id", customerIds)
+    : { data: [], error: null };
+  if (peopleError) throw peopleError;
+  const nameById = Object.fromEntries((people || []).map(p => [p.id, p.name]));
+
+  return rows.map(r => ({
+    ...r,
+    kind: "update",
+    jobTitle: jobById[r.job_id]?.title,
+    senderName: nameById[jobById[r.job_id]?.customer_id],
+  }));
+}
+
+export async function setJobUpdateFlagReviewed(updateId, reviewed) {
+  const { error } = await supabase.from("job_updates").update({ flag_reviewed: reviewed }).eq("id", updateId);
+  if (error) throw error;
+}
+
 export async function setOverdueReviewed(jobId, reviewed) {
   const { error } = await supabase.from("jobs").update({ overdue_reviewed: reviewed }).eq("id", jobId);
   if (error) throw error;
