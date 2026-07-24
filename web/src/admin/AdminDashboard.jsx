@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
-import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, setDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary } from "./data";
+import { CenteredNote, Field } from "../ui/Primitives";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary } from "./data";
 import { loadSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
@@ -10,7 +10,7 @@ import { JobRow, JobRowExpanded } from "./JobRow";
 import { FlagRow } from "./FlagRow";
 import { OverdueJobRow } from "./OverdueJobRow";
 import { EditUserModal } from "./EditUserModal";
-import { UserRow } from "./UserRow";
+import { UserRow, userDisplayName } from "./UserRow";
 import { SupportChatRow } from "./SupportChatRow";
 import { HaulerDocRow } from "./HaulerDocRow";
 import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
@@ -33,10 +33,10 @@ export function AdminDashboard({ session, setToast }) {
   const [cancellationRequests, setCancellationRequests] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
-  const [togglingPaymentMode, setTogglingPaymentMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
+  const [userSort, setUserSort] = useState("newest");
   const [hideReviewedFlags, setHideReviewedFlags] = useState(false);
   const [hideReviewedOverdue, setHideReviewedOverdue] = useState(false);
   const [supportSubTab, setSupportSubTab] = useState("open");
@@ -62,19 +62,6 @@ export function AdminDashboard({ session, setToast }) {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  async function togglePaymentMode() {
-    const next = defaultPaymentMode === "full" ? "deposit" : "full";
-    setTogglingPaymentMode(true);
-    try {
-      await setDefaultPaymentMode(next);
-      setDefaultPaymentModeState(next);
-      setToast(`New jobs now default to ${next === "full" ? "full payment (held until complete)" : "deposit-only"}.`);
-    } catch (e) {
-      setToast(e.message || "Could not change the payment mode.");
-    }
-    setTogglingPaymentMode(false);
-  }
-
   if (loading) return <CenteredNote>Loading admin dashboard…</CenteredNote>;
 
   const readOnly = !!session.adminReadOnly;
@@ -85,8 +72,13 @@ export function AdminDashboard({ session, setToast }) {
   const searchQuery = userSearch.trim().toLowerCase();
   const matchesSearch = (u) => !searchQuery || [u.name, u.business_name, u.email, u.zip]
     .some(field => (field || "").toLowerCase().includes(searchQuery));
-  const filteredCustomers = customers.filter(matchesSearch);
-  const filteredHaulers = haulers.filter(matchesSearch);
+  const sortUsers = (list) => [...list].sort((a, b) => {
+    if (userSort === "name") return userDisplayName(a).localeCompare(userDisplayName(b));
+    const delta = new Date(b.created_at) - new Date(a.created_at);
+    return userSort === "oldest" ? -delta : delta;
+  });
+  const filteredCustomers = sortUsers(customers.filter(matchesSearch));
+  const filteredHaulers = sortUsers(haulers.filter(matchesSearch));
   const bookedJobs = jobs.filter(j => j.status === "booked");
   const monthlyRevenue = buildMonthlyRevenue(jobs);
   const now = new Date();
@@ -143,13 +135,6 @@ export function AdminDashboard({ session, setToast }) {
               : "Customers prepay a 10% deposit (our revenue); the 90% balance is paid hauler-direct, off-platform."}
             {" "}This only affects new jobs — every already-booked job keeps whatever mode it was created under.
           </div>
-          {session.superAdmin && (
-            <div style={{ marginTop: 10 }}>
-              <Btn size="sm" full={false} variant="ghost" disabled={togglingPaymentMode} onClick={togglePaymentMode}>
-                {togglingPaymentMode ? "Switching…" : `Switch new jobs to ${defaultPaymentMode === "full" ? "deposit-only" : "full payment"}`}
-              </Btn>
-            </div>
-          )}
         </div>
       </div>
 
@@ -211,7 +196,17 @@ export function AdminDashboard({ session, setToast }) {
 
       {tab === "customers" && (
         <Panel title="Customers">
-          <Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" />
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+            <div style={{ flex: 1 }}><Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" /></div>
+            <select value={userSort} onChange={e => setUserSort(e.target.value)} style={{
+              border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 10px", fontSize: 12.5,
+              fontFamily: "inherit", color: C.ink, background: C.paper,
+            }}>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </div>
           <div style={{ display: "grid", gap: 8 }}>
             {customers.length === 0 && <CenteredNote>No customer accounts yet.</CenteredNote>}
             {customers.length > 0 && filteredCustomers.length === 0 && <CenteredNote>No customers match "{userSearch}".</CenteredNote>}
@@ -224,7 +219,17 @@ export function AdminDashboard({ session, setToast }) {
 
       {tab === "haulers" && (
         <Panel title="Haulers">
-          <Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" />
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+            <div style={{ flex: 1 }}><Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" /></div>
+            <select value={userSort} onChange={e => setUserSort(e.target.value)} style={{
+              border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 10px", fontSize: 12.5,
+              fontFamily: "inherit", color: C.ink, background: C.paper,
+            }}>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </div>
           <div style={{ display: "grid", gap: 8 }}>
             {haulers.length === 0 && <CenteredNote>No hauler accounts yet.</CenteredNote>}
             {haulers.length > 0 && filteredHaulers.length === 0 && <CenteredNote>No haulers match "{userSearch}".</CenteredNote>}

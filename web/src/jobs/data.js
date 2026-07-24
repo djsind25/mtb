@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabaseClient";
 async function attachHaulerNames(bids) {
   const haulerIds = [...new Set(bids.map(b => b.hauler_id))];
   if (haulerIds.length === 0) return bids;
-  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name, rating, rating_count, verified, license_active, insurance_active").in("id", haulerIds);
+  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name, rating, rating_count, verified, license_active, insurance_active, created_at").in("id", haulerIds);
   const byId = Object.fromEntries((haulers || []).map(h => [h.id, h]));
   return bids.map(b => ({
     ...b,
@@ -16,6 +16,7 @@ async function attachHaulerNames(bids) {
     verified: byId[b.hauler_id]?.verified,
     licenseActive: byId[b.hauler_id]?.license_active,
     insuranceActive: byId[b.hauler_id]?.insurance_active,
+    haulerSince: byId[b.hauler_id]?.created_at,
   }));
 }
 
@@ -80,14 +81,20 @@ export async function loadOpenJobsForHauler() {
   return data;
 }
 
+// list_my_bid_jobs_for_hauler() returns each row as a nested { job, city, state, bid_count } —
+// job_count needs a security-definer RPC because bids_select RLS only lets a hauler see their own
+// bid rows (sealed bidding), so a plain client-side count over `bids` would silently return 0 or 1
+// instead of the real total.
 export async function loadMyBidJobs(haulerId) {
   const { data: myBids, error } = await supabase.from("bids").select("*").eq("hauler_id", haulerId);
   if (error) throw error;
   if (myBids.length === 0) return [];
-  const jobIds = myBids.map(b => b.job_id);
-  const { data: jobs, error: jobsError } = await supabase.from("jobs").select("*").in("id", jobIds);
+  const { data: rows, error: jobsError } = await supabase.rpc("list_my_bid_jobs_for_hauler");
   if (jobsError) throw jobsError;
-  const withBids = jobs.map(j => ({ ...j, myBid: myBids.find(b => b.job_id === j.id) }));
+  const withBids = rows.map(r => ({
+    ...r.job, city: r.city, state: r.state, bid_count: r.bid_count,
+    myBid: myBids.find(b => b.job_id === r.job.id),
+  }));
   return attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId));
 }
 

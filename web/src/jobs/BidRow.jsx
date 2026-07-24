@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { C, mono, expiryLabel, isExpired, COMMISSION_RATE } from "../theme";
+import { C, mono, expiryLabel, isExpired, memberSinceLabel, COMMISSION_RATE } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { acceptBid } from "./data";
 import { AcceptBidPayment } from "./AcceptBidPayment";
+
+// Built but not surfaced yet — flip this on once the "member since" feature is ready to ship.
+const SHOW_MEMBER_SINCE = false;
 
 export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
   const [starting, setStarting] = useState(false);
@@ -49,6 +52,7 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
             {bid.licenseActive && <span>🪪 Licensed</span>}
             {bid.insuranceActive && <span>🛡️ Insured</span>}
             {bid.verified && <span>✅ Verified</span>}
+            {SHOW_MEMBER_SINCE && memberSinceLabel(bid.haulerSince) && <span>{memberSinceLabel(bid.haulerSince)}</span>}
           </div>
         </div>
         <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${bid.amount}</span>

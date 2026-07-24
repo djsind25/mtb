@@ -26,7 +26,7 @@ function timeAgo(iso) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, setToast }) {
+export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, eligible = true, setToast }) {
   const [questions, setQuestions] = useState(null);
   const [myOpenCount, setMyOpenCount] = useState(0);
   const [draft, setDraft] = useState("");
@@ -177,7 +177,11 @@ export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, setToast })
       {viewerRole === "hauler" && jobOpen && (
         <div style={{ background: C.sand, border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 12px" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.pineDeep, marginBottom: 6 }}>Ask a question</div>
-          {myOpenCount >= MAX_OPEN_UNANSWERED ? (
+          {!eligible ? (
+            <div style={{ fontSize: 11.5, color: C.gray }}>
+              Please confirm Business License and Insurance are current to ask questions.
+            </div>
+          ) : myOpenCount >= MAX_OPEN_UNANSWERED ? (
             <div style={{ fontSize: 11.5, color: C.gray }}>
               You have {MAX_OPEN_UNANSWERED} open questions on this job already — wait for an answer before asking another.
             </div>

@@ -3,6 +3,10 @@ import { C } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
 import { updateUserProfile } from "./data";
 
+export function userDisplayName(u) {
+  return u.role === "customer" ? u.name : (u.business_name || u.name);
+}
+
 export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmingAdminRole, setConfirmingAdminRole] = useState(false);
@@ -34,10 +38,10 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
     setConfirmingAdminRole(false);
   }
 
-  const displayName = u.role === "customer" ? u.name : (u.business_name || u.name);
+  const displayName = userDisplayName(u);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: 10, background: u.active ? "transparent" : C.redLight }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: 10, background: u.active ? C.sand : C.redLight }}>
       <Avatar emoji={u.role === "customer" ? "👤" : u.role === "hauler" ? "🚛" : "🛡️"} size={32} bg={u.role === "customer" ? C.sandWarm : C.tealLight} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>

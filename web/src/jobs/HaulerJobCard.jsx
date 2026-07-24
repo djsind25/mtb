@@ -10,7 +10,7 @@ function formatDate(iso) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function HaulerJobCard({ job, myBid, haulerId, onBid, onUpdateBid, setToast }) {
+export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateBid, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -50,7 +50,7 @@ export function HaulerJobCard({ job, myBid, haulerId, onBid, onUpdateBid, setToa
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.pineDeep, marginBottom: 4 }}>{job.title}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               {isRental && <Badge color={C.teal} bg={C.tealLight}>🗑️ {job.dumpster_type === "trailer" ? "Trailer" : "Roll-off"} rental</Badge>}
-              <span style={{ fontSize: 11.5, color: C.gray }}>📍 ZIP {job.zip} · {job.bid_count} bids so far</span>
+              <span style={{ fontSize: 11.5, color: C.gray }}>📍 ZIP {job.zip}{job.city ? ` · ${job.city}, ${job.state}` : ""} · {job.bid_count} bids so far</span>
               <Badge color={C.gray} bg={C.grayLight}>{expiryLabel(job.expires_at)}</Badge>
               {typeof job.distance_mi === "number" && <Badge color={C.teal} bg={C.tealLight}>📏 {job.distance_mi < 1 ? "<1" : Math.round(job.distance_mi)} mi away</Badge>}
               {job.distance_mi === null && <Badge color={C.gray} bg={C.grayLight}>Distance unknown</Badge>}
@@ -85,7 +85,7 @@ export function HaulerJobCard({ job, myBid, haulerId, onBid, onUpdateBid, setToa
             </div>
           )}
           <JobUpdates jobId={job.id} viewerRole="hauler" jobOpen setToast={setToast} />
-          <JobQuestions jobId={job.id} viewerRole="hauler" haulerId={haulerId} jobOpen setToast={setToast} />
+          <JobQuestions jobId={job.id} viewerRole="hauler" haulerId={haulerId} jobOpen eligible={eligible} setToast={setToast} />
 
           {alreadyBid ? (
             editingBid ? (

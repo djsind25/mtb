@@ -150,6 +150,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
               {openJobs.length > 0 && filteredOpenJobs.length === 0 && <CenteredNote>No open jobs match that timeline right now.</CenteredNote>}
               {filteredOpenJobs.map(job => (
                 <HaulerJobCard key={job.id} job={job} myBid={myBidByJobId[job.id]} haulerId={session.id}
+                  eligible={session.licenseActive && session.insuranceActive}
                   onBid={handleBid} onUpdateBid={handleUpdateBid} setToast={setToast} />
               ))}
             </div>

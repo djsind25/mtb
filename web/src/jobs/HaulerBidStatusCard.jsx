@@ -21,6 +21,7 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
 
   const [counts, setCounts] = useState({ before: 0, after: 0 });
   const [marking, setMarking] = useState(false);
+  const [showQna, setShowQna] = useState(false);
   const canMarkDone = counts.before > 0 && counts.after > 0;
 
   // Must be stable across renders: CompletionPhotos' reload() is a useCallback depending on
@@ -48,15 +49,30 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
         <span style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{job.title}</span>
         <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${myBid?.amount}</span>
       </div>
+      <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 6 }}>
+        📍 ZIP {job.zip}{job.city ? ` · ${job.city}, ${job.state}` : ""} · {job.bid_count} bid{job.bid_count !== 1 ? "s" : ""} on this job
+      </div>
+      {job.description && <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 10, lineHeight: 1.5 }}>{job.description}</p>}
       {/* Same album the customer can add to from chat mid-conversation — this card never showed
           it before, so anything added post-booking was invisible from "My Bids". */}
       <JobPhotos jobId={job.id} />
       {/* Once a job books it drops out of Browse Jobs entirely, so this is the only place a
           winning hauler can still see the Q&A/updates history — read-only once not open. Uses
           the job's own expiry (matching job_is_open_for_bid, the real server-side gate), not the
-          bid's separate expiry — those are two different clocks. */}
-      <JobUpdates jobId={job.id} viewerRole="hauler" jobOpen={job.status === "open" && !isExpired(job.expires_at)} setToast={setToast} />
-      <JobQuestions jobId={job.id} viewerRole="hauler" haulerId={session.id} jobOpen={job.status === "open" && !isExpired(job.expires_at)} setToast={setToast} />
+          bid's separate expiry — those are two different clocks. Collapsed by default (unlike
+          Browse Jobs, this card has no card-level collapse of its own to hide behind). */}
+      <button onClick={() => setShowQna(s => !s)} style={{
+        background: "none", border: "none", padding: 0, marginBottom: showQna ? 8 : 4,
+        color: C.teal, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+      }}>
+        Questions & updates {showQna ? "▲" : "▼"}
+      </button>
+      {showQna && (
+        <>
+          <JobUpdates jobId={job.id} viewerRole="hauler" jobOpen={job.status === "open" && !isExpired(job.expires_at)} setToast={setToast} />
+          <JobQuestions jobId={job.id} viewerRole="hauler" haulerId={session.id} jobOpen={job.status === "open" && !isExpired(job.expires_at)} eligible={session.licenseActive && session.insuranceActive} setToast={setToast} />
+        </>
+      )}
       {won && (
         <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
           {isFull ? (
