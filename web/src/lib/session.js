@@ -12,6 +12,7 @@ export function mapProfileToSession(profile) {
     verified: profile.verified,
     licenseActive: !!profile.license_active,
     insuranceActive: !!profile.insurance_active,
+    membershipTier: profile.membership_tier || "free",
     rating: profile.rating,
     notificationPrefs: profile.notification_prefs,
     active: profile.active,

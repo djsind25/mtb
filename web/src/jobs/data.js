@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabaseClient";
 async function attachHaulerNames(bids) {
   const haulerIds = [...new Set(bids.map(b => b.hauler_id))];
   if (haulerIds.length === 0) return bids;
-  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name, rating, rating_count, verified, license_active, insurance_active, created_at").in("id", haulerIds);
+  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name, rating, rating_count, verified, license_active, insurance_active, created_at, membership_tier").in("id", haulerIds);
   const byId = Object.fromEntries((haulers || []).map(h => [h.id, h]));
   return bids.map(b => ({
     ...b,
@@ -17,6 +17,7 @@ async function attachHaulerNames(bids) {
     licenseActive: byId[b.hauler_id]?.license_active,
     insuranceActive: byId[b.hauler_id]?.insurance_active,
     haulerSince: byId[b.hauler_id]?.created_at,
+    membershipTier: byId[b.hauler_id]?.membership_tier || "free",
   }));
 }
 

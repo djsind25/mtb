@@ -150,6 +150,37 @@ export async function loadHaulerDocuments(haulerId) {
   return byType;
 }
 
+// Storage object first, then the row — if the row delete failed after removing the file we'd
+// orphan a hauler_documents row pointing at nothing, which is a confusing dead end to debug;
+// leaving an unreferenced file in storage if the row delete succeeds is harmless by comparison.
+export async function deleteHaulerDocument(documentId, storagePath) {
+  const { error: storageError } = await supabase.storage.from("hauler-documents").remove([storagePath]);
+  if (storageError) throw storageError;
+  const { error } = await supabase.from("hauler_documents").delete().eq("id", documentId);
+  if (error) throw error;
+}
+
+// business_name/license_number/insurance_info/business_registration_number don't take effect
+// immediately — this only queues the request; approve_profile_change_request (admin-only) is what
+// actually writes the new value to profiles.
+export async function requestProfileChange(field, requestedValue, reason) {
+  const { error } = await supabase.rpc("request_profile_change", {
+    p_field: field, p_requested_value: requestedValue, p_reason: reason || null,
+  });
+  if (error) throw error;
+}
+
+// Keyed by field so the Account tab can show "pending review" per-field without a linear scan
+// on every render.
+export async function loadMyProfileChangeRequests(haulerId) {
+  const { data, error } = await supabase.from("profile_change_requests").select("*")
+    .eq("hauler_id", haulerId).order("created_at", { ascending: false });
+  if (error) throw error;
+  const byField = {};
+  for (const r of data) if (!byField[r.field]) byField[r.field] = r;
+  return byField;
+}
+
 // A fresh upload always replaces whatever was there before (one current document per type —
 // see the hauler_documents unique(hauler_id, doc_type) constraint), which is why this needs
 // the hauler's own id up front rather than a doc id.

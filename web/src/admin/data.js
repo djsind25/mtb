@@ -188,6 +188,35 @@ export async function loadOverdueJobs() {
   });
 }
 
+export async function loadProfileChangeRequests() {
+  const { data: reqs, error } = await supabase.from("profile_change_requests").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  if (reqs.length === 0) return [];
+
+  const haulerIds = [...new Set(reqs.map(r => r.hauler_id))];
+  const { data: people, error: peopleError } = await supabase.from("public_profiles").select("id, name, business_name").in("id", haulerIds);
+  if (peopleError) throw peopleError;
+  const nameById = Object.fromEntries(people.map(p => [p.id, p.business_name || p.name]));
+
+  return reqs.map(r => ({ ...r, haulerName: nameById[r.hauler_id] }));
+}
+
+export async function approveProfileChangeRequest(requestId, note) {
+  const { error } = await supabase.rpc("approve_profile_change_request", { p_request_id: requestId, p_note: note || null });
+  if (error) throw error;
+}
+
+export async function denyProfileChangeRequest(requestId, note) {
+  const { error } = await supabase.rpc("deny_profile_change_request", { p_request_id: requestId, p_note: note || null });
+  if (error) throw error;
+}
+
+export async function loadZipHistory(profileId) {
+  const { data, error } = await supabase.from("profile_zip_history").select("*").eq("profile_id", profileId).order("changed_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 export async function loadHaulerDocuments() {
   const { data: docs, error } = await supabase.from("hauler_documents").select("*").order("uploaded_at", { ascending: false });
   if (error) throw error;

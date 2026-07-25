@@ -2,6 +2,7 @@ import { useState } from "react";
 import { C } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
 import { updateUserProfile } from "./data";
+import { tierName } from "../membership";
 
 export function userDisplayName(u) {
   return u.role === "customer" ? u.name : (u.business_name || u.name);
@@ -55,6 +56,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
         <>
           <Badge color={u.license_active ? C.teal : C.red} bg={u.license_active ? C.tealLight : C.redLight}>license {u.license_active ? "✓" : "✗"}</Badge>
           <Badge color={u.insurance_active ? C.teal : C.red} bg={u.insurance_active ? C.tealLight : C.redLight}>insurance {u.insurance_active ? "✓" : "✗"}</Badge>
+          <Badge color={C.pineDeep} bg={C.sandWarm}>{tierName(u.membership_tier)}</Badge>
         </>
       )}
       <Badge color={u.role === "customer" ? C.gray : C.teal} bg={u.role === "customer" ? C.grayLight : C.tealLight}>{u.role}</Badge>
