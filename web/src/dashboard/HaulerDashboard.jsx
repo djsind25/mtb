@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
-import { serif, C, TIMELINE_OPTIONS } from "../theme";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { serif, C, jobCategoryOf, timelineSortIndex } from "../theme";
 import { entitlementsFor } from "../membership";
 import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
 import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
-import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, updateBid, renewBid, haulerMarkDone, loadChangeOrdersEnabled } from "../jobs/data";
+import { FindJobsFilters } from "../jobs/FindJobsFilters";
+import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, updateBid, renewBid, haulerMarkDone, loadChangeOrdersEnabled, saveJobSearchPrefs, dismissJob, undismissJob } from "../jobs/data";
 import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
 import { AccountTab } from "./AccountTab";
 import { loadHaulerStats } from "./data";
+
+const DEFAULT_JOB_PREFS = { sort: "nearest", distanceBand: null, timelines: [], jobTypes: [], density: "compact" };
 
 const TABS = [
   { id: "browse", label: "Browse Jobs" },
@@ -22,12 +25,24 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const [tab, setTab] = useState(initialChatId ? "messages" : "browse");
   const [directChatId, setDirectChatId] = useState(null);
   const [openJobs, setOpenJobs] = useState([]);
-  const [timelineFilter, setTimelineFilter] = useState("all");
   const [myBidJobs, setMyBidJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [changeOrdersEnabled, setChangeOrdersEnabled] = useState(false);
+
+  // Find Jobs filtering/sorting — seeded from the hauler's saved default (if any) so opening the
+  // tab applies it automatically; savedViewActive drives the "showing your saved view" banner and
+  // is a local flag (not re-derived from prefs) so Reset can turn it off without deleting the
+  // saved default on the server.
+  const hasSavedPrefs = !!session.jobSearchPrefs;
+  const [sort, setSort] = useState(session.jobSearchPrefs?.sort || DEFAULT_JOB_PREFS.sort);
+  const [distanceBand, setDistanceBand] = useState(session.jobSearchPrefs?.distanceBand ?? DEFAULT_JOB_PREFS.distanceBand);
+  const [timelines, setTimelines] = useState(session.jobSearchPrefs?.timelines || DEFAULT_JOB_PREFS.timelines);
+  const [jobTypes, setJobTypes] = useState(session.jobSearchPrefs?.jobTypes || DEFAULT_JOB_PREFS.jobTypes);
+  const [density, setDensity] = useState(session.jobSearchPrefs?.density || DEFAULT_JOB_PREFS.density);
+  const [showDismissed, setShowDismissed] = useState(false);
+  const [savedViewActive, setSavedViewActive] = useState(hasSavedPrefs);
 
   useEffect(() => { if (initialChatId) setTab("messages"); }, [initialChatId]);
 
@@ -99,11 +114,63 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     loadAll();
   }
 
+  async function handleDismiss(jobId) {
+    try {
+      await dismissJob({ haulerId: session.id, jobId });
+      await loadAll();
+    } catch (e) {
+      setToast(e.message || "Could not dismiss that job.");
+    }
+  }
+
+  async function handleUndismiss(jobId) {
+    try {
+      await undismissJob({ haulerId: session.id, jobId });
+      await loadAll();
+    } catch (e) {
+      setToast(e.message || "Could not restore that job.");
+    }
+  }
+
+  async function handleSaveDefault() {
+    try {
+      await saveJobSearchPrefs(session.id, { sort, distanceBand, timelines, jobTypes, density });
+      setSavedViewActive(true);
+      setToast("Saved as your default Find Jobs view.");
+    } catch (e) {
+      setToast(e.message || "Could not save your default view.");
+    }
+  }
+
+  function resetFiltersToRadius() {
+    setSort(DEFAULT_JOB_PREFS.sort);
+    setDistanceBand(DEFAULT_JOB_PREFS.distanceBand);
+    setTimelines(DEFAULT_JOB_PREFS.timelines);
+    setJobTypes(DEFAULT_JOB_PREFS.jobTypes);
+    setSavedViewActive(false);
+  }
+
   const maxRadiusMi = entitlementsFor(session.membershipTier).maxRadiusMi;
   const myBidByJobId = Object.fromEntries(myBidJobs.map(j => [j.id, j.myBid]));
-  // Legacy jobs with no stated timeline are grouped under "Flexible" for filtering purposes
-  // (even though their card shows no badge at all — see timelineMeta in theme.js).
-  const filteredOpenJobs = timelineFilter === "all" ? openJobs : openJobs.filter(j => (j.timeline || "flexible") === timelineFilter);
+
+  const dismissedCount = openJobs.filter(j => j.is_dismissed).length;
+  // showDismissed decides the *base* list (a view toggle, not a "filter"); distance/timeline/job
+  // type narrow within it — that split is what "X filters active" counts against.
+  const baseJobs = showDismissed ? openJobs : openJobs.filter(j => !j.is_dismissed);
+  const filteredOpenJobs = useMemo(() => {
+    let jobs = baseJobs;
+    if (distanceBand) jobs = jobs.filter(j => j.distance_mi == null || j.distance_mi <= distanceBand);
+    if (timelines.length > 0) jobs = jobs.filter(j => timelines.includes(j.timeline || "flexible"));
+    if (jobTypes.length > 0) jobs = jobs.filter(j => jobTypes.includes(jobCategoryOf(j)));
+
+    const sorted = [...jobs];
+    if (sort === "newest") sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    else if (sort === "fewest_bids") sorted.sort((a, b) => a.bid_count - b.bid_count);
+    else if (sort === "soonest_timeline") sorted.sort((a, b) => timelineSortIndex(a.timeline) - timelineSortIndex(b.timeline));
+    else sorted.sort((a, b) => (a.distance_mi ?? Infinity) - (b.distance_mi ?? Infinity));
+    return sorted;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseJobs, distanceBand, timelines, jobTypes, sort]);
 
   const summary = stats ? [
     { label: "Open jobs nearby", value: stats.openNearby },
@@ -144,21 +211,30 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
             <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 14 }}>
               Showing jobs within {maxRadiusMi} miles of your service ZIP ({session.zip || "not set"}). Posts stay live for 14 days unless renewed.
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 18 }}>
-              {[{ id: "all", label: "All timelines" }, ...TIMELINE_OPTIONS].map(o => (
-                <button key={o.id} onClick={() => setTimelineFilter(o.id)} style={{
-                  border: `1.5px solid ${timelineFilter === o.id ? C.green : C.line}`, borderRadius: 20,
-                  background: timelineFilter === o.id ? C.tealLight : C.paper, padding: "5px 12px",
-                  cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: C.ink, fontFamily: "inherit",
-                }}>{o.label}</button>
-              ))}
-            </div>
+            <FindJobsFilters
+              sort={sort} onSortChange={setSort}
+              distanceBand={distanceBand} onDistanceBandChange={setDistanceBand} maxRadiusMi={maxRadiusMi}
+              timelines={timelines} onTimelinesChange={setTimelines}
+              jobTypes={jobTypes} onJobTypesChange={setJobTypes}
+              density={density} onDensityChange={setDensity}
+              showDismissed={showDismissed} onShowDismissedChange={setShowDismissed} dismissedCount={dismissedCount}
+              matchCount={filteredOpenJobs.length} totalCount={baseJobs.length}
+              savedViewActive={savedViewActive} onSaveDefault={handleSaveDefault} onResetToRadius={resetFiltersToRadius}
+            />
             <div style={{ display: "grid", gap: 12 }}>
               {openJobs.length === 0 && <CenteredNote>No open jobs within {maxRadiusMi} miles right now. Check back soon.</CenteredNote>}
-              {openJobs.length > 0 && filteredOpenJobs.length === 0 && <CenteredNote>No open jobs match that timeline right now.</CenteredNote>}
+              {openJobs.length > 0 && baseJobs.length === 0 && (
+                <CenteredNote>All {dismissedCount} job{dismissedCount === 1 ? "" : "s"} in your radius {dismissedCount === 1 ? "is" : "are"} dismissed. Toggle "show dismissed" in Filters to see them.</CenteredNote>
+              )}
+              {baseJobs.length > 0 && filteredOpenJobs.length === 0 && (
+                <CenteredNote>
+                  No jobs match your filters — <button onClick={resetFiltersToRadius} style={{ background: "none", border: "none", color: C.teal, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, textDecoration: "underline" }}>clear filters</button> to see all {baseJobs.length} job{baseJobs.length === 1 ? "" : "s"} in your radius.
+                </CenteredNote>
+              )}
               {filteredOpenJobs.map(job => (
                 <HaulerJobCard key={job.id} job={job} myBid={myBidByJobId[job.id]} haulerId={session.id}
                   eligible={session.licenseActive && session.insuranceActive}
+                  density={density} dismissed={job.is_dismissed} onDismiss={handleDismiss} onUndismiss={handleUndismiss}
                   onBid={handleBid} onUpdateBid={handleUpdateBid} setToast={setToast} />
               ))}
             </div>

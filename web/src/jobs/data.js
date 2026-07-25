@@ -94,6 +94,28 @@ export async function loadOpenJobsForHauler() {
   return data;
 }
 
+// Saved Find Jobs default (sort/distance band/timelines/job types/density) — a plain profile
+// field, not a vetting-credential, so it's freely self-editable like bio/notification_prefs.
+export async function saveJobSearchPrefs(haulerId, prefs) {
+  const { error } = await supabase.from("profiles").update({ job_search_prefs: prefs }).eq("id", haulerId);
+  if (error) throw error;
+}
+
+// Hides a job from this hauler's Find Jobs only — hauler_dismissed_jobs has no select/insert
+// grant for anyone but its own hauler_id, so this never affects what other haulers or the
+// customer see. Plain insert, not upsert — the table only grants insert/select/delete (no
+// update), and dismissing an already-dismissed job has nothing to change, so a duplicate-key
+// conflict is just ignored rather than treated as an error.
+export async function dismissJob({ haulerId, jobId }) {
+  const { error } = await supabase.from("hauler_dismissed_jobs").insert({ hauler_id: haulerId, job_id: jobId });
+  if (error && error.code !== "23505") throw error;
+}
+
+export async function undismissJob({ haulerId, jobId }) {
+  const { error } = await supabase.from("hauler_dismissed_jobs").delete().eq("hauler_id", haulerId).eq("job_id", jobId);
+  if (error) throw error;
+}
+
 // list_my_bid_jobs_for_hauler() returns each row as a nested { job, city, state, bid_count } —
 // job_count needs a security-definer RPC because bids_select RLS only lets a hauler see their own
 // bid rows (sealed bidding), so a plain client-side count over `bids` would silently return 0 or 1

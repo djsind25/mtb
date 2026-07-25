@@ -10,7 +10,7 @@ function formatDate(iso) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateBid, setToast }) {
+export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateBid, setToast, density = "card", dismissed = false, onDismiss, onUndismiss }) {
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -42,25 +42,59 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
     setEditingBid(false);
   }
 
-  return (
-    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, overflow: "hidden" }}>
-      <button onClick={() => setExpanded(e => !e)} style={{ width: "100%", background: "none", border: "none", padding: 16, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14.5, color: C.pineDeep, marginBottom: 4 }}>{job.title}</div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              {isRental && <Badge color={C.teal} bg={C.tealLight}>🗑️ {job.dumpster_type === "trailer" ? "Trailer" : "Roll-off"} rental</Badge>}
-              <span style={{ fontSize: 11.5, color: C.gray }}>📍 ZIP {job.zip}{job.city ? ` · ${job.city}, ${job.state}` : ""} · {job.bid_count} bids so far</span>
-              <Badge color={C.gray} bg={C.grayLight}>{expiryLabel(job.expires_at)}</Badge>
-              {typeof job.distance_mi === "number" && <Badge color={C.teal} bg={C.tealLight}>📏 {job.distance_mi < 1 ? "<1" : Math.round(job.distance_mi)} mi away</Badge>}
-              {job.distance_mi === null && <Badge color={C.gray} bg={C.grayLight}>Distance unknown</Badge>}
-              {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡ " : "⏱ "}{timeline.label}</Badge>}
-              {job.photo_count > 0 && <Badge color={C.teal} bg={C.tealLight}>📷 {job.photo_count} photo{job.photo_count !== 1 ? "s" : ""} attached</Badge>}
-            </div>
-          </div>
-          <span style={{ color: C.gray }}>{expanded ? "▲" : "▼"}</span>
+  const fullHeader = (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 14.5, color: C.pineDeep, marginBottom: 4 }}>{job.title}</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          {isRental && <Badge color={C.teal} bg={C.tealLight}>🗑️ {job.dumpster_type === "trailer" ? "Trailer" : "Roll-off"} rental</Badge>}
+          <span style={{ fontSize: 11.5, color: C.gray }}>📍 ZIP {job.zip}{job.city ? ` · ${job.city}, ${job.state}` : ""} · {job.bid_count} bids so far</span>
+          <Badge color={C.gray} bg={C.grayLight}>{expiryLabel(job.expires_at)}</Badge>
+          {typeof job.distance_mi === "number" && <Badge color={C.teal} bg={C.tealLight}>📏 {job.distance_mi < 1 ? "<1" : Math.round(job.distance_mi)} mi away</Badge>}
+          {job.distance_mi === null && <Badge color={C.gray} bg={C.grayLight}>Distance unknown</Badge>}
+          {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡ " : "⏱ "}{timeline.label}</Badge>}
+          {job.photo_count > 0 && <Badge color={C.teal} bg={C.tealLight}>📷 {job.photo_count} photo{job.photo_count !== 1 ? "s" : ""} attached</Badge>}
         </div>
-      </button>
+      </div>
+      <span style={{ color: C.gray }}>{expanded ? "▲" : "▼"}</span>
+    </div>
+  );
+
+  const compactHeader = (
+    <div>
+      <div style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 4 }}>{job.title}</div>
+      <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
+        {typeof job.distance_mi === "number" && <Badge color={C.teal} bg={C.tealLight}>📏 {job.distance_mi < 1 ? "<1" : Math.round(job.distance_mi)} mi</Badge>}
+        {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡" : "⏱"} {timeline.label}</Badge>}
+        <Badge color={C.gray} bg={C.grayLight}>{job.bid_count} bid{job.bid_count === 1 ? "" : "s"}</Badge>
+      </div>
+    </div>
+  );
+
+  const showFullHeader = density === "card" || expanded;
+
+  return (
+    <div style={{ background: C.paper, border: `1px solid ${dismissed ? C.grayLight : C.line}`, borderRadius: 12, overflow: "hidden", opacity: dismissed && !expanded ? 0.6 : 1 }}>
+      <div style={{ display: "flex", alignItems: "stretch" }}>
+        <button onClick={() => setExpanded(e => !e)} style={{
+          flex: 1, minWidth: 0, background: "none", border: "none",
+          padding: showFullHeader ? 16 : "10px 12px", textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+        }}>
+          {showFullHeader ? fullHeader : compactHeader}
+        </button>
+        {(onDismiss || onUndismiss) && (
+          <button
+            onClick={() => (dismissed ? onUndismiss(job.id) : onDismiss(job.id))}
+            title={dismissed ? "Show again" : "Not interested — hide this job"}
+            style={{ background: "none", border: "none", padding: "0 14px", cursor: "pointer", fontSize: 15, color: dismissed ? C.teal : C.gray, flexShrink: 0 }}
+          >
+            {dismissed ? "↩" : "✕"}
+          </button>
+        )}
+      </div>
+      {dismissed && !expanded && (
+        <div style={{ fontSize: 11, color: C.gray, padding: "0 12px 8px" }}>Dismissed — tap ↩ to show again</div>
+      )}
       {expanded && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
           <JobPhotos jobId={job.id} />

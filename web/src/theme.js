@@ -33,6 +33,34 @@ export function timelineMeta(timeline) {
   return { label: opt.label, urgent: timeline === "asap", color: timeline === "asap" ? C.red : C.gray, bg: timeline === "asap" ? C.redLight : C.grayLight };
 }
 
+// "Soonest timeline" sort orders by this index — legacy jobs with no timeline sort as if
+// "flexible" (last), matching the grouping HaulerDashboard already used for the timeline filter.
+export function timelineSortIndex(timeline) {
+  const idx = TIMELINE_OPTIONS.findIndex(o => o.id === timeline);
+  return idx === -1 ? TIMELINE_OPTIONS.length - 1 : idx;
+}
+
+// The only job-type distinctions that exist in the data model today (service_type +, for
+// rentals, dumpster_type) — mirrors the labels PostJobForm and HaulerJobCard already use.
+export const JOB_CATEGORY_OPTIONS = [
+  { id: "removal", label: "🧹 Junk removal" },
+  { id: "rolloff", label: "🗑️ Roll-off dumpster" },
+  { id: "trailer", label: "🚛 Trailer rental" },
+];
+export function jobCategoryOf(job) {
+  if (job.service_type !== "rental") return "removal";
+  return job.dumpster_type === "trailer" ? "trailer" : "rolloff";
+}
+
+// "Highest value" was requested but skipped — jobs have no budget/estimate field in the data
+// model, and inventing one would misrepresent what haulers are actually seeing.
+export const JOB_SORT_OPTIONS = [
+  { id: "nearest", label: "Nearest" },
+  { id: "newest", label: "Newest" },
+  { id: "fewest_bids", label: "Fewest bids" },
+  { id: "soonest_timeline", label: "Soonest timeline" },
+];
+
 export function nowStr(iso) {
   return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
