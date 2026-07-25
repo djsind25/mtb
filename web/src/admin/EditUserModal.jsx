@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { C, serif } from "../theme";
 import { Btn, Field, ErrorMsg } from "../ui/Primitives";
-import { updateUserProfile } from "./data";
+import { updateUserProfile, loadZipHistory } from "./data";
+import { MEMBERSHIP_TIERS, tierName } from "../membership";
 
 export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
   const [name, setName] = useState(user.name || "");
@@ -11,8 +12,23 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
   const [verified, setVerified] = useState(!!user.verified);
   const [licenseActive, setLicenseActive] = useState(!!user.license_active);
   const [insuranceActive, setInsuranceActive] = useState(!!user.insurance_active);
+  const [membershipTier, setMembershipTier] = useState(user.membership_tier || "free");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const [zipHistory, setZipHistory] = useState(null);
+  const [loadingZipHistory, setLoadingZipHistory] = useState(false);
+
+  async function toggleZipHistory() {
+    if (zipHistory !== null) { setZipHistory(null); return; }
+    setLoadingZipHistory(true);
+    try {
+      setZipHistory(await loadZipHistory(user.id));
+    } catch (e) {
+      setToast?.(e.message || "Could not load ZIP history.");
+    }
+    setLoadingZipHistory(false);
+  }
 
   async function handleSave() {
     setError("");
@@ -27,6 +43,7 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
         fields.verified = verified;
         fields.license_active = licenseActive;
         fields.insurance_active = insuranceActive;
+        fields.membership_tier = membershipTier;
       }
       await updateUserProfile(user.id, fields);
       setToast("User updated.");
@@ -54,6 +71,26 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
         <Field label="Phone" value={phone} onChange={setPhone} placeholder="(optional)" />
 
         {user.role === "hauler" && (
+          <div style={{ marginBottom: 10 }}>
+            <button onClick={toggleZipHistory} style={{
+              background: "none", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0,
+            }}>
+              {zipHistory !== null ? "Hide" : loadingZipHistory ? "Loading…" : "View"} ZIP change history
+            </button>
+            {zipHistory !== null && (
+              <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
+                {zipHistory.length === 0 && <div style={{ fontSize: 11.5, color: C.gray }}>No ZIP changes on record.</div>}
+                {zipHistory.map(h => (
+                  <div key={h.id} style={{ fontSize: 11.5, color: C.gray }}>
+                    {h.old_zip || "—"} → {h.new_zip} · {new Date(h.changed_at).toLocaleString()}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {user.role === "hauler" && (
           <>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 10, cursor: "pointer" }}>
               <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} />
@@ -70,6 +107,14 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
             <div style={{ fontSize: 11, color: C.gray, marginTop: -8, marginBottom: 14 }}>
               Checking these directly unlocks bidding — it bypasses the document upload/review flow in the Hauler docs tab.
             </div>
+
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Membership tier</label>
+            <select value={membershipTier} onChange={e => setMembershipTier(e.target.value)} style={{
+              width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8,
+              padding: "10px 13px", fontSize: 14, fontFamily: "inherit", color: C.ink, background: C.paper, marginBottom: 14,
+            }}>
+              {Object.keys(MEMBERSHIP_TIERS).map(t => <option key={t} value={t}>{tierName(t)}</option>)}
+            </select>
           </>
         )}
 

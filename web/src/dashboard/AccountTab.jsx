@@ -5,9 +5,12 @@ import { supabase } from "../lib/supabaseClient";
 import {
   loadCustomerPayments, loadHaulerEarnings, updateOwnProfile, updateNotificationPrefs,
   changeEmail, changePassword, deactivateOwnAccount, resendVerificationEmail, loadHaulerDocuments,
+  requestProfileChange, loadMyProfileChangeRequests,
 } from "./data";
 import { HaulerDocuments } from "./HaulerDocuments";
 import { SmsAgreement } from "../auth/SmsAgreement";
+import { entitlementsFor, tierName } from "../membership";
+import { LockedField } from "./LockedField";
 
 const EVENT_LABELS = {
   bidReceived: "New bid on your job",
@@ -48,11 +51,15 @@ export function AccountTab({ session, setToast }) {
   const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState("");
-  const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [zip, setZip] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatar, setAvatar] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+
+  const [pendingRequests, setPendingRequests] = useState({});
+  const [requestingField, setRequestingField] = useState(null);
 
   const [prefs, setPrefs] = useState(null);
   const [smsConsent, setSmsConsent] = useState(false);
@@ -75,6 +82,11 @@ export function AccountTab({ session, setToast }) {
     setDocuments(await loadHaulerDocuments(session.id));
   };
 
+  const loadPendingRequests = async () => {
+    if (session.role !== "hauler") return;
+    setPendingRequests(await loadMyProfileChangeRequests(session.id));
+  };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -83,14 +95,15 @@ export function AccountTab({ session, setToast }) {
         supabase.from("profiles").select("*").eq("id", session.id).single(),
         session.role === "customer" ? loadCustomerPayments(session.id) : loadHaulerEarnings(session.id),
       ]);
-      if (session.role === "hauler") await loadDocuments();
+      if (session.role === "hauler") { await loadDocuments(); await loadPendingRequests(); }
       if (cancelled) return;
       setProfile(p);
       setName(p.name || "");
-      setBusinessName(p.business_name || "");
       setEmail(p.email || "");
       setPhone(p.phone || "");
       setZip(p.zip || "");
+      setBio(p.bio || "");
+      setAvatar(p.avatar || "");
       setPrefs(p.notification_prefs);
       setSmsConsent(p.sms_consent || false);
       setHistory(hist);
@@ -99,6 +112,8 @@ export function AccountTab({ session, setToast }) {
     return () => { cancelled = true; };
   }, [session.id, session.role]);
 
+  // business_name moved out of this free-save path entirely — it's now change-request-only, see
+  // the "Business & verification" section below.
   async function saveProfile() {
     if (session.role === "hauler" && !phone.trim()) {
       setToast("A phone number is required for hauler accounts.");
@@ -106,8 +121,10 @@ export function AccountTab({ session, setToast }) {
     }
     setSavingProfile(true);
     try {
-      const fields = { name: name.trim(), phone: phone.trim() || null, zip: zip.trim() };
-      if (session.role === "hauler") fields.business_name = businessName.trim();
+      const fields = {
+        name: name.trim(), phone: phone.trim() || null, zip: zip.trim(),
+        bio: bio.trim() || null, avatar: avatar.trim() || null,
+      };
       await updateOwnProfile(session.id, fields);
       if (email.trim() !== profile.email) {
         await changeEmail(email.trim());
@@ -119,6 +136,18 @@ export function AccountTab({ session, setToast }) {
       setToast(e.message || "Could not save profile.");
     }
     setSavingProfile(false);
+  }
+
+  async function submitFieldChange(field, value, reason) {
+    setRequestingField(field);
+    try {
+      await requestProfileChange(field, value, reason);
+      setToast("Change submitted for admin review.");
+      await loadPendingRequests();
+    } catch (e) {
+      setToast(e.message || "Could not submit that change.");
+    }
+    setRequestingField(null);
   }
 
   async function savePrefs() {
@@ -192,15 +221,78 @@ export function AccountTab({ session, setToast }) {
         <HaulerDocuments haulerId={session.id} documents={documents} onChanged={loadDocuments} setToast={setToast} />
       )}
 
+      {session.role === "hauler" && (
+        <section>
+          <div style={sectionTitle}>Membership</div>
+          <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, background: C.sand }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <Badge color={C.teal} bg={C.tealLight}>{tierName(session.membershipTier)} plan</Badge>
+            </div>
+            <div style={{ display: "grid", gap: 6, fontSize: 12.5, color: C.ink, marginBottom: 10 }}>
+              <div>📍 Browse radius: {entitlementsFor(session.membershipTier).maxRadiusMi} miles</div>
+              <div>🧾 Platform commission: {(entitlementsFor(session.membershipTier).commissionRate * 100).toFixed(0)}%</div>
+              <div>📮 Bids per month: {entitlementsFor(session.membershipTier).maxBidsPerMonth ?? "Unlimited"}</div>
+              <div>⏱ Early access to new jobs: {entitlementsFor(session.membershipTier).earlyAccessMinutes > 0 ? `${entitlementsFor(session.membershipTier).earlyAccessMinutes} min` : "None"}</div>
+              <div>⭐ Featured placement: {entitlementsFor(session.membershipTier).featuredPlacement ? "Yes" : "No"}</div>
+            </div>
+            {session.membershipTier === "free" && (
+              <div style={{ fontSize: 12.5, color: C.gray, fontStyle: "italic" }}>
+                You're on our free plan — no cost, no commitment.
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       <section>
         <div style={sectionTitle}>Profile</div>
-        {session.role === "hauler" && <Field label="Business name" value={businessName} onChange={setBusinessName} required />}
         <Field label={session.role === "hauler" ? "Contact name" : "Full name"} value={name} onChange={setName} required />
         <Field label="Email" value={email} onChange={setEmail} type="email" hint="Changing this sends a confirmation link to the new address." />
         <Field label="Phone" value={phone} onChange={setPhone} type="tel" placeholder={session.role === "hauler" ? "(555) 867-5309" : "(optional)"} required={session.role === "hauler"} />
-        <Field label="ZIP code" value={zip} onChange={setZip} />
+        <Field label="ZIP code" value={zip} onChange={setZip} hint={session.role === "hauler" ? "Changes are logged for admin visibility." : undefined} />
+        <Field label="Bio" value={bio} onChange={setBio} placeholder="Tell customers a bit about you (optional)" />
+        <Field label="Profile logo" value={avatar} onChange={setAvatar} placeholder="🚛 (an emoji for now)" hint="Shown next to your name across the app." />
         <Btn full={false} onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "Saving…" : "Save profile"}</Btn>
       </section>
+
+      {session.role === "hauler" && (
+        <section>
+          <div style={sectionTitle}>Business & verification</div>
+          <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 12 }}>
+            These affect how you're vetted, so an admin reviews changes before they take effect.
+          </p>
+          <LockedField label="Business name" value={profile.business_name}
+            pendingRequest={pendingRequests.business_name} submitting={requestingField === "business_name"}
+            onSubmit={(v, r) => submitFieldChange("business_name", v, r)} />
+          <LockedField label="License number" value={profile.license_number}
+            pendingRequest={pendingRequests.license_number} submitting={requestingField === "license_number"}
+            onSubmit={(v, r) => submitFieldChange("license_number", v, r)} />
+          <LockedField label="Insurance info" value={profile.insurance_info}
+            pendingRequest={pendingRequests.insurance_info} submitting={requestingField === "insurance_info"}
+            onSubmit={(v, r) => submitFieldChange("insurance_info", v, r)} />
+          <LockedField label="Business registration number" value={profile.business_registration_number}
+            pendingRequest={pendingRequests.business_registration_number} submitting={requestingField === "business_registration_number"}
+            onSubmit={(v, r) => submitFieldChange("business_registration_number", v, r)} />
+
+          <div style={{ height: 1, background: C.line, margin: "8px 0 16px" }} />
+
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Verification & standing</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Badge color={profile.verified ? C.teal : C.gray} bg={profile.verified ? C.tealLight : C.grayLight}>
+              {profile.verified ? "✓ Verified" : "Not verified"}
+            </Badge>
+            <Badge color={C.teal} bg={C.tealLight}>{tierName(session.membershipTier)} plan</Badge>
+            {profile.rating_count > 0 ? (
+              <Badge color={C.amber} bg={C.amberLight}>⭐ {Number(profile.rating).toFixed(1)} ({profile.rating_count})</Badge>
+            ) : (
+              <Badge color={C.gray} bg={C.grayLight}>No reviews yet</Badge>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: C.gray, marginTop: 6 }}>
+            These are set by MyTrashBid, not editable here.
+          </div>
+        </section>
+      )}
 
       <section>
         <div style={sectionTitle}>Notifications</div>

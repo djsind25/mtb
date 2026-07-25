@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
 import { CenteredNote, Field } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests } from "./data";
+import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
+import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { loadSupportChats } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
@@ -31,6 +33,7 @@ export function AdminDashboard({ session, setToast }) {
   const [adminInvites, setAdminInvites] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
   const [cancellationRequests, setCancellationRequests] = useState([]);
+  const [profileChangeRequests, setProfileChangeRequests] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,15 +47,15 @@ export function AdminDashboard({ session, setToast }) {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps] = await Promise.all([
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
-        loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(),
+        loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(),
       ]);
       // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
-      setCancellationRequests(cr); setFullPaymentSummary(fps);
+      setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr);
     } catch (e) {
       console.error("AdminDashboard: loadAll failed:", e);
       setToast?.(e.message || "Could not load the admin dashboard. Try refreshing.");
@@ -107,6 +110,8 @@ export function AdminDashboard({ session, setToast }) {
 
   const completionsNeedingReview = completedJobs.filter(c => !c.admin_reviewed_at).length;
   const pendingCancellationCount = cancellationRequests.filter(r => r.status === "pending").length;
+  const pendingProfileChangeCount = profileChangeRequests.filter(r => r.status === "pending").length;
+  const tierCounts = Object.fromEntries(Object.keys(MEMBERSHIP_TIERS).map(t => [t, haulers.filter(h => (h.membership_tier || "free") === t).length]));
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
@@ -150,6 +155,8 @@ export function AdminDashboard({ session, setToast }) {
         <Stat label="Overdue completions" value={overdue.length} accent={overdue.length > 0} onClick={() => setTab("overdue")} />
         <Stat label="Completed — awaiting review" value={completionsNeedingReview} accent={completionsNeedingReview > 0} onClick={() => setTab("completed")} />
         <Stat label="Cancellation requests" value={pendingCancellationCount} accent={pendingCancellationCount > 0} onClick={() => setTab("cancellations")} />
+        <Stat label="Profile change requests" value={pendingProfileChangeCount} accent={pendingProfileChangeCount > 0} onClick={() => setTab("profileChanges")} />
+        <Stat label="Haulers by tier" value={Object.keys(MEMBERSHIP_TIERS).map(t => `${tierName(t)} ${tierCounts[t]}`).join(" · ")} onClick={() => setTab("haulers")} />
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
@@ -166,6 +173,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
           { id: "completed", label: `Completed jobs (${completionsNeedingReview}/${completedJobs.length})` },
           { id: "cancellations", label: `Cancellation requests (${pendingCancellationCount}/${cancellationRequests.length})` },
+          { id: "profileChanges", label: `Profile change requests (${pendingProfileChangeCount}/${profileChangeRequests.length})` },
           { id: "support", label: `Open chat tickets (${openSupportChats.length})` },
         ].map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "support") setSupportSubTab("open"); }} style={{
@@ -336,6 +344,21 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "cancellations" && (
         <Panel title="Cancellation requests">
           <CancellationRequestsTab requests={cancellationRequests} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+        </Panel>
+      )}
+
+      {tab === "profileChanges" && (
+        <Panel title="Profile change requests">
+          <p style={{ fontSize: 12, color: C.gray, marginBottom: 12 }}>
+            Business name and vetting-credential edits (license number, insurance info, business
+            registration) wait here for approval before they take effect.
+          </p>
+          <div style={{ display: "grid", gap: 8 }}>
+            {profileChangeRequests.length === 0 && <CenteredNote>No profile change requests yet.</CenteredNote>}
+            {profileChangeRequests.map(r => (
+              <ProfileChangeRequestRow key={r.id} request={r} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+            ))}
+          </div>
         </Panel>
       )}
 

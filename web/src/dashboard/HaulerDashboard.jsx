@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { serif, C, MAX_RADIUS_MI, TIMELINE_OPTIONS } from "../theme";
+import { serif, C, TIMELINE_OPTIONS } from "../theme";
+import { entitlementsFor } from "../membership";
 import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
 import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
@@ -92,6 +93,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     loadAll();
   }
 
+  const maxRadiusMi = entitlementsFor(session.membershipTier).maxRadiusMi;
   const myBidByJobId = Object.fromEntries(myBidJobs.map(j => [j.id, j.myBid]));
   // Legacy jobs with no stated timeline are grouped under "Flexible" for filtering purposes
   // (even though their card shows no badge at all — see timelineMeta in theme.js).
@@ -134,7 +136,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
           <>
             <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 4 }}>Open jobs near you</h2>
             <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 14 }}>
-              Showing jobs within {MAX_RADIUS_MI} miles of your service ZIP ({session.zip || "not set"}). Posts stay live for 14 days unless renewed.
+              Showing jobs within {maxRadiusMi} miles of your service ZIP ({session.zip || "not set"}). Posts stay live for 14 days unless renewed.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 18 }}>
               {[{ id: "all", label: "All timelines" }, ...TIMELINE_OPTIONS].map(o => (
@@ -146,7 +148,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
               ))}
             </div>
             <div style={{ display: "grid", gap: 12 }}>
-              {openJobs.length === 0 && <CenteredNote>No open jobs within {MAX_RADIUS_MI} miles right now. Check back soon.</CenteredNote>}
+              {openJobs.length === 0 && <CenteredNote>No open jobs within {maxRadiusMi} miles right now. Check back soon.</CenteredNote>}
               {openJobs.length > 0 && filteredOpenJobs.length === 0 && <CenteredNote>No open jobs match that timeline right now.</CenteredNote>}
               {filteredOpenJobs.map(job => (
                 <HaulerJobCard key={job.id} job={job} myBid={myBidByJobId[job.id]} haulerId={session.id}

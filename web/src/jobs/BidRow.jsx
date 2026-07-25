@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { C, mono, expiryLabel, isExpired, memberSinceLabel, COMMISSION_RATE } from "../theme";
+import { C, mono, expiryLabel, isExpired, memberSinceLabel } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { acceptBid } from "./data";
 import { AcceptBidPayment } from "./AcceptBidPayment";
+import { entitlementsFor } from "../membership";
 
 // Built but not surfaced yet — flip this on once the "member since" feature is ready to ship.
 const SHOW_MEMBER_SINCE = false;
@@ -14,7 +15,10 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
   const isFull = paymentMode === "full";
   // Display-only mirror of price_breakdown() — the server always recomputes this authoritatively
   // in accept_bid(), this is purely so the customer sees the right numbers before they commit.
-  const depositNow = isFull ? bid.amount : +(bid.amount * COMMISSION_RATE).toFixed(2);
+  // Uses this specific hauler's tier entitlement rather than the flat global rate (wiring point
+  // 2/2 for membership tiers — currently every tier resolves to the same 0.10, see membership.js).
+  const commissionRate = entitlementsFor(bid.membershipTier).commissionRate;
+  const depositNow = isFull ? bid.amount : +(bid.amount * commissionRate).toFixed(2);
   const balanceDue = isFull ? 0 : +(bid.amount - depositNow).toFixed(2);
 
   async function startAccept() {

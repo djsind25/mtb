@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { C, sans } from "../theme";
 import { Btn, Badge } from "../ui/Primitives";
-import { submitHaulerDocument } from "./data";
+import { submitHaulerDocument, deleteHaulerDocument } from "./data";
 
 const DOC_LABELS = { license: "Business license", insurance: "Insurance" };
 
@@ -17,6 +17,8 @@ function DocCard({ docType, doc, haulerId, onSubmitted, setToast }) {
   const [file, setFile] = useState(null);
   const [expiresAt, setExpiresAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const status = doc && STATUS_STYLE[doc.status];
 
@@ -34,6 +36,21 @@ function DocCard({ docType, doc, haulerId, onSubmitted, setToast }) {
       setToast(e.message || "Could not submit document.");
     }
     setSubmitting(false);
+  }
+
+  // Deleting an approved document also clears the matching license_active/insurance_active flag
+  // server-side (see hauler_documents_reset_on_delete) — there'd be no evidence left to back it.
+  async function remove() {
+    setDeleting(true);
+    try {
+      await deleteHaulerDocument(doc.id, doc.storage_path);
+      setToast(`${DOC_LABELS[docType]} removed.`);
+      onSubmitted();
+    } catch (e) {
+      setToast(e.message || "Could not remove document.");
+    }
+    setDeleting(false);
+    setConfirmingDelete(false);
   }
 
   return (
@@ -67,6 +84,26 @@ function DocCard({ docType, doc, haulerId, onSubmitted, setToast }) {
           {submitting ? "Submitting…" : doc ? "Replace" : "Submit"}
         </Btn>
       </div>
+
+      {doc && (
+        confirmingDelete ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11.5, color: C.gray }}>Delete this document?</span>
+            <Btn size="sm" full={false} variant="danger" disabled={deleting} onClick={remove}>
+              {deleting ? "Deleting…" : "Yes, delete"}
+            </Btn>
+            <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingDelete(false)}>Cancel</Btn>
+          </div>
+        ) : (
+          <div>
+            <button onClick={() => setConfirmingDelete(true)} style={{
+              background: "none", border: "none", color: C.red, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0,
+            }}>
+              Delete document
+            </button>
+          </div>
+        )
+      )}
     </div>
   );
 }
