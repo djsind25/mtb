@@ -37,6 +37,8 @@ const EVENT_SUBJECTS: Record<string, string> = {
   jobCancelled: "Job cancelled",
   jobQuestionAsked: "New question on your job",
   questionAnswered: "Your question was answered",
+  bidRevisionProposed: "New price proposed for your job",
+  bidRevisionResolved: "Your price revision was resolved",
 };
 
 export default {

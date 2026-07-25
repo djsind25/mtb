@@ -62,6 +62,18 @@ async function attachPendingCancellation(jobs) {
   return jobs.map(j => ({ ...j, pendingCancellation: pending.has(j.id) }));
 }
 
+// Attaches the full pending row (not just a boolean) — both HaulerBidStatusCard's "awaiting
+// customer" banner and CustomerJobCard's approve/decline banner need the old/new amounts and
+// reason, not just whether one exists.
+async function attachPendingBidRevision(jobs) {
+  const jobIds = jobs.map(j => j.id);
+  if (jobIds.length === 0) return jobs;
+  const { data: revisions, error } = await supabase.from("bid_revisions").select("*").eq("status", "pending").in("job_id", jobIds);
+  if (error) throw error;
+  const byJobId = Object.fromEntries((revisions || []).map(r => [r.job_id, r]));
+  return jobs.map(j => ({ ...j, pendingRevision: byJobId[j.id] || null }));
+}
+
 export async function loadCustomerJobs(customerId) {
   const { data: jobs, error } = await supabase.from("jobs").select("*").eq("customer_id", customerId).order("created_at", { ascending: false });
   if (error) throw error;
@@ -73,7 +85,7 @@ export async function loadCustomerJobs(customerId) {
     bids = await attachHaulerNames(data);
   }
   const withBids = jobs.map(j => ({ ...j, bids: bids.filter(b => b.job_id === j.id) }));
-  return attachPendingCancellation(await attachChatIds(withBids));
+  return attachPendingBidRevision(await attachPendingCancellation(await attachChatIds(withBids)));
 }
 
 export async function loadOpenJobsForHauler() {
@@ -96,7 +108,7 @@ export async function loadMyBidJobs(haulerId) {
     ...r.job, city: r.city, state: r.state, bid_count: r.bid_count,
     myBid: myBids.find(b => b.job_id === r.job.id),
   }));
-  return attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId));
+  return attachPendingBidRevision(await attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId)));
 }
 
 export async function loadJobPhotos(jobId) {
@@ -206,6 +218,32 @@ export async function updateBid({ bidId, amount, note }) {
     if (error.code === "42501") throw new Error("This bid can no longer be edited — it may have expired or already been accepted.");
     throw error;
   }
+}
+
+// The "change orders" flag — off by default, only a super admin can flip it (see
+// setChangeOrdersEnabled in admin/data.js). propose_bid_revision also checks this server-side, so
+// this client read is purely to decide whether to show the "Propose new price" entry point at
+// all. Goes through is_change_orders_enabled() rather than a plain app_config select — that
+// table's own SELECT policy is admin-only, and a hauler dashboard load isn't an admin context.
+export async function loadChangeOrdersEnabled() {
+  const { data, error } = await supabase.rpc("is_change_orders_enabled");
+  if (error) throw error;
+  return !!data;
+}
+
+// Append-only: this never touches the original bid or chat.bid_amount — it inserts a
+// bid_revisions row and a system chat message. old_amount is computed server-side (latest
+// approved revision, or the original chat amount), never trusted from the client.
+export async function proposeBidRevision({ jobId, newAmount, reason }) {
+  const { error } = await supabase.rpc("propose_bid_revision", {
+    p_job_id: jobId, p_new_amount: Number(newAmount), p_reason: reason || null,
+  });
+  if (error) throw error;
+}
+
+export async function resolveBidRevision({ revisionId, approved }) {
+  const { error } = await supabase.rpc("resolve_bid_revision", { p_revision_id: revisionId, p_approved: approved });
+  if (error) throw error;
 }
 
 export async function updateJobTimeline(jobId, timeline) {

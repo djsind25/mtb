@@ -94,6 +94,10 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
     loadAll();
   }
 
+  function handleRevisionResolved() {
+    loadAll();
+  }
+
   async function handleUpdateTimeline(jobId, timeline) {
     await updateJobTimeline(jobId, timeline);
     await loadAll();
@@ -148,7 +152,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
             {customerJobs.length === 0 && !showPost && <CenteredNote>No jobs yet — post one to get started.</CenteredNote>}
             <div style={{ display: "grid", gap: 12 }}>
               {customerJobs.map(job => (
-                <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onSwitched={handleSwitched} onCancellationChanged={handleCancellationChanged} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} onUpdateTimeline={handleUpdateTimeline} onAcknowledge={handleAcknowledge} setToast={setToast} />
+                <CustomerJobCard key={job.id} job={job} completedCount={completedCount} onAccepted={handleAccepted} onSwitched={handleSwitched} onCancellationChanged={handleCancellationChanged} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} onUpdateTimeline={handleUpdateTimeline} onAcknowledge={handleAcknowledge} onRevisionResolved={handleRevisionResolved} setToast={setToast} />
               ))}
             </div>
           </>

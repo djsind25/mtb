@@ -322,6 +322,17 @@ export async function setDefaultPaymentMode(mode) {
   if (error) throw error;
 }
 
+export async function loadChangeOrdersEnabled() {
+  const { data, error } = await supabase.from("app_config").select("value").eq("key", "change_orders_enabled").single();
+  if (error) throw error;
+  return data.value === "true";
+}
+
+export async function setChangeOrdersEnabled(enabled) {
+  const { error } = await supabase.rpc("set_change_orders_enabled", { p_enabled: enabled });
+  if (error) throw error;
+}
+
 export async function loadCancellationRequests() {
   const { data: requests, error } = await supabase.from("cancellation_requests").select("*").order("created_at", { ascending: false });
   if (error) throw error;

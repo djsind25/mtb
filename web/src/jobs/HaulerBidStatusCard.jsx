@@ -6,8 +6,9 @@ import { JobPhotos } from "./JobPhotos";
 import { JobQuestions } from "./JobQuestions";
 import { JobUpdates } from "./JobUpdates";
 import { RequestCancellationControl } from "./RequestCancellationControl";
+import { ProposeBidRevisionControl } from "./ProposeBidRevisionControl";
 
-export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, setToast }) {
+export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, onRevisionProposed, setToast }) {
   const myBid = job.myBid;
   const won = job.status === "booked" && job.accepted_bid_id === myBid?.id;
   const lost = job.status === "booked" && job.accepted_bid_id !== myBid?.id;
@@ -130,6 +131,9 @@ export function HaulerBidStatusCard({ job, session, onOpenChat, onRenewBid, onMa
             <div style={{ fontSize: 10.5, color: C.gray, marginTop: 6 }}>
               Add at least one <strong>before</strong> and one <strong>after</strong> photo to mark the job complete.
             </div>
+          )}
+          {!job.completed && changeOrdersEnabled && (
+            <ProposeBidRevisionControl job={job} onProposed={onRevisionProposed} setToast={setToast} />
           )}
           {!job.completed && (
             <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />

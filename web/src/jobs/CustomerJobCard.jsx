@@ -10,8 +10,9 @@ import { CompletionPhotos } from "./CompletionPhotos";
 import { TimelinePicker } from "./TimelinePicker";
 import { SwitchHaulerPicker } from "./SwitchHaulerPicker";
 import { RequestCancellationControl } from "./RequestCancellationControl";
+import { ResolveBidRevisionControl } from "./ResolveBidRevisionControl";
 
-export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, setToast }) {
+export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, onRevisionResolved, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
   const [addingPhotos, setAddingPhotos] = useState(false);
@@ -194,11 +195,15 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, o
                   {switching && (
                     <SwitchHaulerPicker job={job} onSwitched={onSwitched} setToast={setToast} onClose={() => setSwitching(false)} />
                   )}
+                  <ResolveBidRevisionControl job={job} onResolved={onRevisionResolved} setToast={setToast} />
                   <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
                 </>
               )}
               {job.haulerDoneAt && !job.completed && (
-                <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
+                <>
+                  <ResolveBidRevisionControl job={job} onResolved={onRevisionResolved} setToast={setToast} />
+                  <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
+                </>
               )}
             </div>
           ) : job.status === "cancelled" ? (

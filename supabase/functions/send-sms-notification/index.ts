@@ -34,6 +34,8 @@ const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link:
   bidSwitchedOut: (title, body, link) => `${title}${body ? `: "${body}"` : ""}. ${link}`,
   jobQuestionAsked: (title, _body, link) => `${title} ${link}`,
   questionAnswered: (title, _body, link) => `${title} ${link}`,
+  bidRevisionProposed: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
+  bidRevisionResolved: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
 };
 
 async function sendSms(to: string, body: string): Promise<boolean> {

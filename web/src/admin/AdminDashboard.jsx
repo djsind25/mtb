@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
-import { CenteredNote, Field } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests } from "./data";
+import { CenteredNote, Field, Btn } from "../ui/Primitives";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { loadSupportChats } from "../support/data";
@@ -36,6 +36,8 @@ export function AdminDashboard({ session, setToast }) {
   const [profileChangeRequests, setProfileChangeRequests] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
+  const [changeOrdersEnabled, setChangeOrdersEnabledState] = useState(false);
+  const [togglingChangeOrders, setTogglingChangeOrders] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
@@ -47,15 +49,15 @@ export function AdminDashboard({ session, setToast }) {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr] = await Promise.all([
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr, coe] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
-        loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(),
+        loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
       ]);
       // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
-      setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr);
+      setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe);
     } catch (e) {
       console.error("AdminDashboard: loadAll failed:", e);
       setToast?.(e.message || "Could not load the admin dashboard. Try refreshing.");
@@ -64,6 +66,19 @@ export function AdminDashboard({ session, setToast }) {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  async function toggleChangeOrders() {
+    const next = !changeOrdersEnabled;
+    setTogglingChangeOrders(true);
+    try {
+      await setChangeOrdersEnabled(next);
+      setChangeOrdersEnabledState(next);
+      setToast(next ? "Bid revisions (change orders) are now live." : "Bid revisions (change orders) are off again.");
+    } catch (e) {
+      setToast(e.message || "Could not change this setting.");
+    }
+    setTogglingChangeOrders(false);
+  }
 
   if (loading) return <CenteredNote>Loading admin dashboard…</CenteredNote>;
 
@@ -140,6 +155,27 @@ export function AdminDashboard({ session, setToast }) {
               : "Customers prepay a 10% deposit (our revenue); the 90% balance is paid hauler-direct, off-platform."}
             {" "}This only affects new jobs — every already-booked job keeps whatever mode it was created under.
           </div>
+        </div>
+      </div>
+
+      <div style={{
+        background: changeOrdersEnabled ? C.tealLight : C.grayLight, border: `1px solid ${changeOrdersEnabled ? C.teal + "44" : C.line}`, borderRadius: 10,
+        padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
+      }}>
+        <span style={{ fontSize: 18 }}>📝</span>
+        <div style={{ fontSize: 12.5, color: C.pineDeep, lineHeight: 1.55, flex: 1 }}>
+          <strong>Bid revisions (change orders): {changeOrdersEnabled ? "Live" : "Off"}</strong>
+          <div style={{ color: C.gray, marginTop: 3 }}>
+            Lets a hauler propose a new price on a booked-but-not-completed job, requiring the customer's
+            explicit approval before it takes effect — append-only, nothing is ever overwritten.
+          </div>
+          {session.superAdmin && (
+            <div style={{ marginTop: 10 }}>
+              <Btn size="sm" full={false} variant="ghost" disabled={togglingChangeOrders} onClick={toggleChangeOrders}>
+                {togglingChangeOrders ? "Switching…" : changeOrdersEnabled ? "Turn off" : "Turn on"}
+              </Btn>
+            </div>
+          )}
         </div>
       </div>
 

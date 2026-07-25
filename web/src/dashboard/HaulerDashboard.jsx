@@ -4,7 +4,7 @@ import { entitlementsFor } from "../membership";
 import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
 import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
-import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, updateBid, renewBid, haulerMarkDone } from "../jobs/data";
+import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, updateBid, renewBid, haulerMarkDone, loadChangeOrdersEnabled } from "../jobs/data";
 import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
@@ -27,6 +27,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [changeOrdersEnabled, setChangeOrdersEnabled] = useState(false);
 
   useEffect(() => { if (initialChatId) setTab("messages"); }, [initialChatId]);
 
@@ -38,13 +39,14 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [open, mine, s, chats] = await Promise.all([
-        loadOpenJobsForHauler(), loadMyBidJobs(session.id), loadHaulerStats(session.id), loadMyChats(session.id),
+      const [open, mine, s, chats, coEnabled] = await Promise.all([
+        loadOpenJobsForHauler(), loadMyBidJobs(session.id), loadHaulerStats(session.id), loadMyChats(session.id), loadChangeOrdersEnabled(),
       ]);
       setOpenJobs(open);
       setMyBidJobs(mine);
       setStats(s);
       setUnreadCount(chats.filter(c => c.unread).length);
+      setChangeOrdersEnabled(coEnabled);
     } catch (e) {
       setToast(e.message || "Could not load jobs.");
     }
@@ -90,6 +92,10 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   }
 
   function handleCancellationChanged() {
+    loadAll();
+  }
+
+  function handleRevisionProposed() {
     loadAll();
   }
 
@@ -167,7 +173,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
             <div style={{ display: "grid", gap: 12 }}>
               {myBidJobs.length === 0 && <CenteredNote>You haven't submitted any bids yet.</CenteredNote>}
               {myBidJobs.map(job => (
-                <HaulerBidStatusCard key={job.id} job={job} session={session} onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone} onCancellationChanged={handleCancellationChanged} setToast={setToast} />
+                <HaulerBidStatusCard key={job.id} job={job} session={session} changeOrdersEnabled={changeOrdersEnabled} onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone} onCancellationChanged={handleCancellationChanged} onRevisionProposed={handleRevisionProposed} setToast={setToast} />
               ))}
             </div>
           </>
