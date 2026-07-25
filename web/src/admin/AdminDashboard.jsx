@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { loadSupportChats } from "../support/data";
@@ -20,6 +20,7 @@ import { RevenueTab, buildMonthlyRevenue } from "./RevenueTab";
 import { AutoExportTab } from "./AutoExportTab";
 import { CompletionReview } from "./CompletionReview";
 import { CancellationRequestsTab } from "./CancellationRequestsTab";
+import { StalledJobsTab } from "./StalledJobsTab";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -33,6 +34,7 @@ export function AdminDashboard({ session, setToast }) {
   const [adminInvites, setAdminInvites] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
   const [cancellationRequests, setCancellationRequests] = useState([]);
+  const [stalledJobs, setStalledJobs] = useState([]);
   const [profileChangeRequests, setProfileChangeRequests] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
@@ -49,15 +51,16 @@ export function AdminDashboard({ session, setToast }) {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr, coe] = await Promise.all([
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr, coe, sj] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
         loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
+        loadStalledJobs(),
       ]);
       // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
-      setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe);
+      setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe); setStalledJobs(sj);
     } catch (e) {
       console.error("AdminDashboard: loadAll failed:", e);
       setToast?.(e.message || "Could not load the admin dashboard. Try refreshing.");
@@ -191,6 +194,7 @@ export function AdminDashboard({ session, setToast }) {
         <Stat label="Overdue completions" value={overdue.length} accent={overdue.length > 0} onClick={() => setTab("overdue")} />
         <Stat label="Completed — awaiting review" value={completionsNeedingReview} accent={completionsNeedingReview > 0} onClick={() => setTab("completed")} />
         <Stat label="Cancellation requests" value={pendingCancellationCount} accent={pendingCancellationCount > 0} onClick={() => setTab("cancellations")} />
+        <Stat label="Stalled jobs" value={stalledJobs.length} accent={stalledJobs.length > 0} onClick={() => setTab("stalled")} />
         <Stat label="Profile change requests" value={pendingProfileChangeCount} accent={pendingProfileChangeCount > 0} onClick={() => setTab("profileChanges")} />
         <Stat label="Haulers by tier" value={Object.keys(MEMBERSHIP_TIERS).map(t => `${tierName(t)} ${tierCounts[t]}`).join(" · ")} onClick={() => setTab("haulers")} />
       </div>
@@ -209,6 +213,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
           { id: "completed", label: `Completed jobs (${completionsNeedingReview}/${completedJobs.length})` },
           { id: "cancellations", label: `Cancellation requests (${pendingCancellationCount}/${cancellationRequests.length})` },
+          { id: "stalled", label: `Stalled jobs (${stalledJobs.length})` },
           { id: "profileChanges", label: `Profile change requests (${pendingProfileChangeCount}/${profileChangeRequests.length})` },
           { id: "support", label: `Open chat tickets (${openSupportChats.length})` },
         ].map(t => (
@@ -380,6 +385,12 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "cancellations" && (
         <Panel title="Cancellation requests">
           <CancellationRequestsTab requests={cancellationRequests} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+        </Panel>
+      )}
+
+      {tab === "stalled" && (
+        <Panel title="Stalled jobs — no service date locked within ~96 hours">
+          <StalledJobsTab chats={stalledJobs} />
         </Panel>
       )}
 

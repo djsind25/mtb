@@ -36,7 +36,7 @@ export async function loadHaulerStats(haulerId) {
     supabase.from("bids").select("job_id, expires_at").eq("hauler_id", haulerId),
     // superseded_at is null: a hauler switched out of a job keeps their (historical) chat row,
     // but it shouldn't keep contributing to "won"/"completed" once someone else is doing the job.
-    supabase.from("chats").select("bid_amount, commission, commission_status, jobs(completed)").eq("hauler_id", haulerId).is("superseded_at", null),
+    supabase.from("chats").select("bid_amount, commission, commission_status, locked_final_price, jobs(completed)").eq("hauler_id", haulerId).is("superseded_at", null),
   ]);
   if (bidsError) throw bidsError;
   if (chatsError) throw chatsError;
@@ -47,8 +47,15 @@ export async function loadHaulerStats(haulerId) {
   const won = chats.length;
   const completed = chats.filter(c => c.jobs?.completed).length;
   // Net of the platform's cut, not the raw bid amount — matches how ChatThread.jsx and
-  // loadFullPaymentSummary compute the hauler's actual payout elsewhere.
-  const totalEarned = chats.filter(c => c.commission_status === "earned").reduce((sum, c) => sum + (Number(c.bid_amount) - Number(c.commission)), 0);
+  // loadFullPaymentSummary compute the hauler's actual payout elsewhere. Prefers
+  // locked_final_price when a full-mode job's price was renegotiated at scheduling time
+  // (ScheduleProposal) — bid_amount/commission are the original accept-time snapshot and are
+  // deliberately never rewritten (append-only).
+  const totalEarned = chats.filter(c => c.commission_status === "earned").reduce((sum, c) => {
+    const amount = c.locked_final_price != null ? Number(c.locked_final_price) : Number(c.bid_amount);
+    const commission = c.locked_final_price != null ? Math.round(amount * 0.10 * 100) / 100 : Number(c.commission);
+    return sum + (amount - commission);
+  }, 0);
 
   return { openNearby: openJobs.length, activeBids, won, completed, totalEarned };
 }

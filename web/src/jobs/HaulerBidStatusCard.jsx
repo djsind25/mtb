@@ -7,8 +7,9 @@ import { JobQuestions } from "./JobQuestions";
 import { JobUpdates } from "./JobUpdates";
 import { RequestCancellationControl } from "./RequestCancellationControl";
 import { ProposeBidRevisionControl } from "./ProposeBidRevisionControl";
+import { ScheduleProposal } from "./ScheduleProposal";
 
-export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, onRevisionProposed, setToast }) {
+export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, onRevisionProposed, onScheduleChanged, setToast }) {
   const myBid = job.myBid;
   const won = job.status === "booked" && job.accepted_bid_id === myBid?.id;
   const lost = job.status === "booked" && job.accepted_bid_id !== myBid?.id;
@@ -77,7 +78,11 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
       {won && (
         <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
           {isFull ? (
-            <>You'll receive <strong style={{ color: C.pineDeep }}>${(myBid.amount * 0.9).toFixed(2)}</strong> (90% after the platform fee) once the job is confirmed complete by both you and the customer.</>
+            // Prefers the renegotiated locked_final_price over the original bid once a
+            // ScheduleProposal has locked one in — myBid.amount is the accept-time snapshot and
+            // is deliberately never rewritten (append-only), so it goes stale the moment a
+            // schedule with a different final price is confirmed.
+            <>You'll receive <strong style={{ color: C.pineDeep }}>${((job.lockedFinalPrice ?? myBid.amount) * 0.9).toFixed(2)}</strong> (90% after the platform fee) once the job is confirmed complete by both you and the customer.</>
           ) : (
             <>You collect <strong style={{ color: C.pineDeep }}>${(myBid.amount * 0.9).toFixed(2)}</strong> (90% after the platform fee).</>
           )}
@@ -98,6 +103,10 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
 
       {bidExpired && (
         <Btn size="sm" variant="dark" onClick={() => onRenewBid(myBid.id)}>Renew bid — 14 more days</Btn>
+      )}
+
+      {won && !job.completed && (
+        <ScheduleProposal job={job} viewerRole="hauler" viewerId={session.id} defaultPrice={myBid?.amount} onChanged={onScheduleChanged} setToast={setToast} />
       )}
 
       {won && (

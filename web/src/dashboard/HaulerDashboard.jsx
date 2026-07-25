@@ -114,6 +114,10 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     loadAll();
   }
 
+  function handleScheduleChanged() {
+    loadAll();
+  }
+
   async function handleDismiss(jobId) {
     try {
       await dismissJob({ haulerId: session.id, jobId });
@@ -249,7 +253,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
             <div style={{ display: "grid", gap: 12 }}>
               {myBidJobs.length === 0 && <CenteredNote>You haven't submitted any bids yet.</CenteredNote>}
               {myBidJobs.map(job => (
-                <HaulerBidStatusCard key={job.id} job={job} session={session} changeOrdersEnabled={changeOrdersEnabled} onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone} onCancellationChanged={handleCancellationChanged} onRevisionProposed={handleRevisionProposed} setToast={setToast} />
+                <HaulerBidStatusCard key={job.id} job={job} session={session} changeOrdersEnabled={changeOrdersEnabled} onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone} onCancellationChanged={handleCancellationChanged} onRevisionProposed={handleRevisionProposed} onScheduleChanged={handleScheduleChanged} setToast={setToast} />
               ))}
             </div>
           </>

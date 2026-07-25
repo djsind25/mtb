@@ -28,7 +28,11 @@ async function attachHaulerNames(bids) {
 async function attachChatIds(jobs) {
   const jobIds = jobs.map(j => j.id);
   if (jobIds.length === 0) return jobs;
-  const { data: chats, error } = await supabase.from("chats").select("id, job_id, hauler_done_at, customer_ack_at").in("job_id", jobIds).is("superseded_at", null);
+  const { data: chats, error } = await supabase.from("chats").select(`
+    id, job_id, hauler_done_at, customer_ack_at,
+    coordination_deadline, coordination_extended_at, stalled_at,
+    locked_service_date, locked_final_price, authorize_at, authorized_at, captured_at
+  `).in("job_id", jobIds).is("superseded_at", null);
   if (error) throw error;
   const byJobId = Object.fromEntries((chats || []).map(c => [c.job_id, c]));
   return jobs.map(j => ({
@@ -36,6 +40,14 @@ async function attachChatIds(jobs) {
     chatId: byJobId[j.id]?.id,
     haulerDoneAt: byJobId[j.id]?.hauler_done_at,
     customerAckAt: byJobId[j.id]?.customer_ack_at,
+    coordinationDeadline: byJobId[j.id]?.coordination_deadline,
+    coordinationExtendedAt: byJobId[j.id]?.coordination_extended_at,
+    stalledAt: byJobId[j.id]?.stalled_at,
+    lockedServiceDate: byJobId[j.id]?.locked_service_date,
+    lockedFinalPrice: byJobId[j.id]?.locked_final_price,
+    authorizeAt: byJobId[j.id]?.authorize_at,
+    authorizedAt: byJobId[j.id]?.authorized_at,
+    capturedAt: byJobId[j.id]?.captured_at,
   }));
 }
 
@@ -74,7 +86,31 @@ async function attachPendingBidRevision(jobs) {
   return jobs.map(j => ({ ...j, pendingRevision: byJobId[j.id] || null }));
 }
 
+// Full detail (not just a boolean) — the propose/confirm UI needs the date/price/who-proposed to
+// show the right banner to whichever party hasn't confirmed yet.
+async function attachPendingSchedule(jobs) {
+  const jobIds = jobs.map(j => j.id);
+  if (jobIds.length === 0) return jobs;
+  const { data: proposals, error } = await supabase.from("schedule_proposals").select("*").eq("status", "pending").in("job_id", jobIds);
+  if (error) throw error;
+  const byJobId = Object.fromEntries((proposals || []).map(p => [p.job_id, p]));
+  return jobs.map(j => ({ ...j, pendingSchedule: byJobId[j.id] || null }));
+}
+
+// Opportunistic, no-op-most-of-the-time sweep for the coordination nudge/extend/stall clock and
+// the 48h-before-service authorization — see sync_full_payment_schedule() for why this runs on
+// every load instead of a cron. Errors are swallowed: this is best-effort freshness, not something
+// that should ever block a job list from loading.
+export async function syncFullPaymentSchedule() {
+  try {
+    await supabase.rpc("sync_full_payment_schedule");
+  } catch {
+    // best-effort — a failed sync just means the next load tries again
+  }
+}
+
 export async function loadCustomerJobs(customerId) {
+  await syncFullPaymentSchedule();
   const { data: jobs, error } = await supabase.from("jobs").select("*").eq("customer_id", customerId).order("created_at", { ascending: false });
   if (error) throw error;
   const jobIds = jobs.map(j => j.id);
@@ -85,7 +121,7 @@ export async function loadCustomerJobs(customerId) {
     bids = await attachHaulerNames(data);
   }
   const withBids = jobs.map(j => ({ ...j, bids: bids.filter(b => b.job_id === j.id) }));
-  return attachPendingBidRevision(await attachPendingCancellation(await attachChatIds(withBids)));
+  return attachPendingSchedule(await attachPendingBidRevision(await attachPendingCancellation(await attachChatIds(withBids))));
 }
 
 export async function loadOpenJobsForHauler() {
@@ -121,6 +157,7 @@ export async function undismissJob({ haulerId, jobId }) {
 // bid rows (sealed bidding), so a plain client-side count over `bids` would silently return 0 or 1
 // instead of the real total.
 export async function loadMyBidJobs(haulerId) {
+  await syncFullPaymentSchedule();
   const { data: myBids, error } = await supabase.from("bids").select("*").eq("hauler_id", haulerId);
   if (error) throw error;
   if (myBids.length === 0) return [];
@@ -130,7 +167,23 @@ export async function loadMyBidJobs(haulerId) {
     ...r.job, city: r.city, state: r.state, bid_count: r.bid_count,
     myBid: myBids.find(b => b.job_id === r.job.id),
   }));
-  return attachPendingBidRevision(await attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId)));
+  return attachPendingSchedule(await attachPendingBidRevision(await attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId))));
+}
+
+// Append-only: propose_schedule() never overwrites bid_amount/commission on the original chat —
+// it inserts a new schedule_proposals row (superseding any prior pending one) plus a system chat
+// message. confirm_schedule() is the only thing that locks it in, and only the *other* party can
+// do that (enforced server-side, not just hidden client-side).
+export async function proposeSchedule({ jobId, serviceDate, finalPrice }) {
+  const { error } = await supabase.rpc("propose_schedule", {
+    p_job_id: jobId, p_service_date: serviceDate, p_final_price: Number(finalPrice),
+  });
+  if (error) throw error;
+}
+
+export async function confirmSchedule({ proposalId }) {
+  const { error } = await supabase.rpc("confirm_schedule", { p_proposal_id: proposalId });
+  if (error) throw error;
 }
 
 export async function loadJobPhotos(jobId) {

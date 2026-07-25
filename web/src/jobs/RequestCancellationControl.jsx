@@ -20,7 +20,10 @@ export function RequestCancellationControl({ job, onRequested, setToast }) {
     setRequesting(true);
     try {
       await requestCancellation({ jobId: job.id, reason: reason.trim() || null });
-      setToast("Cancellation requested — MyTrashBid will review it.");
+      // Message A from the scheduling spec — warm and low-friction, shown right at the moment of
+      // cancelling. Deliberately not scolding: things come up. Message B (the separate "stay
+      // protected" nudge) lives in the chat banner instead, not stacked here.
+      setToast("Things come up — we get it. This cancellation will be reviewed by our team to keep things fair for both sides. Thanks for using MyTrashBid.");
       setShowForm(false);
       setReason("");
       onRequested();
