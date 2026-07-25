@@ -393,8 +393,11 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+[edge_runtime.secrets]
+STRIPE_SECRET_KEY = "env(STRIPE_SECRET_KEY)"
+STRIPE_WEBHOOK_SECRET = "env(STRIPE_WEBHOOK_SECRET)"
+RESEND_API_KEY = "env(RESEND_API_KEY)"
+INTERNAL_DISPATCH_KEY = "env(INTERNAL_DISPATCH_KEY)"
 
 [analytics]
 enabled = true

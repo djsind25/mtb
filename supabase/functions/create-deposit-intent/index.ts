@@ -4,8 +4,16 @@
 // server-side (via the accept_bid RPC — never trusts a client-supplied amount), books the
 // job, opens the chat, then creates a plain Stripe PaymentIntent for the 10% deposit.
 //
-// Per the Scope of Work, v1 is deposit-only: standard PaymentIntents, NOT Stripe Connect.
-// The full bid amount is never charged or held — only the deposit.
+// Per the Scope of Work, deposit mode is deposit-only: standard PaymentIntents, NOT Stripe
+// Connect. The full bid amount is never charged or held — only the deposit.
+//
+// Full-payment mode is different since the scheduling/authorization rework
+// (20260803000000_full_payment_scheduling.sql): accepting a bid no longer charges anything at
+// all — the job just opens into a coordination window. accept_bid() already skips inserting a
+// pending payments row for full mode, so there's nothing for this function to attach a
+// PaymentIntent to; it returns immediately with requiresPayment: false and the frontend skips
+// the Stripe step entirely (see AcceptBidPayment.jsx / BidRow.jsx). Money only moves later, via
+// perform_authorization()/finalize_completion() once a service date is locked.
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
@@ -33,9 +41,13 @@ export default {
       return Response.json({ message: acceptError?.message ?? "Could not accept bid" }, { status: 400 });
     }
 
-    const { chat_id: chatId, deposit, balance_due: balanceDue, commission, bid_amount: bidAmount } = accepted as {
-      chat_id: string; deposit: number; balance_due: number; commission: number; bid_amount: number;
+    const { chat_id: chatId, deposit, balance_due: balanceDue, commission, bid_amount: bidAmount, payment_mode: paymentMode } = accepted as {
+      chat_id: string; deposit: number; balance_due: number; commission: number; bid_amount: number; payment_mode: string;
     };
+
+    if (paymentMode === "full") {
+      return Response.json({ requiresPayment: false, chatId, deposit, balanceDue, commission, bidAmount });
+    }
 
     try {
       const intent = await stripe.paymentIntents.create({

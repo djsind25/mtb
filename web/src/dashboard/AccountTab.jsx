@@ -23,6 +23,12 @@ const EVENT_LABELS = {
   documentExpired: "Verification document expired",
   jobQuestionAsked: "New question on your job",
   questionAnswered: "Your question was answered",
+  bidRevisionProposed: "Your hauler proposed a new price",
+  bidRevisionResolved: "A price revision you proposed was resolved",
+  scheduleProposed: "A service date was proposed for your job",
+  scheduleConfirmed: "Your proposed service date was confirmed",
+  coordinationNudge: "Reminder to lock in a service date",
+  paymentAuthorized: "Your payment method was authorized",
 };
 
 // Only the specific text-message categories asked for per role — adminMessage (a support reply)
@@ -34,12 +40,21 @@ const SMS_EVENT_LABELS = {
     bidAccepted: "You won a job",
     newMessage: "New message from a customer",
     questionAnswered: "Your question was answered",
+    bidRevisionResolved: "A price revision you proposed was resolved",
+    scheduleProposed: "A service date was proposed",
+    scheduleConfirmed: "A service date you proposed was confirmed",
+    coordinationNudge: "Reminder to lock in a service date",
   },
   customer: {
     jobBooked: "Your job is booked",
     newMessage: "New message from a hauler",
     adminMessage: "New message from support",
     jobQuestionAsked: "New question on your job",
+    bidRevisionProposed: "Your hauler proposed a new price",
+    scheduleProposed: "A service date was proposed",
+    scheduleConfirmed: "A service date you proposed was confirmed",
+    coordinationNudge: "Reminder to lock in a service date",
+    paymentAuthorized: "Your payment method was authorized",
   },
 };
 

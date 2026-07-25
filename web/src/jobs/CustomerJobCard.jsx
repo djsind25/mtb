@@ -10,8 +10,10 @@ import { CompletionPhotos } from "./CompletionPhotos";
 import { TimelinePicker } from "./TimelinePicker";
 import { SwitchHaulerPicker } from "./SwitchHaulerPicker";
 import { RequestCancellationControl } from "./RequestCancellationControl";
+import { ResolveBidRevisionControl } from "./ResolveBidRevisionControl";
+import { ScheduleProposal } from "./ScheduleProposal";
 
-export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, setToast }) {
+export function CustomerJobCard({ job, session, completedCount, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, onRevisionResolved, onScheduleChanged, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
   const [addingPhotos, setAddingPhotos] = useState(false);
@@ -194,11 +196,17 @@ export function CustomerJobCard({ job, completedCount, onAccepted, onSwitched, o
                   {switching && (
                     <SwitchHaulerPicker job={job} onSwitched={onSwitched} setToast={setToast} onClose={() => setSwitching(false)} />
                   )}
+                  <ScheduleProposal job={job} viewerRole="customer" viewerId={session?.id} defaultPrice={bids.find(b => b.id === job.accepted_bid_id)?.amount} onChanged={onScheduleChanged} setToast={setToast} />
+                  <ResolveBidRevisionControl job={job} onResolved={onRevisionResolved} setToast={setToast} />
                   <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
                 </>
               )}
               {job.haulerDoneAt && !job.completed && (
-                <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
+                <>
+                  <ScheduleProposal job={job} viewerRole="customer" viewerId={session?.id} defaultPrice={bids.find(b => b.id === job.accepted_bid_id)?.amount} onChanged={onScheduleChanged} setToast={setToast} />
+                  <ResolveBidRevisionControl job={job} onResolved={onRevisionResolved} setToast={setToast} />
+                  <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
+                </>
               )}
             </div>
           ) : job.status === "cancelled" ? (

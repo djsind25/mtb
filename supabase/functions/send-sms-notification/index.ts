@@ -34,6 +34,12 @@ const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link:
   bidSwitchedOut: (title, body, link) => `${title}${body ? `: "${body}"` : ""}. ${link}`,
   jobQuestionAsked: (title, _body, link) => `${title} ${link}`,
   questionAnswered: (title, _body, link) => `${title} ${link}`,
+  bidRevisionProposed: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
+  bidRevisionResolved: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
+  scheduleProposed: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
+  scheduleConfirmed: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
+  coordinationNudge: (title, _body, link) => `${title} — pick a date to keep this job moving. ${link}`,
+  paymentAuthorized: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
 };
 
 async function sendSms(to: string, body: string): Promise<boolean> {

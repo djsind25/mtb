@@ -13,6 +13,7 @@ export function mapProfileToSession(profile) {
     licenseActive: !!profile.license_active,
     insuranceActive: !!profile.insurance_active,
     membershipTier: profile.membership_tier || "free",
+    jobSearchPrefs: profile.job_search_prefs || null,
     rating: profile.rating,
     notificationPrefs: profile.notification_prefs,
     active: profile.active,

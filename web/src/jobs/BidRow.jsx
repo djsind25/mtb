@@ -25,6 +25,14 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
     setStarting(true);
     try {
       const result = await acceptBid({ jobId, bidId: bid.id });
+      if (result.requiresPayment === false) {
+        // Full mode: nothing to pay yet — the job books immediately and opens into the
+        // coordination window (see ScheduleProposal). No Stripe step at all.
+        setToast("Job locked in! No money has moved yet — coordinate a service date and final price in chat.");
+        onAccepted(result.chatId);
+        setStarting(false);
+        return;
+      }
       setPayment(result);
     } catch (e) {
       setToast(e.message || "Could not start payment for this bid.");
@@ -72,7 +80,7 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
           {isFull ? (
             <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: C.gray }}>Pay in full — held until job is complete</span>
+                <span style={{ color: C.gray }}>Full price — nothing charged until 48h before your scheduled date</span>
                 <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
               </div>
             </div>
@@ -89,11 +97,11 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
             </div>
           )}
           <Btn size="sm" disabled={starting} onClick={startAccept}>
-            {starting ? "Starting payment…" : isFull ? `Pay $${depositNow.toFixed(2)} & lock in job` : `Lock in job for $${depositNow.toFixed(2)} deposit`}
+            {starting ? "Locking in…" : isFull ? "Accept — no payment yet" : `Lock in job for $${depositNow.toFixed(2)} deposit`}
           </Btn>
           <div style={{ fontSize: 10.5, color: C.gray, marginTop: 6, textAlign: "center" }}>
             {isFull
-              ? "This bid is the agreed price for the job as described — haulers may not demand additional payment on-site for the same scope."
+              ? "You'll coordinate a service date and final price in chat next — nothing is charged until 48 hours before that date."
               : `The $${balanceDue.toFixed(2)} balance is paid directly to your hauler — cash, check, or their preferred method. This bid is the agreed price; haulers may not demand extra on-site for the same scope.`}
           </div>
         </>

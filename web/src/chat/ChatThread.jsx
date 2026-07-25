@@ -88,7 +88,17 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
   const isFull = chat.payment_mode === "full";
   const deposit = chat.deposit;
   const balanceDue = chat.balance_due;
-  const haulerCut = chat.bid_amount - chat.commission;
+  // Jobs accepted after the scheduling rework (20260803000000) carry coordination_deadline from
+  // the moment they're booked — a full-mode job with none of these set predates that migration
+  // and was charged in full at accept under the old flow, so its display stays exactly as before.
+  const hasScheduling = isFull && !!(chat.coordination_deadline || chat.coordination_extended_at || chat.stalled_at || chat.locked_service_date);
+  const effectiveAmount = Number(chat.locked_final_price ?? chat.bid_amount);
+  const haulerCut = isFull ? effectiveAmount * 0.9 : chat.bid_amount - chat.commission;
+  const moneyState = !hasScheduling ? "legacyHeld"
+    : chat.captured_at ? "captured"
+    : chat.authorized_at ? "authorized"
+    : chat.locked_service_date ? "scheduled"
+    : "coordinating";
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 16px 0", display: "flex", flexDirection: "column", height: "calc(100vh - 64px)" }}>
@@ -113,7 +123,11 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
           {bannerExpanded && (
             <div style={{ fontSize: 12, color: "#6B5103", lineHeight: 1.55, marginTop: 8, paddingLeft: 22 }}>
               {chat?.payment_mode === "full" ? (
-                <>Your payment is held securely and released once the job is confirmed complete — there's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+                moneyState === "coordinating" || moneyState === "scheduled" ? (
+                  <>Nothing is charged until 48 hours before your scheduled service date — then it's held securely and released once the job is confirmed complete. There's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+                ) : (
+                  <>Your payment is held securely and released once the job is confirmed complete — there's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+                )
               ) : (
                 <>Paying your hauler the remaining balance directly is expected and fine. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip the deposit that keeps this service running. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
               )}
@@ -121,12 +135,29 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
           )}
         </div>
 
+        {/* Message B from the scheduling spec — a calm, benefit-framed nudge to stay on-platform,
+            shown whenever the chat is open on an active full-mode job. Deliberately NOT shown at
+            the cancellation moment (that's Message A, a warm toast — see RequestCancellationControl)
+            so it never reads as accusatory right when someone's already cancelling. */}
+        {isFull && !chat.customer_ack_at && (
+          <div style={{ background: C.tealLight, borderBottom: `1px solid ${C.teal}33`, padding: "8px 16px", fontSize: 11.5, color: C.pineDeep, lineHeight: 1.4 }}>
+            🛡️ Keep your job on MyTrashBid — it's how we make sure both sides are protected and the work actually gets done. Off-platform deals have no coverage if something goes wrong.
+          </div>
+        )}
+
         <div style={{ background: C.sand, padding: "12px 16px", borderBottom: `1px solid ${C.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontFamily: mono, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>${chat.bid_amount} total</span>
-            <Badge color={C.teal} bg={C.tealLight}>{isFull ? "✓ Held by MyTrashBid" : "✓ Deposit paid"}</Badge>
+            <span style={{ fontFamily: mono, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>${effectiveAmount} total</span>
+            {moneyState === "legacyHeld" && <Badge color={C.teal} bg={C.tealLight}>✓ Held by MyTrashBid</Badge>}
+            {moneyState === "coordinating" && <Badge color={C.gray} bg={C.grayLight}>🗓 Coordinating — no charge yet</Badge>}
+            {moneyState === "scheduled" && <Badge color={C.gray} bg={C.grayLight}>📅 Scheduled — not charged yet</Badge>}
+            {moneyState === "authorized" && <Badge color={C.teal} bg={C.tealLight}>💳 Authorized &amp; held</Badge>}
+            {moneyState === "captured" && <Badge color={C.teal} bg={C.tealLight}>✓ Captured</Badge>}
+            {!isFull && <Badge color={C.teal} bg={C.tealLight}>✓ Deposit paid</Badge>}
           </div>
-          {isFull ? (
+          {moneyState === "coordinating" ? (
+            <div style={{ fontSize: 11.5, color: C.gray }}>Propose a service date in chat to get this moving — nothing is charged until 48 hours before it.</div>
+          ) : isFull ? (
             <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between" }}>
               <span>{viewer === "hauler" ? "You receive at completion (90%)" : "Released to hauler at completion (90%)"}</span>
               <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${haulerCut.toFixed(2)}</span>

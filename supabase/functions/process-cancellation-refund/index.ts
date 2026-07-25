@@ -4,8 +4,16 @@
 // held funds. A job switched more than once can have more than one succeeded charge (each its own
 // PaymentIntent) — job_refundable_charges returns them oldest-first with how much of each is
 // still refundable, and this function splits the requested amount across as many of them as it
-// takes via separate stripe.refunds.create calls, then books everything in one resolve_cancellation
-// RPC call once every refund that was attempted has actually succeeded.
+// takes, then books everything in one resolve_cancellation RPC call once every release/refund
+// that was attempted has actually succeeded.
+//
+// Two different Stripe calls depending on charge.kind: a 'charge' had real money captured, so it
+// gets refunds.create(). An 'authorization' (full-payment scheduling's pre-capture hold) never
+// captured anything — there's no charge to refund against — so it gets paymentIntents.cancel()
+// for a full release or paymentIntents.capture({amount_to_capture}) for a partial one. A
+// simulated authorization (stripe_payment_intent_id prefixed 'sim_auth_', per this prototype's
+// placeholder convention — see 20260803000000_full_payment_scheduling.sql) has no real Stripe
+// object behind it at all, so that call is skipped entirely and treated as instantly released.
 //
 // Uses the admin's own session throughout (ctx.supabase, not ctx.supabaseAdmin) — same trust model
 // as every other admin-mutation RPC in this app (admin_review_completion, review_hauler_document,
@@ -67,8 +75,23 @@ export default {
       if (refundableCents <= 0) continue;
       const take = Math.min(remaining, refundableCents);
       try {
-        const refund = await stripe.refunds.create({ payment_intent: charge.stripe_payment_intent_id, amount: take });
-        refunds.push({ stripe_payment_intent_id: charge.stripe_payment_intent_id, stripe_refund_id: refund.id, amount: take / 100 });
+        let stripeObjectId: string;
+        if (charge.kind === "authorization") {
+          if (charge.stripe_payment_intent_id?.startsWith("sim_")) {
+            // No real PaymentIntent behind this placeholder — nothing to call, just book it.
+            stripeObjectId = charge.stripe_payment_intent_id;
+          } else if (take === refundableCents) {
+            const cancelled = await stripe.paymentIntents.cancel(charge.stripe_payment_intent_id);
+            stripeObjectId = cancelled.id;
+          } else {
+            const captured = await stripe.paymentIntents.capture(charge.stripe_payment_intent_id, { amount_to_capture: take });
+            stripeObjectId = captured.id;
+          }
+        } else {
+          const refund = await stripe.refunds.create({ payment_intent: charge.stripe_payment_intent_id, amount: take });
+          stripeObjectId = refund.id;
+        }
+        refunds.push({ stripe_payment_intent_id: charge.stripe_payment_intent_id, stripe_refund_id: stripeObjectId, amount: take / 100 });
         remaining -= take;
       } catch (err) {
         console.error("process-cancellation-refund: refund failed partway through the split:", err);

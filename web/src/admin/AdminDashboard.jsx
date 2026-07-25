@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, serif } from "../theme";
-import { CenteredNote, Field } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests } from "./data";
+import { CenteredNote, Field, Btn } from "../ui/Primitives";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { loadSupportChats } from "../support/data";
@@ -20,6 +20,7 @@ import { RevenueTab, buildMonthlyRevenue } from "./RevenueTab";
 import { AutoExportTab } from "./AutoExportTab";
 import { CompletionReview } from "./CompletionReview";
 import { CancellationRequestsTab } from "./CancellationRequestsTab";
+import { StalledJobsTab } from "./StalledJobsTab";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -33,9 +34,12 @@ export function AdminDashboard({ session, setToast }) {
   const [adminInvites, setAdminInvites] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
   const [cancellationRequests, setCancellationRequests] = useState([]);
+  const [stalledJobs, setStalledJobs] = useState([]);
   const [profileChangeRequests, setProfileChangeRequests] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
+  const [changeOrdersEnabled, setChangeOrdersEnabledState] = useState(false);
+  const [togglingChangeOrders, setTogglingChangeOrders] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
@@ -47,15 +51,16 @@ export function AdminDashboard({ session, setToast }) {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr] = await Promise.all([
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr, coe, sj] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
-        loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(),
+        loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
+        loadStalledJobs(),
       ]);
       // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
-      setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr);
+      setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe); setStalledJobs(sj);
     } catch (e) {
       console.error("AdminDashboard: loadAll failed:", e);
       setToast?.(e.message || "Could not load the admin dashboard. Try refreshing.");
@@ -64,6 +69,19 @@ export function AdminDashboard({ session, setToast }) {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  async function toggleChangeOrders() {
+    const next = !changeOrdersEnabled;
+    setTogglingChangeOrders(true);
+    try {
+      await setChangeOrdersEnabled(next);
+      setChangeOrdersEnabledState(next);
+      setToast(next ? "Bid revisions (change orders) are now live." : "Bid revisions (change orders) are off again.");
+    } catch (e) {
+      setToast(e.message || "Could not change this setting.");
+    }
+    setTogglingChangeOrders(false);
+  }
 
   if (loading) return <CenteredNote>Loading admin dashboard…</CenteredNote>;
 
@@ -143,6 +161,27 @@ export function AdminDashboard({ session, setToast }) {
         </div>
       </div>
 
+      <div style={{
+        background: changeOrdersEnabled ? C.tealLight : C.grayLight, border: `1px solid ${changeOrdersEnabled ? C.teal + "44" : C.line}`, borderRadius: 10,
+        padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
+      }}>
+        <span style={{ fontSize: 18 }}>📝</span>
+        <div style={{ fontSize: 12.5, color: C.pineDeep, lineHeight: 1.55, flex: 1 }}>
+          <strong>Bid revisions (change orders): {changeOrdersEnabled ? "Live" : "Off"}</strong>
+          <div style={{ color: C.gray, marginTop: 3 }}>
+            Lets a hauler propose a new price on a booked-but-not-completed job, requiring the customer's
+            explicit approval before it takes effect — append-only, nothing is ever overwritten.
+          </div>
+          {session.superAdmin && (
+            <div style={{ marginTop: 10 }}>
+              <Btn size="sm" full={false} variant="ghost" disabled={togglingChangeOrders} onClick={toggleChangeOrders}>
+                {togglingChangeOrders ? "Switching…" : changeOrdersEnabled ? "Turn off" : "Turn on"}
+              </Btn>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 24 }}>
         <Stat label="Customers" value={customers.length} />
         <Stat label="Haulers" value={haulers.length} />
@@ -155,6 +194,7 @@ export function AdminDashboard({ session, setToast }) {
         <Stat label="Overdue completions" value={overdue.length} accent={overdue.length > 0} onClick={() => setTab("overdue")} />
         <Stat label="Completed — awaiting review" value={completionsNeedingReview} accent={completionsNeedingReview > 0} onClick={() => setTab("completed")} />
         <Stat label="Cancellation requests" value={pendingCancellationCount} accent={pendingCancellationCount > 0} onClick={() => setTab("cancellations")} />
+        <Stat label="Stalled jobs" value={stalledJobs.length} accent={stalledJobs.length > 0} onClick={() => setTab("stalled")} />
         <Stat label="Profile change requests" value={pendingProfileChangeCount} accent={pendingProfileChangeCount > 0} onClick={() => setTab("profileChanges")} />
         <Stat label="Haulers by tier" value={Object.keys(MEMBERSHIP_TIERS).map(t => `${tierName(t)} ${tierCounts[t]}`).join(" · ")} onClick={() => setTab("haulers")} />
       </div>
@@ -173,6 +213,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
           { id: "completed", label: `Completed jobs (${completionsNeedingReview}/${completedJobs.length})` },
           { id: "cancellations", label: `Cancellation requests (${pendingCancellationCount}/${cancellationRequests.length})` },
+          { id: "stalled", label: `Stalled jobs (${stalledJobs.length})` },
           { id: "profileChanges", label: `Profile change requests (${pendingProfileChangeCount}/${profileChangeRequests.length})` },
           { id: "support", label: `Open chat tickets (${openSupportChats.length})` },
         ].map(t => (
@@ -344,6 +385,12 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "cancellations" && (
         <Panel title="Cancellation requests">
           <CancellationRequestsTab requests={cancellationRequests} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+        </Panel>
+      )}
+
+      {tab === "stalled" && (
+        <Panel title="Stalled jobs — no service date locked within ~96 hours">
+          <StalledJobsTab chats={stalledJobs} />
         </Panel>
       )}
 

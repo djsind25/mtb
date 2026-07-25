@@ -34,17 +34,47 @@ export async function loadJobsWithBids() {
 
   const bookedJobIds = jobs.filter(j => j.status === "booked").map(j => j.id);
   const { data: chats, error: chatsError } = bookedJobIds.length
-    ? await supabase.from("chats").select("id, job_id").in("job_id", bookedJobIds).is("superseded_at", null)
+    ? await supabase.from("chats").select(`
+        id, job_id, payment_mode,
+        coordination_deadline, coordination_extended_at, stalled_at,
+        locked_service_date, locked_final_price, locked_proposal_id, authorized_at, captured_at
+      `).in("job_id", bookedJobIds).is("superseded_at", null)
     : { data: [], error: null };
   if (chatsError) throw chatsError;
-  const chatIdByJobId = Object.fromEntries(chats.map(c => [c.job_id, c.id]));
+  const chatByJobId = Object.fromEntries(chats.map(c => [c.job_id, c]));
 
-  return jobs.map(j => ({
-    ...j,
-    customerName: nameById[j.customer_id],
-    chatId: chatIdByJobId[j.id],
-    bids: bids.filter(b => b.job_id === j.id).map(b => ({ ...b, businessName: nameById[b.hauler_id] })),
-  }));
+  // Who proposed vs. confirmed the locked schedule — data capture the spec asks the admin
+  // drill-down to surface, straight off the append-only ledger (never off chats itself, which
+  // only ever holds the current locked values).
+  const proposalIds = chats.map(c => c.locked_proposal_id).filter(Boolean);
+  const { data: proposals, error: proposalsError } = proposalIds.length
+    ? await supabase.from("schedule_proposals").select("id, proposed_role, confirmed_by").in("id", proposalIds)
+    : { data: [], error: null };
+  if (proposalsError) throw proposalsError;
+  const proposalById = Object.fromEntries(proposals.map(p => [p.id, p]));
+
+  return jobs.map(j => {
+    const chat = chatByJobId[j.id];
+    const proposal = chat?.locked_proposal_id ? proposalById[chat.locked_proposal_id] : null;
+    return {
+      ...j,
+      customerName: nameById[j.customer_id],
+      chatId: chat?.id,
+      scheduling: chat ? {
+        paymentMode: chat.payment_mode,
+        coordinationDeadline: chat.coordination_deadline,
+        coordinationExtendedAt: chat.coordination_extended_at,
+        stalledAt: chat.stalled_at,
+        lockedServiceDate: chat.locked_service_date,
+        lockedFinalPrice: chat.locked_final_price,
+        authorizedAt: chat.authorized_at,
+        capturedAt: chat.captured_at,
+        proposedByRole: proposal?.proposed_role,
+        confirmedByName: proposal?.confirmed_by ? nameById[proposal.confirmed_by] : null,
+      } : null,
+      bids: bids.filter(b => b.job_id === j.id).map(b => ({ ...b, businessName: nameById[b.hauler_id] })),
+    };
+  });
 }
 
 export async function loadFlaggedMessages() {
@@ -322,6 +352,17 @@ export async function setDefaultPaymentMode(mode) {
   if (error) throw error;
 }
 
+export async function loadChangeOrdersEnabled() {
+  const { data, error } = await supabase.from("app_config").select("value").eq("key", "change_orders_enabled").single();
+  if (error) throw error;
+  return data.value === "true";
+}
+
+export async function setChangeOrdersEnabled(enabled) {
+  const { error } = await supabase.rpc("set_change_orders_enabled", { p_enabled: enabled });
+  if (error) throw error;
+}
+
 export async function loadCancellationRequests() {
   const { data: requests, error } = await supabase.from("cancellation_requests").select("*").order("created_at", { ascending: false });
   if (error) throw error;
@@ -366,6 +407,40 @@ export async function loadCancellationRequests() {
   }));
 }
 
+// Jobs that passed the ~96h coordination window without a locked service date — see
+// sync_full_payment_schedule() in 20260803000000_full_payment_scheduling.sql. Never
+// auto-cancelled, just surfaced here (dashboard badge, same as cancellation_requests) so an admin
+// can nudge/investigate manually.
+export async function loadStalledJobs() {
+  const { data: chats, error } = await supabase.from("chats")
+    .select("id, job_id, customer_id, hauler_id, bid_amount, stalled_at")
+    .not("stalled_at", "is", null)
+    .is("locked_service_date", null)
+    .is("superseded_at", null)
+    .order("stalled_at", { ascending: false });
+  if (error) throw error;
+  if (chats.length === 0) return [];
+
+  const jobIds = [...new Set(chats.map(c => c.job_id))];
+  const peopleIds = [...new Set(chats.flatMap(c => [c.customer_id, c.hauler_id]))];
+  const [{ data: jobs, error: jobsError }, { data: people, error: peopleError }] = await Promise.all([
+    supabase.from("jobs").select("id, title, zip").in("id", jobIds),
+    supabase.from("public_profiles").select("id, name, business_name").in("id", peopleIds),
+  ]);
+  if (jobsError) throw jobsError;
+  if (peopleError) throw peopleError;
+  const jobById = Object.fromEntries((jobs || []).map(j => [j.id, j]));
+  const nameById = Object.fromEntries((people || []).map(p => [p.id, p.business_name || p.name]));
+
+  return chats.map(c => ({
+    ...c,
+    jobTitle: jobById[c.job_id]?.title,
+    zip: jobById[c.job_id]?.zip,
+    customerName: nameById[c.customer_id],
+    haulerName: nameById[c.hauler_id],
+  }));
+}
+
 export async function processCancellationRefund({ requestId, jobId, refundAmount }) {
   const { data, error } = await supabase.functions.invoke("process-cancellation-refund", { body: { requestId, jobId, refundAmount } });
   if (error) {
@@ -385,23 +460,47 @@ export async function processCancellationRefund({ requestId, jobId, refundAmount
 //   restriction (only hauler-switching is full-mode-only), so a deposit-mode job's cancellation
 //   refund is also kind='refund' and must be excluded here or it inflates this full-payment-only
 //   figure with money that belongs to the deposit-mode table instead.
+// effectiveAmount/effectiveCommission prefer locked_final_price over the accept-time bid_amount
+// snapshot — a full-mode job renegotiated at scheduling time (ScheduleProposal) has a locked
+// price that can differ from what the bid was originally accepted at, and bid_amount/commission
+// are deliberately never rewritten (append-only — see 20260803000000_full_payment_scheduling.sql).
+// 0.10 mirrors price_breakdown()'s flat commission_rate — every membership tier resolves to the
+// same rate today (see membership.js), so this simple recompute stays correct without an RPC round trip.
+function effectiveAmount(c) {
+  return c.locked_final_price != null ? Number(c.locked_final_price) : Number(c.bid_amount);
+}
+function effectiveCommission(c) {
+  return c.locked_final_price != null ? Math.round(Number(c.locked_final_price) * 0.10 * 100) / 100 : Number(c.commission);
+}
+
 export async function loadFullPaymentSummary() {
   const [{ data: chats, error: chatsError }, { data: payments, error: paymentsError }] = await Promise.all([
-    supabase.from("chats").select("bid_amount, commission, commission_status, jobs!inner(status)").eq("payment_mode", "full").is("superseded_at", null),
+    supabase.from("chats").select(`
+      bid_amount, commission, commission_status, locked_final_price, authorized_at,
+      coordination_deadline, coordination_extended_at, stalled_at, locked_service_date,
+      jobs!inner(status)
+    `).eq("payment_mode", "full").is("superseded_at", null),
     supabase.from("payments").select("amount, kind, jobs!inner(payment_mode)").eq("status", "succeeded").eq("jobs.payment_mode", "full"),
   ]);
   if (chatsError) throw chatsError;
   if (paymentsError) throw paymentsError;
 
+  // Nothing is actually held until authorized — a booked-but-still-coordinating job (no date
+  // locked yet) hasn't had a cent moved, even though commission_status is still 'held' for it
+  // (that flag only flips at completion). A chat with none of the coordination/lock columns set
+  // predates the scheduling rework entirely — it was charged in full at accept under the old
+  // flow, so it still counts as held from the moment it's booked.
   const fundsHeld = (chats || [])
-    .filter(c => c.commission_status === "held" && c.jobs?.status === "booked")
-    .reduce((sum, c) => sum + Number(c.bid_amount), 0);
+    .filter(c => c.commission_status === "held" && c.jobs?.status === "booked" && (
+      c.authorized_at || !(c.coordination_deadline || c.coordination_extended_at || c.stalled_at || c.locked_service_date)
+    ))
+    .reduce((sum, c) => sum + effectiveAmount(c), 0);
   const releasedToHaulers = (chats || [])
     .filter(c => c.commission_status === "earned")
-    .reduce((sum, c) => sum + (Number(c.bid_amount) - Number(c.commission)), 0);
+    .reduce((sum, c) => sum + (effectiveAmount(c) - effectiveCommission(c)), 0);
   const platformEarned = (chats || [])
     .filter(c => c.commission_status === "earned")
-    .reduce((sum, c) => sum + Number(c.commission), 0);
+    .reduce((sum, c) => sum + effectiveCommission(c), 0);
   const totalRefunded = (payments || [])
     .filter(p => p.kind === "refund")
     .reduce((sum, p) => sum + Number(p.amount), 0);

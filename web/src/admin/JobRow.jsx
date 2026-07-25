@@ -5,6 +5,25 @@ import { AdminChatViewer } from "./AdminChatViewer";
 import { JobQuestions } from "../jobs/JobQuestions";
 import { JobUpdates } from "../jobs/JobUpdates";
 
+function formatDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+// Mirrors ChatThread's moneyState logic — a full-mode job with none of the coordination/lock
+// columns set predates the scheduling rework (charged in full at accept, under the old flow).
+function schedulingState(s) {
+  if (!s || s.paymentMode !== "full") return null;
+  const hasScheduling = !!(s.coordinationDeadline || s.coordinationExtendedAt || s.stalledAt || s.lockedServiceDate);
+  if (!hasScheduling) return { label: "Legacy — charged in full at accept", color: C.gray, bg: C.grayLight };
+  if (s.capturedAt) return { label: "Captured", color: C.teal, bg: C.tealLight };
+  if (s.authorizedAt) return { label: "Authorized & held", color: C.teal, bg: C.tealLight };
+  if (s.lockedServiceDate) return { label: "Scheduled", color: C.gray, bg: C.grayLight };
+  if (s.stalledAt) return { label: "Stalled", color: C.red, bg: C.redLight };
+  if (s.coordinationExtendedAt) return { label: "Coordinating (nudged)", color: C.amber, bg: C.amberLight };
+  return { label: "Coordinating", color: C.gray, bg: C.grayLight };
+}
+
 export function JobRow({ job }) {
   const timeline = timelineMeta(job.timeline);
   return (
@@ -43,6 +62,21 @@ export function JobRowExpanded({ job }) {
           {job.status === "booked" && job.chatId && (
             <div style={{ marginBottom: 10 }}>
               <Btn size="sm" full={false} variant="teal" onClick={() => setViewingChat(true)}>💬 View conversation</Btn>
+            </div>
+          )}
+          {job.status === "booked" && job.scheduling && schedulingState(job.scheduling) && (
+            <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: job.scheduling.lockedServiceDate ? 4 : 0 }}>
+                <span style={{ fontWeight: 700, color: C.pineDeep }}>Scheduling:</span>
+                <Badge color={schedulingState(job.scheduling).color} bg={schedulingState(job.scheduling).bg}>{schedulingState(job.scheduling).label}</Badge>
+              </div>
+              {job.scheduling.lockedServiceDate && (
+                <div style={{ color: C.gray }}>
+                  {formatDate(job.scheduling.lockedServiceDate)} · ${job.scheduling.lockedFinalPrice}
+                  {job.scheduling.proposedByRole && ` — proposed by the ${job.scheduling.proposedByRole}`}
+                  {job.scheduling.confirmedByName && `, confirmed by ${job.scheduling.confirmedByName}`}
+                </div>
+              )}
             </div>
           )}
           {(job.bids || []).length === 0 && <div style={{ fontSize: 12, color: C.gray }}>No bids yet.</div>}

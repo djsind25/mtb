@@ -37,6 +37,12 @@ const EVENT_SUBJECTS: Record<string, string> = {
   jobCancelled: "Job cancelled",
   jobQuestionAsked: "New question on your job",
   questionAnswered: "Your question was answered",
+  bidRevisionProposed: "New price proposed for your job",
+  bidRevisionResolved: "Your price revision was resolved",
+  scheduleProposed: "New service date proposed",
+  scheduleConfirmed: "Service date confirmed",
+  coordinationNudge: "Lock in a service date",
+  paymentAuthorized: "Your payment method was authorized",
 };
 
 export default {
