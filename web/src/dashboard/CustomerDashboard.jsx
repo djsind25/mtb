@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { serif, C } from "../theme";
+import { sans, C } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 import { PostJobForm } from "../jobs/PostJobForm";
 import { CustomerJobCard } from "../jobs/CustomerJobCard";
@@ -149,7 +149,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
         loading ? <CenteredNote>Loading jobs…</CenteredNote> : (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, margin: 0 }}>Your jobs</h2>
+              <h2 style={{ fontFamily: sans, fontSize: 20, color: C.pineDeep, margin: 0 }}>Your jobs</h2>
               <Btn full={false} size="sm" onClick={() => setShowPost(true)}>+ Post a job</Btn>
             </div>
             {showPost && <PostJobForm onCancel={() => setShowPost(false)} onSubmit={handlePostJob} submitting={posting} />}

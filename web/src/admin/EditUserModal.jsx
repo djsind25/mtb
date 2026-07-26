@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, serif } from "../theme";
+import { C, sans } from "../theme";
 import { Btn, Field, ErrorMsg } from "../ui/Primitives";
 import { updateUserProfile, loadZipHistory } from "./data";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
@@ -60,7 +60,7 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
       <div style={{ background: C.paper, borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}` }}>
-        <div style={{ fontFamily: serif, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>Edit user</div>
+        <div style={{ fontFamily: sans, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>Edit user</div>
         <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>{user.email} · {user.role}</div>
 
         {user.role === "hauler" && (

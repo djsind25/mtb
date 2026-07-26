@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { C, mono, serif } from "../theme";
+import { C, mono, sans } from "../theme";
 import { Btn, ErrorMsg } from "../ui/Primitives";
 import { getStripe } from "../lib/stripeClient";
 import { previewBidSwitch, startBidSwitch, confirmBidSwitch } from "./data";
@@ -95,7 +95,7 @@ export function SwitchHaulerPicker({ job, onSwitched, setToast, onClose }) {
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
       <div style={{ background: C.paper, borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}`, maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ fontFamily: serif, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>Switch hauler</div>
+        <div style={{ fontFamily: sans, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>Switch hauler</div>
 
         {!selected ? (
           <>

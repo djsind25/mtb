@@ -8,6 +8,9 @@
 -- meaning "last (re)posted" exactly as it does today.
 
 alter table jobs add column first_posted_at timestamptz;
+-- guard_job_self_update() blocks direct field changes on jobs outside the app's own RPCs
+-- (renew_job, etc.) — this one-time backfill needs the same bypass those RPCs use internally.
+select set_config('app.bypass_job_guard', 'true', true);
 update jobs set first_posted_at = created_at where first_posted_at is null;
 alter table jobs alter column first_posted_at set not null;
 alter table jobs alter column first_posted_at set default now();

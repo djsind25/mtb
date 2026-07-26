@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { C, serif } from "../theme";
+import { C, sans } from "../theme";
 import { Btn, ErrorMsg } from "../ui/Primitives";
 import { getStripe } from "../lib/stripeClient";
 
@@ -40,7 +40,7 @@ export function AcceptBidPayment({ clientSecret, depositLabel, isFull, onSuccess
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
       <div style={{ background: C.paper, borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}` }}>
-        <div style={{ fontFamily: serif, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>{isFull ? "Pay in full to lock in" : "Pay deposit to lock in"}</div>
+        <div style={{ fontFamily: sans, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>{isFull ? "Pay in full to lock in" : "Pay deposit to lock in"}</div>
         <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>
           {isFull
             ? `Your ${depositLabel} is held securely by MyTrashBid and released to your hauler when the job is confirmed complete on both ends — hauler and customer.`

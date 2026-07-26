@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { serif, C, jobCategoryOf, timelineSortIndex } from "../theme";
+import { sans, C, jobCategoryOf, timelineSortIndex } from "../theme";
 import { entitlementsFor } from "../membership";
 import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
@@ -252,7 +252,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
       {tab === "browse" && (
         loading ? <CenteredNote>Loading jobs…</CenteredNote> : (
           <>
-            <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 4 }}>Open jobs near you</h2>
+            <h2 style={{ fontFamily: sans, fontSize: 20, color: C.pineDeep, marginBottom: 4 }}>Open jobs near you</h2>
             <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 14 }}>
               Showing jobs within {maxRadiusMi} miles of your service ZIP ({session.zip || "not set"}). Posts stay live for 14 days unless renewed.
             </p>
@@ -290,7 +290,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
       {tab === "bids" && (
         loading ? <CenteredNote>Loading bids…</CenteredNote> : (
           <>
-            <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 12 }}>Your bids</h2>
+            <h2 style={{ fontFamily: sans, fontSize: 20, color: C.pineDeep, marginBottom: 12 }}>Your bids</h2>
             <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               {BID_FILTERS.map(f => (
                 <button key={f.id} onClick={() => setBidFilter(f.id)} style={{
