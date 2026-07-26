@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { C, mono, expiryLabel, isExpired, daysLeft } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "./CompletionPhotos";
@@ -8,8 +8,9 @@ import { JobUpdates } from "./JobUpdates";
 import { RequestCancellationControl } from "./RequestCancellationControl";
 import { ProposeBidRevisionControl } from "./ProposeBidRevisionControl";
 import { ScheduleProposal } from "./ScheduleProposal";
+import { ReviewPanel } from "../chat/ReviewPanel";
 
-export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, onRevisionProposed, onScheduleChanged, setToast }) {
+export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, onRevisionProposed, onScheduleChanged, setToast, highlighted = false }) {
   const myBid = job.myBid;
   const won = job.status === "booked" && job.accepted_bid_id === myBid?.id;
   const lost = job.status === "booked" && job.accepted_bid_id !== myBid?.id;
@@ -25,6 +26,13 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
   const [marking, setMarking] = useState(false);
   const [showQna, setShowQna] = useState(false);
   const canMarkDone = counts.before > 0 && counts.after > 0;
+  const cardRef = useRef(null);
+
+  // Deep-link target from Total Earned — scroll this card into view once when it's the one
+  // being landed on. highlighted itself auto-clears on a timer in HaulerDashboard.
+  useEffect(() => {
+    if (highlighted) cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlighted]);
 
   // Must be stable across renders: CompletionPhotos' reload() is a useCallback depending on
   // this prop, feeding a useEffect keyed on reload's identity. A fresh inline function here
@@ -46,7 +54,11 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
   }
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${bidExpired || completionOverdue ? C.amber + "66" : C.line}`, borderRadius: 12, padding: 14 }}>
+    <div ref={cardRef} style={{
+      background: C.paper, borderRadius: 12, padding: 14, transition: "box-shadow 0.3s",
+      border: `1px solid ${highlighted ? C.teal : bidExpired || completionOverdue ? C.amber + "66" : C.line}`,
+      boxShadow: highlighted ? `0 0 0 3px ${C.teal}33` : "none",
+    }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{job.title}</span>
         <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${myBid?.amount}</span>
@@ -125,6 +137,16 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
                 You marked this complete. Waiting on the customer to acknowledge — it auto-confirms after 7 days if they don't respond.
               </div>
               <CompletionPhotos jobId={job.id} />
+            </div>
+          )}
+          {/* Fully complete: photos stay editable (haulerId still passed) in case one more shot is
+              needed later, and the review lives right here instead of only inside chat. */}
+          {job.completed && (
+            <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 6, paddingTop: 12, marginBottom: 4 }}>
+              <CompletionPhotos jobId={job.id} haulerId={session.id} onChange={handlePhotosChanged} setToast={setToast} />
+              <div style={{ borderRadius: 10, overflow: "hidden", marginTop: 10 }}>
+                <ReviewPanel chat={{ customerName: job.customerName }} chatId={job.chatId} viewer="hauler" setToast={setToast} />
+              </div>
             </div>
           )}
 

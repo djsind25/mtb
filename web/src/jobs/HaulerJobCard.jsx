@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, expiryLabel, timelineMeta } from "../theme";
+import { C, expiryLabel, timelineMeta, shortDateLabel } from "../theme";
 import { Badge, Field, Btn } from "../ui/Primitives";
 import { JobPhotos } from "./JobPhotos";
 import { JobQuestions } from "./JobQuestions";
@@ -60,13 +60,24 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
     </div>
   );
 
+  // first_posted_at is stamped once at creation and never touched by renew_job() — created_at
+  // keeps meaning "last (re)posted", so it only differs from first_posted_at once the job has
+  // actually been renewed at least once (avoids a redundant "Posted X · Renewed X" otherwise).
+  const wasRenewed = job.first_posted_at && job.created_at && job.first_posted_at !== job.created_at;
   const compactHeader = (
     <div>
-      <div style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 4 }}>{job.title}</div>
+      <div style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 4 }}>
+        {job.title}{job.city ? ` · ${job.city}, ${job.state}` : ""}
+      </div>
       <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
         {typeof job.distance_mi === "number" && <Badge color={C.teal} bg={C.tealLight}>📏 {job.distance_mi < 1 ? "<1" : Math.round(job.distance_mi)} mi</Badge>}
         {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡" : "⏱"} {timeline.label}</Badge>}
         <Badge color={C.gray} bg={C.grayLight}>{job.bid_count} bid{job.bid_count === 1 ? "" : "s"}</Badge>
+        {job.first_posted_at && (
+          <span style={{ fontSize: 10.5, color: C.gray }}>
+            Posted {shortDateLabel(job.first_posted_at)}{wasRenewed ? ` · Renewed ${shortDateLabel(job.created_at)}` : ""}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { C } from "../theme";
+import { C, nowStr } from "../theme";
 import { Badge } from "../ui/Primitives";
 import { loadCompletionPhotos, uploadCompletionPhoto, deleteCompletionPhoto } from "./data";
 
@@ -102,8 +102,8 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
                 cursor: uploading === phase ? "default" : "pointer", display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center", color: C.gray, fontSize: 18, opacity: uploading === phase ? 0.6 : 1,
               }}>
-                <span>{uploading === phase ? "…" : "+"}</span>
-                <span style={{ fontSize: 9 }}>{uploading === phase ? "Adding" : "Add"}</span>
+                <span>{uploading === phase ? "…" : "📷"}</span>
+                <span style={{ fontSize: 8.5 }}>{uploading === phase ? "Adding" : "Take Photo"}</span>
               </button>
             </>
           )}
@@ -118,7 +118,7 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
       {section("after", "After photos")}
       {editable && (
         <div style={{ fontSize: 10.5, color: C.gray, marginTop: -2 }}>
-          📍 Photos capture your location when added (best-effort — allow location access when prompted).
+          📍 Location access is required — each photo is time-stamped and geotagged when taken.
         </div>
       )}
 
@@ -126,7 +126,7 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
         <div onClick={close} style={{ position: "fixed", inset: 0, background: "rgba(15,23,20,0.92)", zIndex: 2000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <button onClick={close} aria-label="Close" style={{ position: "absolute", top: 18, right: 20, background: "none", border: "none", color: "#fff", fontSize: 30, cursor: "pointer", lineHeight: 1 }}>×</button>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>
-            {flat[openIndex].phase === "before" ? "Before" : "After"} · {flat[openIndex].lat != null ? `📍 ${flat[openIndex].lat.toFixed(5)}, ${flat[openIndex].lng.toFixed(5)}` : "no location"}
+            {flat[openIndex].phase === "before" ? "Before" : "After"} · 🕐 {nowStr(flat[openIndex].created_at)} · {flat[openIndex].lat != null ? `📍 ${flat[openIndex].lat.toFixed(5)}, ${flat[openIndex].lng.toFixed(5)}` : "no location"}
           </div>
           <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 12, maxWidth: "100%", maxHeight: "78vh" }}>
             {flat.length > 1 && <button onClick={prev} aria-label="Previous" style={navBtnStyle}>‹</button>}

@@ -60,6 +60,36 @@ export async function loadHaulerStats(haulerId) {
   return { openNearby: openJobs.length, activeBids, won, completed, totalEarned };
 }
 
+// Per-job breakdown behind the "Total earned" stat card, for TotalEarnedTab.jsx. Deliberately
+// mirrors loadHaulerStats' totalEarned math exactly (same table, same commission_status='earned'
+// filter, same locked_final_price preference) rather than reading the payments table, so this
+// list always reconciles with the stat card above it instead of drifting out of sync with it.
+// customer_ack_at is used as the "earned on" date (the moment the job was actually confirmed
+// done); chats has no updated_at column, so created_at is the fallback for the rare case where a
+// job auto-acknowledged without that column ever being set.
+export async function loadHaulerEarningsByJob(haulerId) {
+  const { data: chats, error } = await supabase
+    .from("chats")
+    .select("job_id, bid_amount, commission, commission_status, locked_final_price, customer_ack_at, created_at, jobs(title)")
+    .eq("hauler_id", haulerId)
+    .eq("commission_status", "earned")
+    .is("superseded_at", null);
+  if (error) throw error;
+
+  return chats.map(c => {
+    const gross = c.locked_final_price != null ? Number(c.locked_final_price) : Number(c.bid_amount);
+    const commission = c.locked_final_price != null ? Math.round(gross * 0.10 * 100) / 100 : Number(c.commission);
+    return {
+      jobId: c.job_id,
+      jobTitle: c.jobs?.title || "Untitled job",
+      gross,
+      commission,
+      net: gross - commission,
+      earnedAt: c.customer_ack_at || c.created_at,
+    };
+  });
+}
+
 export async function loadCustomerPayments(customerId) {
   const { data, error } = await supabase
     .from("payments")
