@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { serif, C, mono, shortDateLabel } from "../theme";
+import { sans, C, mono, shortDateLabel } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 import { loadHaulerEarningsByJob } from "./data";
 
@@ -62,7 +62,7 @@ export function TotalEarnedTab({ haulerId, onOpenJob, setToast }) {
 
   return (
     <>
-      <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 14 }}>Total earned</h2>
+      <h2 style={{ fontFamily: sans, fontSize: 20, color: C.pineDeep, marginBottom: 14 }}>Total earned</h2>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
         {PERIODS.map(p => (

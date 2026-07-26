@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { C, serif } from "../theme";
+import { C, sans } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
@@ -133,7 +133,7 @@ export function AdminDashboard({ session, setToast }) {
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
-      <h2 style={{ fontFamily: serif, fontSize: 24, color: C.pineDeep, marginBottom: 4 }}>🛡️ Admin dashboard</h2>
+      <h2 style={{ fontFamily: sans, fontSize: 24, color: C.pineDeep, marginBottom: 4 }}>🛡️ Admin dashboard</h2>
       <p style={{ fontSize: 13, color: C.gray, marginBottom: 16 }}>Full visibility — users, jobs, bids, deposit revenue, and flagged messages.</p>
 
       {readOnly && (

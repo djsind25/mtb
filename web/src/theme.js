@@ -10,7 +10,6 @@ export const C = {
   line: "#D8E0D6", amber: "#B8860B", amberLight: "#FBF3DD", red: "#C0392B", redLight: "#FBEAE8",
   green: "#41A62E", greenDeep: "#2E7D22", charcoal: "#16232D",
 };
-export const serif = "'Fraunces', Georgia, serif";
 export const sans = "'Inter', system-ui, sans-serif";
 export const mono = "'JetBrains Mono', monospace";
 
