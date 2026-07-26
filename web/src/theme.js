@@ -83,3 +83,7 @@ export function memberSinceLabel(iso) {
   if (!iso) return null;
   return `Member since ${new Date(iso).getFullYear()}`;
 }
+export function shortDateLabel(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}

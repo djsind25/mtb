@@ -10,7 +10,15 @@ import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
 import { AccountTab } from "./AccountTab";
+import { TotalEarnedTab } from "./TotalEarnedTab";
 import { loadHaulerStats } from "./data";
+
+const BID_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "active", label: "Active" },
+  { id: "won", label: "Won" },
+  { id: "completed", label: "Completed" },
+];
 
 const DEFAULT_JOB_PREFS = { sort: "nearest", distanceBand: null, timelines: [], jobTypes: [], density: "compact" };
 
@@ -30,6 +38,8 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const [stats, setStats] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [changeOrdersEnabled, setChangeOrdersEnabled] = useState(false);
+  const [bidFilter, setBidFilter] = useState("all");
+  const [focusJobId, setFocusJobId] = useState(null);
 
   // Find Jobs filtering/sorting — seeded from the hauler's saved default (if any) so opening the
   // tab applies it automatically; savedViewActive drives the "showing your saved view" banner and
@@ -46,9 +56,23 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
 
   useEffect(() => { if (initialChatId) setTab("messages"); }, [initialChatId]);
 
+  // Clears the highlight a couple seconds after landing on a job from Total Earned — long enough
+  // to catch the eye, short enough that it doesn't look stuck if the hauler lingers on the page.
+  useEffect(() => {
+    if (!focusJobId) return;
+    const t = setTimeout(() => setFocusJobId(null), 2500);
+    return () => clearTimeout(t);
+  }, [focusJobId]);
+
   function openChat(chatId) {
     setDirectChatId(chatId);
     setTab("messages");
+  }
+
+  function openJobFromEarnings(jobId) {
+    setTab("bids");
+    setBidFilter("completed");
+    setFocusJobId(jobId);
   }
 
   const loadAll = useCallback(async () => {
@@ -157,6 +181,23 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const maxRadiusMi = entitlementsFor(session.membershipTier).maxRadiusMi;
   const myBidByJobId = Object.fromEntries(myBidJobs.map(j => [j.id, j.myBid]));
 
+  // Mirrors the same won/pending/completed flags HaulerBidStatusCard.jsx computes inline per
+  // card, so "which bucket is this job in" agrees everywhere it's asked. "Won" is deliberately a
+  // superset that includes completed jobs (matching stats.won, an all-time cumulative count) —
+  // narrowing it to "won and not yet completed" would make the Jobs Won stat card link to a list
+  // that goes emptier over time as jobs finish, which reads as broken rather than as intended.
+  const filteredBidJobs = useMemo(() => {
+    if (bidFilter === "all") return myBidJobs;
+    return myBidJobs.filter(job => {
+      const won = job.status === "booked" && job.accepted_bid_id === job.myBid?.id;
+      const pending = !job.status || job.status === "open";
+      if (bidFilter === "active") return pending;
+      if (bidFilter === "won") return won;
+      if (bidFilter === "completed") return job.completed;
+      return true;
+    });
+  }, [myBidJobs, bidFilter]);
+
   const dismissedCount = openJobs.filter(j => j.is_dismissed).length;
   // showDismissed decides the *base* list (a view toggle, not a "filter"); distance/timeline/job
   // type narrow within it — that split is what "X filters active" counts against.
@@ -177,11 +218,11 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   }, [baseJobs, distanceBand, timelines, jobTypes, sort]);
 
   const summary = stats ? [
-    { label: "Open jobs nearby", value: stats.openNearby },
-    { label: "Active bids", value: stats.activeBids },
-    { label: "Jobs won", value: stats.won },
-    { label: "Completed", value: stats.completed },
-    { label: "Total earned", value: `$${stats.totalEarned.toFixed(2)}` },
+    { label: "Open jobs nearby", value: stats.openNearby, onClick: () => setTab("browse") },
+    { label: "Active bids", value: stats.activeBids, onClick: () => { setTab("bids"); setBidFilter("active"); } },
+    { label: "Jobs won", value: stats.won, onClick: () => { setTab("bids"); setBidFilter("won"); } },
+    { label: "Completed", value: `${stats.completed}/${stats.won}`, onClick: () => { setTab("bids"); setBidFilter("completed"); } },
+    { label: "Total earned", value: `$${stats.totalEarned.toFixed(2)}`, onClick: () => setTab("earnings") },
   ] : [];
 
   return (
@@ -249,15 +290,35 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
       {tab === "bids" && (
         loading ? <CenteredNote>Loading bids…</CenteredNote> : (
           <>
-            <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 16 }}>Your bids</h2>
+            <h2 style={{ fontFamily: serif, fontSize: 20, color: C.pineDeep, marginBottom: 12 }}>Your bids</h2>
+            <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+              {BID_FILTERS.map(f => (
+                <button key={f.id} onClick={() => setBidFilter(f.id)} style={{
+                  border: `1.5px solid ${bidFilter === f.id ? C.green : C.line}`, borderRadius: 20,
+                  background: bidFilter === f.id ? C.tealLight : C.paper, padding: "5px 12px",
+                  cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: C.ink, fontFamily: "inherit",
+                }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
             <div style={{ display: "grid", gap: 12 }}>
               {myBidJobs.length === 0 && <CenteredNote>You haven't submitted any bids yet.</CenteredNote>}
-              {myBidJobs.map(job => (
-                <HaulerBidStatusCard key={job.id} job={job} session={session} changeOrdersEnabled={changeOrdersEnabled} onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone} onCancellationChanged={handleCancellationChanged} onRevisionProposed={handleRevisionProposed} onScheduleChanged={handleScheduleChanged} setToast={setToast} />
+              {myBidJobs.length > 0 && filteredBidJobs.length === 0 && <CenteredNote>No bids in this view.</CenteredNote>}
+              {filteredBidJobs.map(job => (
+                <HaulerBidStatusCard key={job.id} job={job} session={session} changeOrdersEnabled={changeOrdersEnabled}
+                  onOpenChat={openChat} onRenewBid={handleRenewBid} onMarkDone={handleMarkDone}
+                  onCancellationChanged={handleCancellationChanged} onRevisionProposed={handleRevisionProposed}
+                  onScheduleChanged={handleScheduleChanged} setToast={setToast}
+                  highlighted={job.id === focusJobId} />
               ))}
             </div>
           </>
         )
+      )}
+
+      {tab === "earnings" && (
+        <TotalEarnedTab haulerId={session.id} onOpenJob={openJobFromEarnings} setToast={setToast} />
       )}
 
       {tab === "messages" && (

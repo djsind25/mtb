@@ -164,7 +164,7 @@ export async function loadMyBidJobs(haulerId) {
   const { data: rows, error: jobsError } = await supabase.rpc("list_my_bid_jobs_for_hauler");
   if (jobsError) throw jobsError;
   const withBids = rows.map(r => ({
-    ...r.job, city: r.city, state: r.state, bid_count: r.bid_count,
+    ...r.job, city: r.city, state: r.state, bid_count: r.bid_count, customerName: r.customer_name,
     myBid: myBids.find(b => b.job_id === r.job.id),
   }));
   return attachPendingSchedule(await attachPendingBidRevision(await attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId))));
@@ -384,14 +384,19 @@ export async function loadCompletionPhotos(jobId) {
   return withUrls;
 }
 
-// Best-effort browser geolocation captured at upload time. Resolves to {lat,lng} or null (permission
-// denied, no GPS, or timeout) — we never block the upload on it, per the completion-workflow plan.
+// Browser geolocation captured at upload time — required, not best-effort: a completion photo is
+// meant to be on-site proof, so a photo with no location attached isn't useful proof at all.
+// Rejects (rather than resolving null) on denial/timeout/no-GPS so the caller can block the
+// upload with a clear message instead of silently saving lat/lng as null.
 function getGeolocation() {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve(null);
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Your browser doesn't support location access, which is required for completion photos."));
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve(null),
+      () => reject(new Error("Location access is required to upload a completion photo — please allow location access and try again.")),
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
     );
   });
@@ -415,7 +420,7 @@ export async function uploadCompletionPhoto({ jobId, haulerId, phase, file }) {
   if (uploadError) throw uploadError;
   const { error: rowError } = await supabase.from("job_completion_photos").insert({
     job_id: jobId, phase, storage_path: path, original_name: jpeg.name,
-    lat: geo?.lat ?? null, lng: geo?.lng ?? null, uploaded_by: haulerId,
+    lat: geo.lat, lng: geo.lng, uploaded_by: haulerId,
   });
   if (rowError) throw rowError;
 }
