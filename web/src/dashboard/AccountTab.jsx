@@ -8,6 +8,7 @@ import {
   requestProfileChange, loadMyProfileChangeRequests,
 } from "./data";
 import { HaulerDocuments } from "./HaulerDocuments";
+import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { SmsAgreement } from "../auth/SmsAgreement";
 import { entitlementsFor, tierName } from "../membership";
 import { LockedField } from "./LockedField";
@@ -181,7 +182,8 @@ export function AccountTab({ session, setToast }) {
   }
 
   async function submitPasswordChange() {
-    if (newPassword.trim().length < 6) { setToast("Passcode must be at least 6 characters."); return; }
+    const pcError = passcodeError(newPassword);
+    if (pcError) { setToast(pcError); return; }
     setChangingPassword(true);
     try {
       await changePassword(newPassword.trim());
@@ -369,7 +371,7 @@ export function AccountTab({ session, setToast }) {
 
       <section>
         <div style={sectionTitle}>Change passcode</div>
-        <Field label="New passcode" value={newPassword} onChange={setNewPassword} type="password" placeholder="At least 6 characters" />
+        <Field label="New passcode" value={newPassword} onChange={setNewPassword} type="password" placeholder="At least 8 characters" hint={PASSCODE_HINT} />
         <Btn full={false} onClick={submitPasswordChange} disabled={changingPassword}>{changingPassword ? "Updating…" : "Update passcode"}</Btn>
       </section>
 

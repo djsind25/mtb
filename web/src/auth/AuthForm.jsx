@@ -2,10 +2,12 @@ import { useState } from "react";
 import { C, sans } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { mapProfileToSession } from "../lib/session";
+import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
 import { SmsAgreement } from "./SmsAgreement";
+import { SocialAuthButtons } from "./SocialAuthButtons";
 
 async function fetchProfile(userId) {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -96,7 +98,8 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     } else {
       if (!businessName.trim() || !contactName.trim() || !email.trim() || !passcode.trim() || !serviceZip.trim() || !haulerPhone.trim()) { setError("Fill in all fields."); return; }
     }
-    if (passcode.trim().length < 6) { setError("Passcode must be at least 6 characters."); return; }
+    const pcError = passcodeError(passcode);
+    if (pcError) { setError(pcError); return; }
     if (!agreedToTerms) { setError("You must agree to the Terms of Service to continue."); return; }
 
     setLoading(true);
@@ -134,7 +137,17 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
         <AuthShell title="Admin login" subtitle="Reset your passcode" onBack={onBack}>
           {resetSent ? (
             <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.6 }}>
-              Check <strong>{email.trim()}</strong> for a link to set a new passcode.
+              <div style={{ marginBottom: 14 }}>
+                Check <strong>{email.trim()}</strong> for a link to set a new passcode.
+              </div>
+              <div style={{ fontSize: 12.5, color: C.gray, lineHeight: 1.6, background: C.sand, border: `1px solid ${C.line}`, borderRadius: 8, padding: "12px 14px" }}>
+                If you don't see it within a few minutes, check your spam or junk folder — that's the
+                most common reason a reset email doesn't show up. Also double-check the email address
+                was entered correctly.
+                <br /><br />
+                Still stuck? Reach out to{" "}
+                <a href="mailto:support@mytrashbid.com" style={{ color: C.teal }}>support@mytrashbid.com</a>.
+              </div>
             </div>
           ) : (
             <>
@@ -169,7 +182,17 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       <AuthShell title={role === "customer" ? "Customer account" : "Hauler account"} subtitle="Reset your passcode" onBack={onBack}>
         {resetSent ? (
           <div style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.6 }}>
-            Check <strong>{email.trim()}</strong> for a link to set a new passcode.
+            <div style={{ marginBottom: 14 }}>
+              Check <strong>{email.trim()}</strong> for a link to set a new passcode.
+            </div>
+            <div style={{ fontSize: 12.5, color: C.gray, lineHeight: 1.6, background: C.sand, border: `1px solid ${C.line}`, borderRadius: 8, padding: "12px 14px" }}>
+              If you don't see it within a few minutes, check your spam or junk folder — that's the
+              most common reason a reset email doesn't show up. Also double-check the email address
+              was entered correctly.
+              <br /><br />
+              Still stuck? Reach out to{" "}
+              <a href="mailto:support@mytrashbid.com" style={{ color: C.teal }}>support@mytrashbid.com</a>.
+            </div>
           </div>
         ) : (
           <>
@@ -202,6 +225,8 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
         ))}
       </div>
 
+      <SocialAuthButtons supabase={supabase} role={role} disabled={loading} setToast={setToast} />
+
       {mode === "login" && (
         <>
           <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" required />
@@ -221,7 +246,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" required />
           <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />
           <Field label="Phone" value={phone} onChange={setPhone} type="tel" placeholder="(optional)" />
-          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 6 characters" required hint="At least 6 characters." />
+          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
           <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
@@ -236,7 +261,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Business email" value={email} onChange={setEmail} type="email" placeholder="jake@capitalcityhaul.com" required />
           <Field label="Primary service ZIP" value={serviceZip} onChange={setServiceZip} placeholder="60491" required />
           <Field label="Phone" value={haulerPhone} onChange={setHaulerPhone} type="tel" placeholder="(555) 867-5309" required />
-          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 6 characters" required hint="At least 6 characters." />
+          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
           <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
           {error && <ErrorMsg>{error}</ErrorMsg>}

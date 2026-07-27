@@ -6,6 +6,8 @@ import { AuthLanding } from "./auth/AuthLanding";
 import { AuthForm } from "./auth/AuthForm";
 import { AdminInviteAccept } from "./auth/AdminInviteAccept";
 import { AuthRecovery } from "./auth/AuthRecovery";
+import { CompleteOAuthProfile } from "./auth/CompleteOAuthProfile";
+import { OAUTH_ROLE_KEY } from "./auth/socialAuth";
 import { TopBar } from "./ui/TopBar";
 import { Toast } from "./ui/Toast";
 import { CustomerDashboard } from "./dashboard/CustomerDashboard";
@@ -13,9 +15,11 @@ import { HaulerDashboard } from "./dashboard/HaulerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 
 export default function App() {
-  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | app
+  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | oauth_profile | app
   const [authRole, setAuthRole] = useState(null);
   const [session, setSession] = useState(null);
+  const [oauthProfile, setOauthProfile] = useState(null);
+  const [oauthRoleHint, setOauthRoleHint] = useState(null);
   const [page, setPage] = useState("dashboard");
   const [activeChatId, setActiveChatId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -60,6 +64,28 @@ export default function App() {
       setStage("landing");
       return;
     }
+    // Only ever set right before an OAuth redirect (see socialAuth.js) — its presence here means
+    // this restore is happening right after that redirect back, not an ordinary page load.
+    const oauthRoleHint = sessionStorage.getItem(OAUTH_ROLE_KEY);
+    sessionStorage.removeItem(OAUTH_ROLE_KEY);
+    // zip === '' is the auto-create trigger's hardcoded default for any OAuth signup — password
+    // signups always supply a real zip, so this only ever fires for a fresh, never-onboarded
+    // OAuth account.
+    if (profile.zip === "") {
+      if (oauthRoleHint) window.history.replaceState({}, "", window.location.pathname);
+      setOauthProfile(profile);
+      setOauthRoleHint(oauthRoleHint === "customer" || oauthRoleHint === "hauler" ? oauthRoleHint : null);
+      setStage("oauth_profile");
+      return;
+    }
+    if (oauthRoleHint && oauthRoleHint !== profile.role) {
+      window.history.replaceState({}, "", window.location.pathname);
+      await supabase.auth.signOut();
+      setToast(`This account is registered as a ${profile.role}. Pick "${profile.role === "customer" ? "I'm a customer" : "I'm a hauler"}" instead.`);
+      setStage("landing");
+      return;
+    }
+    if (oauthRoleHint) window.history.replaceState({}, "", window.location.pathname);
     const mapped = mapProfileToSession(profile);
     setSession(mapped);
     setPage(mapped.role === "admin" ? "admin" : "dashboard");
@@ -127,6 +153,16 @@ export default function App() {
           onBack={async () => { await supabase.auth.signOut(); setStage("landing"); }}
         />
       )}
+      {stage === "oauth_profile" && oauthProfile && (
+        <CompleteOAuthProfile
+          supabase={supabase}
+          profile={oauthProfile}
+          roleHint={oauthRoleHint}
+          onDone={handleAuthed}
+          onBack={async () => { await supabase.auth.signOut(); setOauthProfile(null); setStage("landing"); }}
+        />
+      )}
+
       {stage === "admin_invite" && (
         <AdminInviteAccept
           token={adminInviteToken}
