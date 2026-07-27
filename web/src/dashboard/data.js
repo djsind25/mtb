@@ -170,8 +170,11 @@ export async function resendVerificationEmail() {
   if (error) throw error;
 }
 
-export async function deactivateOwnAccount(id) {
-  const { error } = await supabase.from("profiles").update({ active: false, deactivated_at: new Date().toISOString() }).eq("id", id);
+// Goes through a dedicated RPC rather than a plain table write, so step-up (aal2 for MFA-enrolled
+// accounts, or a real password check for password accounts without MFA) is enforced server-side —
+// see supabase/migrations/20260807000000_mfa_phase2_stepup.sql.
+export async function deactivateOwnAccount(password) {
+  const { error } = await supabase.rpc("deactivate_own_account", { p_password: password || null });
   if (error) throw error;
   await supabase.auth.signOut();
 }

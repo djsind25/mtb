@@ -12,6 +12,9 @@ import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { SmsAgreement } from "../auth/SmsAgreement";
 import { entitlementsFor, tierName } from "../membership";
 import { LockedField } from "./LockedField";
+import { StepUpChallenge } from "../auth/StepUpChallenge";
+import { MfaEnrollment } from "../auth/MfaEnrollment";
+import { listVerifiedTotpFactors } from "../lib/mfa";
 
 const EVENT_LABELS = {
   bidReceived: "New bid on your job",
@@ -89,9 +92,24 @@ export function AccountTab({ session, setToast }) {
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
 
+  // Holds the function to run once StepUpChallenge confirms re-verification — one shared gate for
+  // password change, email change, and account deactivation, rather than a separate flag per action.
+  const [stepUpAction, setStepUpAction] = useState(null);
+
   const [resending, setResending] = useState(false);
 
   const [documents, setDocuments] = useState({});
+
+  const [mfaEnrolled, setMfaEnrolled] = useState(null); // null = loading, else boolean
+  const [showMfaEnroll, setShowMfaEnroll] = useState(false);
+
+  const loadMfaStatus = async () => {
+    try {
+      setMfaEnrolled((await listVerifiedTotpFactors(supabase)).length > 0);
+    } catch {
+      setMfaEnrolled(false);
+    }
+  };
 
   const loadDocuments = async () => {
     if (session.role !== "hauler") return;
@@ -112,6 +130,7 @@ export function AccountTab({ session, setToast }) {
         session.role === "customer" ? loadCustomerPayments(session.id) : loadHaulerEarnings(session.id),
       ]);
       if (session.role === "hauler") { await loadDocuments(); await loadPendingRequests(); }
+      await loadMfaStatus();
       if (cancelled) return;
       setProfile(p);
       setName(p.name || "");
@@ -130,11 +149,22 @@ export function AccountTab({ session, setToast }) {
 
   // business_name moved out of this free-save path entirely — it's now change-request-only, see
   // the "Business & verification" section below.
-  async function saveProfile() {
+  function saveProfile() {
     if (session.role === "hauler" && !phone.trim()) {
       setToast("A phone number is required for hauler accounts.");
       return;
     }
+    const emailChanged = email.trim() !== profile.email;
+    if (emailChanged) {
+      // Changing the email is the sensitive part of this save — gate just that behind step-up
+      // re-auth, but still save the harmless fields (name/phone/zip/bio/avatar) unconditionally.
+      setStepUpAction(() => () => doSaveProfile(true));
+      return;
+    }
+    doSaveProfile(false);
+  }
+
+  async function doSaveProfile(emailChanged) {
     setSavingProfile(true);
     try {
       const fields = {
@@ -142,7 +172,7 @@ export function AccountTab({ session, setToast }) {
         bio: bio.trim() || null, avatar: avatar.trim() || null,
       };
       await updateOwnProfile(session.id, fields);
-      if (email.trim() !== profile.email) {
+      if (emailChanged) {
         await changeEmail(email.trim());
         setToast("Profile saved. Check your inbox to confirm the new email address.");
       } else {
@@ -181,9 +211,13 @@ export function AccountTab({ session, setToast }) {
     setSavingPrefs(false);
   }
 
-  async function submitPasswordChange() {
+  function submitPasswordChange() {
     const pcError = passcodeError(newPassword);
     if (pcError) { setToast(pcError); return; }
+    setStepUpAction(() => () => doPasswordChange());
+  }
+
+  async function doPasswordChange() {
     setChangingPassword(true);
     try {
       await changePassword(newPassword.trim());
@@ -195,11 +229,15 @@ export function AccountTab({ session, setToast }) {
     setChangingPassword(false);
   }
 
-  async function confirmDeactivate() {
+  function confirmDeactivate() {
+    setStepUpAction(() => (password) => doDeactivate(password));
+  }
+
+  async function doDeactivate(password) {
     setDeactivating(true);
     try {
       setToast("Account deactivated. Signing you out…");
-      await deactivateOwnAccount(session.id);
+      await deactivateOwnAccount(password);
       // supabase.auth.signOut() inside deactivateOwnAccount fires the app-level SIGNED_OUT
       // listener (App.jsx), which handles navigating back to the landing screen.
     } catch (e) {
@@ -312,6 +350,29 @@ export function AccountTab({ session, setToast }) {
       )}
 
       <section>
+        <div style={sectionTitle}>Two-factor authentication</div>
+        {mfaEnrolled === null ? null : mfaEnrolled ? (
+          <Badge color={C.teal} bg={C.tealLight}>✓ Enabled</Badge>
+        ) : showMfaEnroll ? (
+          <MfaEnrollment
+            supabase={supabase}
+            mandatory={false}
+            onComplete={() => { setShowMfaEnroll(false); loadMfaStatus(); setToast("Two-factor authentication enabled."); }}
+            onCancel={() => setShowMfaEnroll(false)}
+          />
+        ) : (
+          <>
+            <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 12 }}>
+              {session.role === "hauler"
+                ? "Once your account is verified, you'll need this enabled before you can submit a bid — it protects your account and your earnings. Set it up now to get ahead of it."
+                : "Add an extra layer of protection to your account with any authenticator app."}
+            </p>
+            <Btn full={false} onClick={() => setShowMfaEnroll(true)}>Set up two-factor authentication</Btn>
+          </>
+        )}
+      </section>
+
+      <section>
         <div style={sectionTitle}>Notifications</div>
         <label style={checkboxRow}>
           <input type="checkbox" checked={prefs.email} onChange={e => setPrefs({ ...prefs, email: e.target.checked })} />
@@ -389,6 +450,14 @@ export function AccountTab({ session, setToast }) {
           </div>
         )}
       </section>
+
+      {stepUpAction && (
+        <StepUpChallenge
+          supabase={supabase}
+          onVerified={(password) => { const run = stepUpAction; setStepUpAction(null); run(password); }}
+          onCancel={() => setStepUpAction(null)}
+        />
+      )}
     </div>
   );
 }

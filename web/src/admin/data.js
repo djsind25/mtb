@@ -15,6 +15,14 @@ export async function updateUserProfile(userId, fields) {
   if (error) throw error;
 }
 
+// Deactivate/reactivate goes through a dedicated RPC rather than updateUserProfile's plain table
+// write, so step-up MFA (require_aal2()) can be enforced server-side before the change goes
+// through — see supabase/migrations/20260806000000_mfa.sql.
+export async function setUserActive(userId, active) {
+  const { error } = await supabase.rpc("admin_set_user_active", { p_user_id: userId, p_active: active });
+  if (error) throw error;
+}
+
 export async function loadJobsWithBids() {
   const { data: jobs, error } = await supabase.from("jobs").select("*").order("created_at", { ascending: false });
   if (error) throw error;

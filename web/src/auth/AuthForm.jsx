@@ -165,6 +165,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     }
     return (
       <AuthShell title="Admin login" subtitle="Restricted access" onBack={onBack}>
+        <SocialAuthButtons supabase={supabase} role="admin" disabled={loading} setToast={setToast} />
         <Field label="Admin email" value={email} onChange={setEmail} placeholder="admin@mytrashbid.com" />
         <Field label="Passcode" value={adminPass} onChange={setAdminPass} type="password" placeholder="••••••" />
         {error && <ErrorMsg>{error}</ErrorMsg>}

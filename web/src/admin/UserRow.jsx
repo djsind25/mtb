@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { C } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
-import { updateUserProfile } from "./data";
+import { updateUserProfile, setUserActive } from "./data";
 import { tierName } from "../membership";
+import { supabase } from "../lib/supabaseClient";
+import { StepUpChallenge } from "../auth/StepUpChallenge";
 
 export function userDisplayName(u) {
   return u.role === "customer" ? u.name : (u.business_name || u.name);
@@ -12,11 +14,12 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmingAdminRole, setConfirmingAdminRole] = useState(false);
   const [working, setWorking] = useState(false);
+  const [showStepUp, setShowStepUp] = useState(false);
 
   async function toggleActive() {
     setWorking(true);
     try {
-      await updateUserProfile(u.id, { active: !u.active, deactivated_at: u.active ? new Date().toISOString() : null });
+      await setUserActive(u.id, !u.active);
       setToast(u.active ? `${displayName} deactivated.` : `${displayName} reactivated.`);
       onChanged();
     } catch (e) {
@@ -86,7 +89,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
         confirming ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <span style={{ fontSize: 11.5, color: C.gray }}>{u.active ? "Deactivate?" : "Reactivate?"}</span>
-            <Btn size="sm" full={false} variant={u.active ? "danger" : "teal"} disabled={working} onClick={toggleActive}>Yes</Btn>
+            <Btn size="sm" full={false} variant={u.active ? "danger" : "teal"} disabled={working} onClick={() => setShowStepUp(true)}>Yes</Btn>
             <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirming(false)}>No</Btn>
           </div>
         ) : (
@@ -94,6 +97,13 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
             {u.active ? "Deactivate" : "Reactivate"}
           </Btn>
         )
+      )}
+      {showStepUp && (
+        <StepUpChallenge
+          supabase={supabase}
+          onVerified={() => { setShowStepUp(false); toggleActive(); }}
+          onCancel={() => setShowStepUp(false)}
+        />
       )}
     </div>
   );

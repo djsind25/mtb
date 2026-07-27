@@ -12,6 +12,9 @@ import { MessagesTab } from "./MessagesTab";
 import { AccountTab } from "./AccountTab";
 import { TotalEarnedTab } from "./TotalEarnedTab";
 import { loadHaulerStats } from "./data";
+import { supabase } from "../lib/supabaseClient";
+import { listVerifiedTotpFactors } from "../lib/mfa";
+import { MfaEnrollment } from "../auth/MfaEnrollment";
 
 const BID_FILTERS = [
   { id: "all", label: "All" },
@@ -53,6 +56,9 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const [density, setDensity] = useState(session.jobSearchPrefs?.density || DEFAULT_JOB_PREFS.density);
   const [showDismissed, setShowDismissed] = useState(false);
   const [savedViewActive, setSavedViewActive] = useState(hasSavedPrefs);
+  // Holds a bid submission waiting on mandatory MFA enrollment — set only when the hauler is
+  // already bid-eligible (license/insurance verified) but has no verified TOTP factor yet.
+  const [pendingBid, setPendingBid] = useState(null);
 
   useEffect(() => { if (initialChatId) setTab("messages"); }, [initialChatId]);
 
@@ -95,6 +101,25 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   useEffect(() => { loadAll(); }, [loadAll]);
 
   async function handleBid(jobId, amount, note) {
+    // Bid-eligible (verified) haulers must have MFA enrolled before their first bid — gate here
+    // rather than let the bids_insert RLS policy's own matching check (Phase 3) surface as a raw
+    // insert failure.
+    if (session.licenseActive && session.insuranceActive) {
+      try {
+        const factors = await listVerifiedTotpFactors(supabase);
+        if (factors.length === 0) {
+          setPendingBid({ jobId, amount, note });
+          return;
+        }
+      } catch (e) {
+        setToast(e.message || "Could not check two-factor status.");
+        return;
+      }
+    }
+    await doSubmitBid(jobId, amount, note);
+  }
+
+  async function doSubmitBid(jobId, amount, note) {
     try {
       await submitBid({ jobId, haulerId: session.id, amount, note });
       setToast("Bid submitted! It stays open for the customer to accept for 14 days.");
@@ -331,6 +356,33 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
       )}
 
       {tab === "account" && <AccountTab session={session} setToast={setToast} />}
+
+      {pendingBid && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        }}>
+          <div style={{ background: C.paper, borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}`, maxHeight: "85vh", overflowY: "auto" }}>
+            <div style={{ fontFamily: sans, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>Set up two-factor authentication</div>
+            <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>
+              Verified haulers need this enabled before bidding — it protects your account and your earnings. Finish this once and your bid will go through right after.
+            </div>
+            <MfaEnrollment
+              supabase={supabase}
+              mandatory
+              onComplete={() => {
+                const bid = pendingBid;
+                setPendingBid(null);
+                doSubmitBid(bid.jobId, bid.amount, bid.note);
+              }}
+            />
+            <button onClick={() => setPendingBid(null)} style={{
+              background: "none", border: "none", color: C.gray, fontSize: 12.5, cursor: "pointer",
+              textDecoration: "underline", marginTop: 14, display: "block",
+            }}>Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

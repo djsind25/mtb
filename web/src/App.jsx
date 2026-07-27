@@ -8,6 +8,10 @@ import { AdminInviteAccept } from "./auth/AdminInviteAccept";
 import { AuthRecovery } from "./auth/AuthRecovery";
 import { CompleteOAuthProfile } from "./auth/CompleteOAuthProfile";
 import { OAUTH_ROLE_KEY } from "./auth/socialAuth";
+import { AuthShell } from "./auth/AuthShell";
+import { MfaEnrollment } from "./auth/MfaEnrollment";
+import { MfaChallenge } from "./auth/MfaChallenge";
+import { listVerifiedTotpFactors, getAAL } from "./lib/mfa";
 import { TopBar } from "./ui/TopBar";
 import { Toast } from "./ui/Toast";
 import { CustomerDashboard } from "./dashboard/CustomerDashboard";
@@ -15,11 +19,12 @@ import { HaulerDashboard } from "./dashboard/HaulerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 
 export default function App() {
-  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | oauth_profile | app
+  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | oauth_profile | mfa_enroll | mfa_challenge | app
   const [authRole, setAuthRole] = useState(null);
   const [session, setSession] = useState(null);
   const [oauthProfile, setOauthProfile] = useState(null);
   const [oauthRoleHint, setOauthRoleHint] = useState(null);
+  const [pendingSession, setPendingSession] = useState(null);
   const [page, setPage] = useState("dashboard");
   const [activeChatId, setActiveChatId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -70,8 +75,10 @@ export default function App() {
     sessionStorage.removeItem(OAUTH_ROLE_KEY);
     // zip === '' is the auto-create trigger's hardcoded default for any OAuth signup — password
     // signups always supply a real zip, so this only ever fires for a fresh, never-onboarded
-    // OAuth account.
-    if (profile.zip === "") {
+    // OAuth account. Admin accounts (created via AdminInviteAccept, which never collects a ZIP)
+    // also have zip === '' — excluded here so an admin isn't misrouted into this customer/hauler
+    // role-picker flow.
+    if (profile.zip === "" && profile.role !== "admin") {
       if (oauthRoleHint) window.history.replaceState({}, "", window.location.pathname);
       setOauthProfile(profile);
       setOauthRoleHint(oauthRoleHint === "customer" || oauthRoleHint === "hauler" ? oauthRoleHint : null);
@@ -81,15 +88,15 @@ export default function App() {
     if (oauthRoleHint && oauthRoleHint !== profile.role) {
       window.history.replaceState({}, "", window.location.pathname);
       await supabase.auth.signOut();
-      setToast(`This account is registered as a ${profile.role}. Pick "${profile.role === "customer" ? "I'm a customer" : "I'm a hauler"}" instead.`);
+      const fix = profile.role === "customer" ? `Pick "I'm a customer" instead.`
+        : profile.role === "hauler" ? `Pick "I'm a hauler" instead.`
+        : `Use the Admin login link instead.`;
+      setToast(`This account is registered as a ${profile.role}. ${fix}`);
       setStage("landing");
       return;
     }
     if (oauthRoleHint) window.history.replaceState({}, "", window.location.pathname);
-    const mapped = mapProfileToSession(profile);
-    setSession(mapped);
-    setPage(mapped.role === "admin" ? "admin" : "dashboard");
-    setStage("app");
+    await finishLogin(mapProfileToSession(profile));
   }, []);
 
   useEffect(() => { restoreSession(); }, [restoreSession]);
@@ -122,10 +129,40 @@ export default function App() {
     setAuthRole(role);
     setStage("auth");
   }
-  function handleAuthed(user) {
-    setSession(user);
-    setPage(user.role === "admin" ? "admin" : "dashboard");
+  // Single funnel every login path (password, Google, admin-invite-accept, OAuth-completion) goes
+  // through before actually landing in the app. Admin accounts require MFA — no verified
+  // authenticator yet routes to mandatory enrollment; a verified one whose session isn't already
+  // aal2 (a fresh browser session, or one that's never done the login-time challenge) routes to
+  // the code-entry screen. Both re-call finishLogin on success rather than duplicating the "land
+  // in the app" tail below.
+  async function finishLogin(mapped) {
+    if (mapped.role === "admin") {
+      try {
+        const factors = await listVerifiedTotpFactors(supabase);
+        if (factors.length === 0) {
+          setPendingSession(mapped);
+          setStage("mfa_enroll");
+          return;
+        }
+        const aal = await getAAL(supabase);
+        if (aal.currentLevel !== "aal2") {
+          setPendingSession(mapped);
+          setStage("mfa_challenge");
+          return;
+        }
+      } catch (e) {
+        setToast(e.message || "Could not verify two-factor status.");
+        await supabase.auth.signOut();
+        setStage("landing");
+        return;
+      }
+    }
+    setSession(mapped);
+    setPage(mapped.role === "admin" ? "admin" : "dashboard");
     setStage("app");
+  }
+  function handleAuthed(user) {
+    finishLogin(user);
   }
   async function logout() {
     await supabase.auth.signOut();
@@ -161,6 +198,35 @@ export default function App() {
           onDone={handleAuthed}
           onBack={async () => { await supabase.auth.signOut(); setOauthProfile(null); setStage("landing"); }}
         />
+      )}
+
+      {stage === "mfa_enroll" && pendingSession && (
+        <AuthShell
+          title="Set up two-factor authentication"
+          subtitle="Required for admin accounts"
+          onBack={async () => { await supabase.auth.signOut(); setPendingSession(null); setStage("landing"); }}
+        >
+          <MfaEnrollment
+            supabase={supabase}
+            mandatory
+            description="Admin accounts require two-factor authentication."
+            onComplete={() => finishLogin(pendingSession)}
+          />
+        </AuthShell>
+      )}
+
+      {stage === "mfa_challenge" && pendingSession && (
+        <AuthShell
+          title="Two-factor verification"
+          subtitle="Enter your authenticator code to continue"
+          onBack={async () => { await supabase.auth.signOut(); setPendingSession(null); setStage("landing"); }}
+        >
+          <MfaChallenge
+            supabase={supabase}
+            onVerified={() => finishLogin(pendingSession)}
+            onRecoveryCodeAccepted={() => setStage("mfa_enroll")}
+          />
+        </AuthShell>
       )}
 
       {stage === "admin_invite" && (
