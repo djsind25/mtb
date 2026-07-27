@@ -3,7 +3,7 @@ import { sans, C } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 import { PostJobForm } from "../jobs/PostJobForm";
 import { CustomerJobCard } from "../jobs/CustomerJobCard";
-import { loadCustomerJobs, postJob, renewJob, loadCompletedJobsCount, updateJobTimeline, customerAcknowledgeCompletion } from "../jobs/data";
+import { loadCustomerJobs, postJob, renewJob, updateJobTimeline, customerAcknowledgeCompletion } from "../jobs/data";
 import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
@@ -23,7 +23,6 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
   const [showPost, setShowPost] = useState(false);
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [completedCount, setCompletedCount] = useState(null);
   const [stats, setStats] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -37,11 +36,10 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [jobs, count, s, chats] = await Promise.all([
-        loadCustomerJobs(session.id), loadCompletedJobsCount(), loadCustomerStats(session.id), loadMyChats(session.id),
+      const [jobs, s, chats] = await Promise.all([
+        loadCustomerJobs(session.id), loadCustomerStats(session.id), loadMyChats(session.id),
       ]);
       setCustomerJobs(jobs);
-      setCompletedCount(count);
       setStats(s);
       setUnreadCount(chats.filter(c => c.unread).length);
     } catch (e) {
@@ -113,12 +111,12 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
   }
 
   const summary = stats ? [
-    { label: "Active jobs", value: stats.active },
-    { label: "Bids waiting on me", value: stats.bidsWaiting },
-    { label: "Jobs in progress", value: stats.inProgress },
-    { label: "Completed jobs", value: stats.completed },
-    { label: "Cancelled jobs", value: stats.cancelled },
-    { label: "Total spent", value: `$${stats.totalSpent.toFixed(2)}` },
+    { label: "Active jobs", value: stats.active, onClick: () => setTab("jobs") },
+    { label: "Bids waiting on me", value: stats.bidsWaiting, onClick: () => setTab("jobs") },
+    { label: "Jobs in progress", value: stats.inProgress, onClick: () => setTab("jobs") },
+    { label: "Completed jobs", value: stats.completed, onClick: () => setTab("jobs") },
+    { label: "Cancelled jobs", value: stats.cancelled, onClick: () => setTab("jobs") },
+    { label: "Total spent", value: `$${stats.totalSpent.toFixed(2)}`, onClick: () => setTab("jobs") },
   ] : [];
 
   return (
@@ -156,7 +154,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
             {customerJobs.length === 0 && !showPost && <CenteredNote>No jobs yet — post one to get started.</CenteredNote>}
             <div style={{ display: "grid", gap: 12 }}>
               {customerJobs.map(job => (
-                <CustomerJobCard key={job.id} job={job} session={session} completedCount={completedCount} onAccepted={handleAccepted} onSwitched={handleSwitched} onCancellationChanged={handleCancellationChanged} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} onUpdateTimeline={handleUpdateTimeline} onAcknowledge={handleAcknowledge} onRevisionResolved={handleRevisionResolved} onScheduleChanged={handleScheduleChanged} setToast={setToast} />
+                <CustomerJobCard key={job.id} job={job} session={session} onAccepted={handleAccepted} onSwitched={handleSwitched} onCancellationChanged={handleCancellationChanged} onOpenChat={openChat} onRenewJob={handleRenewJob} onResendVerification={resendVerificationEmail} onUpdateTimeline={handleUpdateTimeline} onAcknowledge={handleAcknowledge} onRevisionResolved={handleRevisionResolved} onScheduleChanged={handleScheduleChanged} setToast={setToast} />
               ))}
             </div>
           </>

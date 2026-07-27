@@ -1,24 +1,35 @@
 import { supabase } from "../lib/supabaseClient";
 
-// Attaches { businessName, rating, ratingCount } to each bid by looking up haulers via the
-// public_profiles view (profiles itself is RLS-locked to your own row — public_profiles exposes
-// just the safe subset, including the aggregate rating the reviews trigger maintains).
+// Silent bids: attaches { businessName, rating, ratingCount, revealed, ... } to each bid via
+// job_hauler_display(), which keeps the real business name hidden (replaced with a stable "Hauler
+// N" label, scoped per job) until that bid becomes the job's accepted_bid_id — see
+// 20260809000000_silent_bids.sql. Trust badges (licensed/insured/verified/rating/member-since)
+// still show for anonymized bids; only the name itself is withheld. Called once per job (labels
+// are scoped per job_id, not globally) rather than a single batched public_profiles query.
 async function attachHaulerNames(bids) {
-  const haulerIds = [...new Set(bids.map(b => b.hauler_id))];
-  if (haulerIds.length === 0) return bids;
-  const { data: haulers } = await supabase.from("public_profiles").select("id, business_name, rating, rating_count, verified, license_active, insurance_active, created_at, membership_tier").in("id", haulerIds);
-  const byId = Object.fromEntries((haulers || []).map(h => [h.id, h]));
-  return bids.map(b => ({
-    ...b,
-    businessName: byId[b.hauler_id]?.business_name,
-    rating: byId[b.hauler_id]?.rating,
-    ratingCount: byId[b.hauler_id]?.rating_count,
-    verified: byId[b.hauler_id]?.verified,
-    licenseActive: byId[b.hauler_id]?.license_active,
-    insuranceActive: byId[b.hauler_id]?.insurance_active,
-    haulerSince: byId[b.hauler_id]?.created_at,
-    membershipTier: byId[b.hauler_id]?.membership_tier || "free",
+  if (bids.length === 0) return bids;
+  const jobIds = [...new Set(bids.map(b => b.job_id))];
+  const perJob = await Promise.all(jobIds.map(async jobId => {
+    const { data, error } = await supabase.rpc("job_hauler_display", { p_job_id: jobId });
+    if (error) throw error;
+    return (data || []).map(row => ({ ...row, job_id: jobId }));
   }));
+  const byKey = Object.fromEntries(perJob.flat().map(row => [`${row.job_id}:${row.hauler_id}`, row]));
+  return bids.map(b => {
+    const info = byKey[`${b.job_id}:${b.hauler_id}`];
+    return {
+      ...b,
+      businessName: info?.revealed ? info.business_name : (info?.label || "Hauler"),
+      revealed: !!info?.revealed,
+      rating: info?.rating,
+      ratingCount: info?.rating_count,
+      verified: info?.verified,
+      licenseActive: info?.license_active,
+      insuranceActive: info?.insurance_active,
+      haulerSince: info?.member_since,
+      membershipTier: info?.membership_tier || "free",
+    };
+  });
 }
 
 // superseded_at is null resolves the *current* chat — a job can accumulate historical chats from
@@ -442,8 +453,3 @@ export async function customerAcknowledgeCompletion(jobId) {
   if (error) throw error;
 }
 
-export async function loadCompletedJobsCount() {
-  const { data, error } = await supabase.rpc("completed_jobs_count");
-  if (error) throw error;
-  return Number(data) || 0;
-}

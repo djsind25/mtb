@@ -14,7 +14,21 @@ const MAX_OPEN_UNANSWERED = 3;
 // a client-side heads-up, deliberately not a hard block.
 const ADDRESS_HINT = /\b\d+\s+\w+(\s+\w+){0,3}\s+(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pl|place|cir|circle)\b/i;
 
-async function attachAskerNames(questions) {
+// Silent bids: for the customer, shows the same "Hauler N" label (or the real business name, once
+// revealed) that BidRow shows for this hauler's bid on the same job — job_hauler_display() is the
+// single source of truth for both, so the label a customer sees here always matches the matching
+// bid card. Admins still see real names always (see attachRealAskerNames below) — they need actual
+// identity for moderation, e.g. the repeat-flag handling below.
+async function attachAnonymizedAskerNames(questions, jobId) {
+  const haulerIds = [...new Set(questions.filter(q => q.hauler_id).map(q => q.hauler_id))];
+  if (haulerIds.length === 0) return questions;
+  const { data, error } = await supabase.rpc("job_hauler_display", { p_job_id: jobId });
+  if (error) throw error;
+  const byId = Object.fromEntries((data || []).map(row => [row.hauler_id, row.revealed ? row.business_name : row.label]));
+  return questions.map(q => ({ ...q, askerName: q.hauler_id ? byId[q.hauler_id] : undefined }));
+}
+
+async function attachRealAskerNames(questions) {
   const haulerIds = [...new Set(questions.filter(q => q.hauler_id).map(q => q.hauler_id))];
   if (haulerIds.length === 0) return questions;
   const { data } = await supabase.from("public_profiles").select("id, business_name, name").in("id", haulerIds);
@@ -37,9 +51,15 @@ export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, eligible = 
 
   const showNames = viewerRole === "customer" || viewerRole === "admin";
 
+  async function withNamesFor(rows) {
+    if (viewerRole === "customer") return attachAnonymizedAskerNames(rows, jobId);
+    if (viewerRole === "admin") return attachRealAskerNames(rows);
+    return rows;
+  }
+
   async function reload() {
     const rows = await loadJobQuestions(jobId);
-    setQuestions(showNames ? await attachAskerNames(rows) : rows);
+    setQuestions(await withNamesFor(rows));
     if (viewerRole === "hauler" && haulerId) {
       setMyOpenCount(await countMyOpenQuestions({ jobId, haulerId }));
     }
@@ -50,7 +70,7 @@ export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, eligible = 
     (async () => {
       try {
         const rows = await loadJobQuestions(jobId);
-        const withNames = showNames ? await attachAskerNames(rows) : rows;
+        const withNames = await withNamesFor(rows);
         if (cancelled) return;
         setQuestions(withNames);
         if (viewerRole === "hauler" && haulerId) {

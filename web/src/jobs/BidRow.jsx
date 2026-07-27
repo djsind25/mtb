@@ -5,8 +5,7 @@ import { acceptBid } from "./data";
 import { AcceptBidPayment } from "./AcceptBidPayment";
 import { entitlementsFor } from "../membership";
 
-// Built but not surfaced yet — flip this on once the "member since" feature is ready to ship.
-const SHOW_MEMBER_SINCE = false;
+const SHOW_MEMBER_SINCE = true;
 
 export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
   const [starting, setStarting] = useState(false);
