@@ -6,20 +6,46 @@
 //   { digest: true } — cron-fired hourly; gathers every undispatched newJobNearby row, groups by
 //     hauler, and sends at most one combined text per hauler instead of one per job.
 //
-// Wired for Twilio (plain REST call, no SDK) — set TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN /
-// TWILIO_FROM_NUMBER as secrets to go live. Without them this logs a warning and skips sending,
-// same graceful-degrade pattern as RESEND_API_KEY in send-notification — nothing breaks, texts
-// just don't go out until the provider is configured. See the sms-provider-decision-pending
-// memory: Twilio vs AWS SNS hasn't been finalized yet.
+// Wired for AWS SNS (@aws-sdk/client-sns, same npm-import pattern as Stripe/Resend elsewhere in
+// this repo) — set AWS_SNS_ACCESS_KEY_ID / AWS_SNS_SECRET_ACCESS_KEY / AWS_SNS_REGION as secrets
+// to go live. Without them this logs a warning and skips sending, same graceful-degrade pattern
+// as RESEND_API_KEY in send-notification — nothing breaks, texts just don't go out until the
+// provider is configured.
+//
+// Two AWS-specific things to know before flipping this on for real (see the
+// sms-provider-decision memory): (1) new AWS accounts start in the SNS SMS *sandbox* — Publish
+// only reaches phone numbers you've manually verified in the SNS console until you request
+// production access; (2) US A2P 10DLC registration is still required for real volume regardless
+// of provider — switching from Twilio to SNS consolidates billing/IAM, it doesn't remove that
+// compliance step.
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
+import { PublishCommand, SNSClient } from "@aws-sdk/client-sns";
 
 const internalKey = Deno.env.get("INTERNAL_DISPATCH_KEY") ?? "";
-const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-const twilioToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-const twilioFrom = Deno.env.get("TWILIO_FROM_NUMBER");
+const snsAccessKeyId = Deno.env.get("AWS_SNS_ACCESS_KEY_ID");
+const snsSecretAccessKey = Deno.env.get("AWS_SNS_SECRET_ACCESS_KEY");
+const snsRegion = Deno.env.get("AWS_SNS_REGION") ?? "us-east-1";
 const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
+
+const snsClient = snsAccessKeyId && snsSecretAccessKey
+  ? new SNSClient({
+      region: snsRegion,
+      credentials: { accessKeyId: snsAccessKeyId, secretAccessKey: snsSecretAccessKey },
+    })
+  : null;
+
+// Phone numbers are entered free-text at signup (e.g. "(555) 867-5309") — SNS's Publish call
+// requires E.164. Normalizes US 10-digit numbers; returns null for anything else so a malformed
+// number fails loud (logged) instead of erroring inside the SNS client.
+function toE164(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  if (raw.startsWith("+")) return raw;
+  return null;
+}
 
 const STOP_FOOTER = " Reply STOP to unsubscribe.";
 
@@ -43,23 +69,28 @@ const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link:
 };
 
 async function sendSms(to: string, body: string): Promise<boolean> {
-  if (!twilioSid || !twilioToken || !twilioFrom) {
-    console.warn("send-sms-notification: Twilio credentials not configured, skipping send");
+  if (!snsClient) {
+    console.warn("send-sms-notification: AWS SNS credentials not configured, skipping send");
     return false;
   }
-  const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${btoa(`${twilioSid}:${twilioToken}`)}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({ To: to, From: twilioFrom, Body: body + STOP_FOOTER }),
-  });
-  if (!resp.ok) {
-    console.error("send-sms-notification: Twilio call failed:", resp.status, await resp.text());
+  const phoneNumber = toE164(to);
+  if (!phoneNumber) {
+    console.error("send-sms-notification: could not normalize phone number to E.164:", to);
     return false;
   }
-  return true;
+  try {
+    await snsClient.send(new PublishCommand({
+      PhoneNumber: phoneNumber,
+      Message: body + STOP_FOOTER,
+      MessageAttributes: {
+        "AWS.SNS.SMS.SMSType": { DataType: "String", StringValue: "Transactional" },
+      },
+    }));
+    return true;
+  } catch (err) {
+    console.error("send-sms-notification: SNS Publish failed:", err);
+    return false;
+  }
 }
 
 export default {
@@ -148,7 +179,7 @@ export default {
 
     const sent = await sendSms(profile.phone, text);
     if (!sent) {
-      return Response.json({ skipped: true, reason: "Twilio not configured or send failed" });
+      return Response.json({ skipped: true, reason: "AWS SNS not configured or send failed" });
     }
     await ctx.supabaseAdmin.from("notifications").update({ sms_dispatched: true }).eq("id", notificationId);
     return Response.json({ sent: true });
