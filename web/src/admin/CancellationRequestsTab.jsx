@@ -2,11 +2,14 @@ import { useState } from "react";
 import { C, mono, nowStr } from "../theme";
 import { Badge, Btn, Field, ErrorMsg } from "../ui/Primitives";
 import { processCancellationRefund } from "./data";
+import { supabase } from "../lib/supabaseClient";
+import { StepUpChallenge } from "../auth/StepUpChallenge";
 
 function Row({ request, onChanged, setToast, readOnly }) {
   const [refundInput, setRefundInput] = useState(String(request.heldAmount ?? 0));
   const [confirming, setConfirming] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [showStepUp, setShowStepUp] = useState(false);
 
   const heldAmount = Number(request.heldAmount ?? 0);
   const refundAmount = Number(refundInput) || 0;
@@ -68,10 +71,17 @@ function Row({ request, onChanged, setToast, readOnly }) {
           ) : (
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="ghost" full={false} onClick={() => setConfirming(false)}>Cancel</Btn>
-              <Btn variant="danger" full={false} disabled={processing} onClick={confirmRefund}>{processing ? "Processing…" : "Yes, refund"}</Btn>
+              <Btn variant="danger" full={false} disabled={processing} onClick={() => setShowStepUp(true)}>{processing ? "Processing…" : "Yes, refund"}</Btn>
             </div>
           )}
         </div>
+      )}
+      {showStepUp && (
+        <StepUpChallenge
+          supabase={supabase}
+          onVerified={() => { setShowStepUp(false); confirmRefund(); }}
+          onCancel={() => setShowStepUp(false)}
+        />
       )}
     </div>
   );

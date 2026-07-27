@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { mapProfileToSession } from "../lib/session";
+import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 
@@ -27,7 +28,8 @@ export function AdminInviteAccept({ token, onAuthed, onBack }) {
   async function handleSubmit() {
     setError("");
     if (!name.trim()) { setError("Enter your name."); return; }
-    if (passcode.trim().length < 6) { setError("Passcode must be at least 6 characters."); return; }
+    const pcError = passcodeError(passcode);
+    if (pcError) { setError(pcError); return; }
 
     setStatus("submitting");
     // handle_new_user() only clamps an *unrecognized* role to 'customer' — a missing role key
@@ -79,7 +81,7 @@ export function AdminInviteAccept({ token, onAuthed, onBack }) {
     >
       <Field label="Email" value={invite.email} onChange={() => {}} type="email" />
       <Field label="Full name" value={name} onChange={setName} placeholder="Jane Doe" required />
-      <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 6 characters" required hint="At least 6 characters." />
+      <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
       {error && <ErrorMsg>{error}</ErrorMsg>}
       <Btn onClick={handleSubmit} disabled={status === "submitting"} size="lg">
         {status === "submitting" ? "Setting up…" : "Create admin account"}

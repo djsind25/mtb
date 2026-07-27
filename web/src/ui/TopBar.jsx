@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { C, sans } from "../theme";
 import { Wordmark } from "./Logo";
-import { Btn } from "./Primitives";
+import { Btn, Badge } from "./Primitives";
 import { getOrCreateMySupportChat } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 
@@ -43,6 +43,12 @@ export function TopBar({ session, onLogout, onNav, page, setToast }) {
                 <span style={{ fontSize: 12.5, color: C.gray }}>
                   {session.role === "admin" ? "🛡️ Admin" : session.role === "hauler" ? "🚛 " + session.businessName : "👤 " + session.name}
                 </span>
+                {session.role === "admin" && (
+                  // Reaching the dashboard at all already required a verified TOTP factor and an
+                  // aal2 session (see App.jsx's finishLogin) — this is a status indicator, not a
+                  // toggle, since admin MFA has no opt-out.
+                  <Badge color={C.teal} bg={C.tealLight}>🔒 2FA on</Badge>
+                )}
                 <Btn size="sm" full={false} variant="ghost" onClick={onLogout}>Log out</Btn>
               </>
             )}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { C } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { mapProfileToSession } from "../lib/session";
+import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { Field, Btn, ErrorMsg, CenteredNote } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 
@@ -31,7 +32,8 @@ export function AuthRecovery({ onAuthed, onBack }) {
 
   async function handleSubmit() {
     setError("");
-    if (passcode.trim().length < 6) { setError("Passcode must be at least 6 characters."); return; }
+    const pcError = passcodeError(passcode);
+    if (pcError) { setError(pcError); return; }
 
     setLoading(true);
     const { error: updateError } = await supabase.auth.updateUser({ password: passcode.trim() });
@@ -66,7 +68,7 @@ export function AuthRecovery({ onAuthed, onBack }) {
         <CenteredNote>Checking your link…</CenteredNote>
       ) : (
         <>
-          <Field label="New passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 6 characters" required hint="At least 6 characters." />
+          <Field label="New passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSubmit} disabled={loading} size="lg">{loading ? "Saving…" : "Set passcode & continue"}</Btn>
         </>
