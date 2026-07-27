@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { C, sans } from "../theme";
 
 export function Btn({ children, onClick, disabled, variant = "primary", size = "md", full = true, type = "button" }) {
@@ -23,17 +24,32 @@ export function Btn({ children, onClick, disabled, variant = "primary", size = "
 }
 
 export function Field({ label, value, onChange, type = "text", placeholder, required, hint }) {
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = type === "password";
   return (
     <div style={{ marginBottom: 14 }}>
       {label && <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>{label}{required && <span style={{ color: C.red }}> *</span>}</label>}
-      <input
-        type={type} value={value} placeholder={placeholder}
-        onChange={e => onChange(e.target.value)}
-        style={{
-          width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8,
-          padding: "10px 13px", fontSize: 14, fontFamily: sans, outline: "none", color: C.ink, background: C.paper,
-        }}
-      />
+      <div style={{ position: "relative" }}>
+        <input
+          type={isPassword && revealed ? "text" : type} value={value} placeholder={placeholder}
+          onChange={e => onChange(e.target.value)}
+          style={{
+            width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8,
+            padding: isPassword ? "10px 40px 10px 13px" : "10px 13px", fontSize: 14, fontFamily: sans, outline: "none", color: C.ink, background: C.paper,
+          }}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setRevealed(r => !r)}
+            aria-label={revealed ? "Hide password" : "Show password"}
+            style={{
+              position: "absolute", right: 6, top: 0, bottom: 0, margin: "auto 0", height: 28,
+              background: "none", border: "none", cursor: "pointer", padding: "0 6px", fontSize: 15, color: C.gray, lineHeight: 1,
+            }}
+          >{revealed ? "🙈" : "👁"}</button>
+        )}
+      </div>
       {hint && <div style={{ fontSize: 11, color: C.gray, marginTop: 4 }}>{hint}</div>}
     </div>
   );

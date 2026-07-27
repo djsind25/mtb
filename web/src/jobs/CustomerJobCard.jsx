@@ -13,7 +13,7 @@ import { RequestCancellationControl } from "./RequestCancellationControl";
 import { ResolveBidRevisionControl } from "./ResolveBidRevisionControl";
 import { ScheduleProposal } from "./ScheduleProposal";
 
-export function CustomerJobCard({ job, session, completedCount, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, onRevisionResolved, onScheduleChanged, setToast }) {
+export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, onRevisionResolved, onScheduleChanged, setToast }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
   const [addingPhotos, setAddingPhotos] = useState(false);
@@ -57,10 +57,10 @@ export function CustomerJobCard({ job, session, completedCount, onAccepted, onSw
     setSavingTimeline(false);
   }
 
-  const tally = completedCount != null && bids.length > 0 && (
+  const tally = bids.length > 0 && (
     <div style={{ fontSize: 12, color: C.pineDeep, background: C.tealLight, borderRadius: 8, padding: "8px 11px", marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}>
       <span>🎉</span>
-      <span><strong>{completedCount.toLocaleString()}</strong> job{completedCount === 1 ? "" : "s"} completed on MyTrashBid — compare your quotes below.</span>
+      <span><strong>{bids.length}</strong> quote{bids.length === 1 ? "" : "s"} from haulers — compare below!</span>
     </div>
   );
 
