@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { C } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
-import { updateUserProfile, setUserActive } from "./data";
+import { updateUserProfile, setUserActive, sendPasswordReset } from "./data";
 import { tierName } from "../membership";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
@@ -15,6 +15,18 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const [confirmingAdminRole, setConfirmingAdminRole] = useState(false);
   const [working, setWorking] = useState(false);
   const [showStepUp, setShowStepUp] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+
+  async function handleSendPasswordReset() {
+    setSendingReset(true);
+    try {
+      await sendPasswordReset(u.email);
+      setToast(`Password reset email sent to ${displayName}.`);
+    } catch (e) {
+      setToast(e.message || "Could not send password reset email.");
+    }
+    setSendingReset(false);
+  }
 
   async function toggleActive() {
     setWorking(true);
@@ -84,6 +96,11 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
             {u.admin_read_only ? "Make full admin" : "Make view-only"}
           </Btn>
         )
+      )}
+      {!readOnly && u.role !== "admin" && (
+        <Btn size="sm" full={false} variant="ghost" disabled={sendingReset} onClick={handleSendPasswordReset}>
+          {sendingReset ? "Sending…" : "Reset passcode"}
+        </Btn>
       )}
       {!readOnly && u.role !== "admin" && (
         confirming ? (
