@@ -5,6 +5,8 @@ import { mapProfileToSession } from "../lib/session";
 import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { Field, Btn, ErrorMsg, CenteredNote } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
+import { StepUpChallenge } from "./StepUpChallenge";
+import { listVerifiedTotpFactors } from "../lib/mfa";
 
 // A password-reset email link only *looks* like a recovery link from its URL shape
 // (`#...type=recovery`) — that's not proof supabase-js actually turned it into a session. If the
@@ -23,12 +25,26 @@ export function AuthRecovery({ onAuthed, onBack }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sessionState, setSessionState] = useState("checking"); // checking | ok | missing
+  // A recovery-link session is only ever AAL1, but Supabase's own auth.updateUser() refuses to
+  // change the password when the account has a verified MFA factor unless the session is already
+  // AAL2. Only require the step-up when a factor actually exists — StepUpChallenge falls back to
+  // "re-enter your current password" when there's no factor, which would be exactly backwards here
+  // (the whole reason someone is on this screen is that they don't have their current password).
+  const [needsStepUp, setNeedsStepUp] = useState(null); // null = checking, else boolean
+  const [stepUpVerified, setStepUpVerified] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSessionState(session ? "ok" : "missing");
     });
   }, []);
+
+  useEffect(() => {
+    if (sessionState !== "ok") return;
+    listVerifiedTotpFactors(supabase)
+      .then((factors) => setNeedsStepUp(factors.length > 0))
+      .catch(() => setNeedsStepUp(false)); // fail open to the plain password form rather than block the reset entirely
+  }, [sessionState]);
 
   async function handleSubmit() {
     setError("");
@@ -64,8 +80,10 @@ export function AuthRecovery({ onAuthed, onBack }) {
 
   return (
     <AuthShell title="Set a new passcode" subtitle="You clicked a passcode reset link" onBack={onBack}>
-      {sessionState === "checking" ? (
+      {sessionState === "checking" || needsStepUp === null ? (
         <CenteredNote>Checking your link…</CenteredNote>
+      ) : needsStepUp && !stepUpVerified ? (
+        <StepUpChallenge supabase={supabase} onVerified={() => setStepUpVerified(true)} onCancel={onBack} />
       ) : (
         <>
           <Field label="New passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
