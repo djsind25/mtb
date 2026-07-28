@@ -274,8 +274,8 @@
   .foot-logo{display:flex; align-items:center; gap:8px; font-weight:800; font-size:19px; color:#fff; margin-bottom:12px;}
   .foot-logo .b{color:var(--green-bright);}
   .foot-col h5{font-size:12px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:15px;}
-  .foot-col a{display:block; font-size:14px; margin-bottom:10px; color:rgba(255,255,255,0.7); background:none; border:none; cursor:pointer; text-align:left; font-family:inherit; padding:0;}
-  .foot-col a:hover{color:#fff;}
+  .foot-col a, .foot-col button{display:block; font-size:14px; margin-bottom:10px; color:rgba(255,255,255,0.7); background:none; border:none; cursor:pointer; text-align:left; font-family:inherit; padding:0;}
+  .foot-col a:hover, .foot-col button:hover{color:#fff;}
   .foot-bottom{border-top:1px solid rgba(255,255,255,0.12); padding-top:22px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:12.5px; color:rgba(255,255,255,0.4);}
 </style>
 </head>
@@ -647,8 +647,8 @@
         <button onclick="goToQuote('Dumpster rental')">Rent a dumpster</button>
         <a href="#how">How it works</a><a href="#reviews">Reviews</a>
       </div>
-      <div class="foot-col"><h5>Haulers</h5><a href="#haulers">Start bidding</a><a href="#">Get vetted</a><a href="#">List dumpster inventory</a><a href="#">Pricing</a></div>
-      <div class="foot-col"><h5>Company</h5><a href="#about">About</a><a href="#">Trust &amp; safety</a><a href="#">Contact</a><a href="#">Terms &amp; privacy</a></div>
+      <div class="foot-col"><h5>Haulers</h5><a href="#haulers">Start bidding</a><a href="#" id="footGetVetted" target="_blank" rel="noopener">Get vetted</a><a href="#" id="footListInventory" target="_blank" rel="noopener">List dumpster inventory</a></div>
+      <div class="foot-col"><h5>Company</h5><a href="#about">About</a><a href="mailto:support@mytrashbid.com">Contact</a><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy Policy</a></div>
     </div>
     <div class="foot-bottom">
       <span>© 2026 MyTrashBid. All rights reserved.</span>
@@ -735,6 +735,11 @@
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   document.getElementById('haulerCta').href = APP_URL + '/?role=hauler';
+  // "Get vetted" and "List dumpster inventory" don't have dedicated pages yet — both point to the
+  // same hauler signup as the main CTA above, since verification and rental-job bidding both start
+  // there today.
+  document.getElementById('footGetVetted').href = APP_URL + '/?role=hauler';
+  document.getElementById('footListInventory').href = APP_URL + '/?role=hauler';
   // Distinct from the embedded auth modal below, which is for logging in mid-quote-flow so a
   // job draft isn't lost — this nav link is for someone who already has an account and just
   // wants their dashboard, so it goes straight to the actual app instead.

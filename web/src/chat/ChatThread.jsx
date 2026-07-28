@@ -122,6 +122,7 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
           </button>
           {bannerExpanded && (
             <div style={{ fontSize: 12, color: "#6B5103", lineHeight: 1.55, marginTop: 8, paddingLeft: 22 }}>
+              <div style={{ marginBottom: 8 }}>Messages here are screened in real time, and phone numbers and email addresses are automatically hidden if shared.</div>
               {chat?.payment_mode === "full" ? (
                 moneyState === "coordinating" || moneyState === "scheduled" ? (
                   <>Nothing is charged until 48 hours before your scheduled service date — then it's held securely and released once the job is confirmed complete. There's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
