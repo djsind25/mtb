@@ -15,6 +15,8 @@ import { LockedField } from "./LockedField";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
 import { MfaEnrollment } from "../auth/MfaEnrollment";
 import { listVerifiedTotpFactors } from "../lib/mfa";
+import { loadMyLegalAcceptances } from "../lib/legal";
+import { TOS_URL, PRIVACY_URL, TOS_VERSION, PRIVACY_VERSION } from "../legal/legalContent";
 
 const EVENT_LABELS = {
   bidReceived: "New bid on your job",
@@ -103,6 +105,8 @@ export function AccountTab({ session, setToast }) {
   const [mfaEnrolled, setMfaEnrolled] = useState(null); // null = loading, else boolean
   const [showMfaEnroll, setShowMfaEnroll] = useState(false);
 
+  const [legalAcceptances, setLegalAcceptances] = useState({});
+
   const loadMfaStatus = async () => {
     try {
       setMfaEnrolled((await listVerifiedTotpFactors(supabase)).length > 0);
@@ -125,13 +129,15 @@ export function AccountTab({ session, setToast }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const [{ data: p }, hist] = await Promise.all([
+      const [{ data: p }, hist, legal] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", session.id).single(),
         session.role === "customer" ? loadCustomerPayments(session.id) : loadHaulerEarnings(session.id),
+        loadMyLegalAcceptances(supabase).catch(() => ({})),
       ]);
       if (session.role === "hauler") { await loadDocuments(); await loadPendingRequests(); }
       await loadMfaStatus();
       if (cancelled) return;
+      setLegalAcceptances(legal);
       setProfile(p);
       setName(p.name || "");
       setEmail(p.email || "");
@@ -434,6 +440,23 @@ export function AccountTab({ session, setToast }) {
         <div style={sectionTitle}>Change passcode</div>
         <Field label="New passcode" value={newPassword} onChange={setNewPassword} type="password" placeholder="At least 8 characters" hint={PASSCODE_HINT} />
         <Btn full={false} onClick={submitPasswordChange} disabled={changingPassword}>{changingPassword ? "Updating…" : "Update passcode"}</Btn>
+      </section>
+
+      <section>
+        <div style={sectionTitle}>Legal</div>
+        <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 10, lineHeight: 1.6 }}>
+          {legalAcceptances.tos
+            ? <>Accepted Terms of Service v{legalAcceptances.tos.version} on {new Date(legalAcceptances.tos.accepted_at).toLocaleDateString()}</>
+            : <>Terms of Service (v{TOS_VERSION}) not yet accepted.</>}
+          <br />
+          {legalAcceptances.privacy
+            ? <>Accepted Privacy Policy v{legalAcceptances.privacy.version} on {new Date(legalAcceptances.privacy.accepted_at).toLocaleDateString()}</>
+            : <>Privacy Policy (v{PRIVACY_VERSION}) not yet accepted.</>}
+        </div>
+        <div style={{ display: "flex", gap: 16 }}>
+          <a href={TOS_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: C.teal, textDecoration: "underline" }}>Terms of Service</a>
+          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: C.teal, textDecoration: "underline" }}>Privacy Policy</a>
+        </div>
       </section>
 
       <section style={{ border: `1.5px solid ${C.red}55`, borderRadius: 12, padding: 16, background: C.redLight }}>

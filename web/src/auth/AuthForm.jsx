@@ -8,6 +8,7 @@ import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
 import { SmsAgreement } from "./SmsAgreement";
 import { SocialAuthButtons } from "./SocialAuthButtons";
+import { recordLegalAcceptance } from "../lib/legal";
 
 async function fetchProfile(userId) {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -126,6 +127,10 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       setError("Check your email to confirm your account, then log in.");
       return;
     }
+
+    // Best-effort — if this fails, finishLogin's needsLegalReaccept check catches the gap on the
+    // very next stage transition (or next login) and re-prompts, so nothing is silently lost.
+    try { await recordLegalAcceptance(supabase); } catch { /* caught by the login-time check */ }
 
     setToast(`Welcome to MyTrashBid, ${role === "customer" ? name.trim() : businessName.trim()}!`);
     onAuthed(mapProfileToSession({ id: data.user.id, role, email: email.trim(), ...metadata }));

@@ -5,6 +5,7 @@ import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
 import { SmsAgreement } from "./SmsAgreement";
 import { mapProfileToSession } from "../lib/session";
+import { recordLegalAcceptance } from "../lib/legal";
 
 // Shown once, right after a fresh Google (or later Apple) sign-in, for the fields OAuth
 // providers never give us: role, ZIP, phone, business name. Detected upstream in App.jsx by
@@ -48,6 +49,8 @@ export function CompleteOAuthProfile({ supabase, profile, roleHint, onDone, onBa
     });
     setLoading(false);
     if (rpcError) { setError(rpcError.message); return; }
+    // Best-effort — see the matching comment in AuthForm.jsx's handleSignup.
+    try { await recordLegalAcceptance(supabase); } catch { /* caught by the login-time check */ }
     onDone(mapProfileToSession(data));
   }
 

@@ -12,6 +12,8 @@ import { AuthShell } from "./auth/AuthShell";
 import { MfaEnrollment } from "./auth/MfaEnrollment";
 import { MfaChallenge } from "./auth/MfaChallenge";
 import { listVerifiedTotpFactors, getAAL } from "./lib/mfa";
+import { LegalReaccept } from "./auth/LegalReaccept";
+import { needsLegalReaccept } from "./lib/legal";
 import { TopBar } from "./ui/TopBar";
 import { Toast } from "./ui/Toast";
 import { CustomerDashboard } from "./dashboard/CustomerDashboard";
@@ -19,7 +21,7 @@ import { HaulerDashboard } from "./dashboard/HaulerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 
 export default function App() {
-  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | oauth_profile | mfa_enroll | mfa_challenge | app
+  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | oauth_profile | legal_reaccept | mfa_enroll | mfa_challenge | app
   const [authRole, setAuthRole] = useState(null);
   const [session, setSession] = useState(null);
   const [oauthProfile, setOauthProfile] = useState(null);
@@ -136,6 +138,22 @@ export default function App() {
   // the code-entry screen. Both re-call finishLogin on success rather than duplicating the "land
   // in the app" tail below.
   async function finishLogin(mapped) {
+    // Admins don't go through the customer/hauler signup flow this gates, so they're excluded —
+    // scoped the same way the script's signup-acceptance requirement was ("customers AND haulers").
+    if (mapped.role !== "admin") {
+      try {
+        if (await needsLegalReaccept(supabase)) {
+          setPendingSession(mapped);
+          setStage("legal_reaccept");
+          return;
+        }
+      } catch (e) {
+        setToast(e.message || "Could not verify Terms/Privacy acceptance status.");
+        await supabase.auth.signOut();
+        setStage("landing");
+        return;
+      }
+    }
     if (mapped.role === "admin") {
       try {
         const factors = await listVerifiedTotpFactors(supabase);
@@ -197,6 +215,14 @@ export default function App() {
           roleHint={oauthRoleHint}
           onDone={handleAuthed}
           onBack={async () => { await supabase.auth.signOut(); setOauthProfile(null); setStage("landing"); }}
+        />
+      )}
+
+      {stage === "legal_reaccept" && pendingSession && (
+        <LegalReaccept
+          supabase={supabase}
+          onDone={() => finishLogin(pendingSession)}
+          onBack={async () => { await supabase.auth.signOut(); setPendingSession(null); setStage("landing"); }}
         />
       )}
 
