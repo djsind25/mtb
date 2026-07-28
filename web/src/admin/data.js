@@ -23,6 +23,15 @@ export async function setUserActive(userId, active) {
   if (error) throw error;
 }
 
+// Triggers the same password-reset email a user gets from "Forgot passcode?" on the login
+// screen — resetPasswordForEmail() is a public GoTrue endpoint (anti-enumeration means it
+// doesn't even require the email to exist), so there's no separate admin-only RPC here; this
+// just saves a customer/hauler having to self-serve when they call support for help.
+export async function sendPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  if (error) throw error;
+}
+
 export async function loadJobsWithBids() {
   const { data: jobs, error } = await supabase.from("jobs").select("*").order("created_at", { ascending: false });
   if (error) throw error;
