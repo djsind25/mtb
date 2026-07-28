@@ -1,9 +1,20 @@
 import { supabase } from "../lib/supabaseClient";
 
+// Attaches { active, total } flag counts to each user so the list view can show a "🚩 N flags"
+// badge without a per-row query — one extra platform-wide query, aggregated client-side (same
+// pattern as attachHaulerNames elsewhere), which is fine at this app's scale and avoids a new
+// SQL view for a single derived count.
 export async function loadUsers() {
   const { data, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
   if (error) throw error;
-  return data;
+  const { data: flags } = await supabase.from("admin_user_flags").select("user_id, resolved_at");
+  const countByUser = {};
+  (flags || []).forEach(f => {
+    const c = countByUser[f.user_id] || (countByUser[f.user_id] = { active: 0, total: 0 });
+    c.total++;
+    if (!f.resolved_at) c.active++;
+  });
+  return data.map(u => ({ ...u, flagCounts: countByUser[u.id] || { active: 0, total: 0 } }));
 }
 
 // Admin bypasses RLS via is_admin() in the profiles_update_own policy, so this can update
@@ -23,6 +34,16 @@ export async function setUserActive(userId, active) {
   if (error) throw error;
 }
 
+// Hard-delete, deliberately scoped to accounts with zero real activity — the RPC leans on
+// Postgres's own foreign-key checks (jobs/bids/chats/etc. all reference profiles with
+// ON DELETE NO ACTION) rather than a hand-maintained "does this user have history" check, so it
+// fails cleanly with a friendly message for any account that's actually been used. See
+// supabase/migrations/20260811000000_admin_delete_user.sql.
+export async function deleteUser(userId) {
+  const { error } = await supabase.rpc("admin_delete_user", { p_user_id: userId });
+  if (error) throw error;
+}
+
 // Triggers the same password-reset email a user gets from "Forgot passcode?" on the login
 // screen — resetPasswordForEmail() is a public GoTrue endpoint (anti-enumeration means it
 // doesn't even require the email to exist), so there's no separate admin-only RPC here; this
@@ -30,6 +51,66 @@ export async function setUserActive(userId, active) {
 export async function sendPasswordReset(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
   if (error) throw error;
+}
+
+// Manual, admin-initiated notes on a user (e.g. a pattern of cancelled bids, repeated
+// circumvention attempts across chats) — distinct from the automatic per-message/per-job
+// flag_type system, which flags individual content as it's posted. See
+// supabase/migrations/20260810000000_admin_user_flags.sql.
+export async function loadUserFlags(userId) {
+  const { data, error } = await supabase.from("admin_user_flags").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+  if (error) throw error;
+  const ids = [...new Set(data.flatMap(f => [f.flagged_by, f.resolved_by]).filter(Boolean))];
+  if (ids.length === 0) return data;
+  const { data: people } = await supabase.from("profiles").select("id, name").in("id", ids);
+  const byId = Object.fromEntries((people || []).map(p => [p.id, p.name]));
+  return data.map(f => ({ ...f, flaggedByName: byId[f.flagged_by], resolvedByName: f.resolved_by ? byId[f.resolved_by] : null }));
+}
+
+export async function flagUser(userId, reasonType, note) {
+  const { error } = await supabase.rpc("admin_flag_user", { p_user_id: userId, p_reason_type: reasonType, p_note: note || null });
+  if (error) throw error;
+}
+
+export async function resolveUserFlag(flagId) {
+  const { error } = await supabase.rpc("admin_resolve_user_flag", { p_flag_id: flagId });
+  if (error) throw error;
+}
+
+// How many cancellation requests this user has caused, as either party — cheap extra context
+// alongside their flag history when deciding whether a "cancellation_pattern" flag is warranted.
+export async function loadUserCancellationCount(userId) {
+  const { count, error } = await supabase.from("cancellation_requests").select("id", { count: "exact", head: true }).eq("requested_by", userId);
+  if (error) throw error;
+  return count || 0;
+}
+
+// Every chat thread this user has been part of, either as customer or hauler — chats.customer_id
+// and chats.hauler_id are both indexed FKs straight to profiles, so no need to go via jobs/bids.
+// Includes superseded chats (from hauler-switches) deliberately, since this is a full-history
+// review tool, not an access-control path.
+export async function loadUserChats(userId) {
+  const { data, error } = await supabase
+    .from("chats")
+    .select("id, job_id, customer_id, hauler_id, created_at, superseded_at")
+    .or(`customer_id.eq.${userId},hauler_id.eq.${userId}`)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  if (data.length === 0) return data;
+
+  const jobIds = [...new Set(data.map(c => c.job_id))];
+  const otherIds = [...new Set(data.map(c => (c.customer_id === userId ? c.hauler_id : c.customer_id)))];
+  const [{ data: jobs }, { data: people }] = await Promise.all([
+    supabase.from("jobs").select("id, title").in("id", jobIds),
+    supabase.from("public_profiles").select("id, name, business_name").in("id", otherIds),
+  ]);
+  const jobById = Object.fromEntries((jobs || []).map(j => [j.id, j.title]));
+  const personById = Object.fromEntries((people || []).map(p => [p.id, p.business_name || p.name]));
+
+  return data.map(c => {
+    const otherId = c.customer_id === userId ? c.hauler_id : c.customer_id;
+    return { ...c, jobTitle: jobById[c.job_id], otherPartyName: personById[otherId] };
+  });
 }
 
 export async function loadJobsWithBids() {

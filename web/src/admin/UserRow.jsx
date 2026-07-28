@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { C } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
-import { updateUserProfile, setUserActive, sendPasswordReset } from "./data";
+import { updateUserProfile, setUserActive, sendPasswordReset, deleteUser } from "./data";
 import { tierName } from "../membership";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
+import { UserReviewPanel } from "./UserReviewPanel";
 
 export function userDisplayName(u) {
   return u.role === "customer" ? u.name : (u.business_name || u.name);
@@ -12,10 +13,13 @@ export function userDisplayName(u) {
 
 export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const [confirming, setConfirming] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingAdminRole, setConfirmingAdminRole] = useState(false);
   const [working, setWorking] = useState(false);
-  const [showStepUp, setShowStepUp] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [stepUpAction, setStepUpAction] = useState(null); // null | "deactivate" | "delete"
   const [sendingReset, setSendingReset] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   async function handleSendPasswordReset() {
     setSendingReset(true);
@@ -39,6 +43,19 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
     }
     setWorking(false);
     setConfirming(false);
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await deleteUser(u.id);
+      setToast(`${displayName} deleted.`);
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not delete this account.");
+    }
+    setDeleting(false);
+    setConfirmingDelete(false);
   }
 
   async function toggleAdminReadOnly() {
@@ -67,6 +84,9 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
         <div style={{ fontSize: 11.5, color: C.gray }}>{u.email} · ZIP {u.zip || "—"} · joined {new Date(u.created_at).toLocaleDateString()}</div>
       </div>
       {!u.active && <Badge color={C.red} bg={C.redLight}>deactivated</Badge>}
+      {u.flagCounts?.active > 0 && (
+        <Badge color={C.red} bg={C.redLight}>🚩 {u.flagCounts.active} flag{u.flagCounts.active === 1 ? "" : "s"}</Badge>
+      )}
       {u.role === "hauler" && (
         <>
           <Badge color={u.license_active ? C.teal : C.red} bg={u.license_active ? C.tealLight : C.redLight}>license {u.license_active ? "✓" : "✗"}</Badge>
@@ -97,6 +117,9 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
           </Btn>
         )
       )}
+      {u.role !== "admin" && (
+        <Btn size="sm" full={false} variant="ghost" onClick={() => setShowReview(true)}>Review</Btn>
+      )}
       {!readOnly && u.role !== "admin" && (
         <Btn size="sm" full={false} variant="ghost" disabled={sendingReset} onClick={handleSendPasswordReset}>
           {sendingReset ? "Sending…" : "Reset passcode"}
@@ -106,7 +129,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
         confirming ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <span style={{ fontSize: 11.5, color: C.gray }}>{u.active ? "Deactivate?" : "Reactivate?"}</span>
-            <Btn size="sm" full={false} variant={u.active ? "danger" : "teal"} disabled={working} onClick={() => setShowStepUp(true)}>Yes</Btn>
+            <Btn size="sm" full={false} variant={u.active ? "danger" : "teal"} disabled={working} onClick={() => setStepUpAction("deactivate")}>Yes</Btn>
             <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirming(false)}>No</Btn>
           </div>
         ) : (
@@ -115,12 +138,31 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
           </Btn>
         )
       )}
-      {showStepUp && (
+      {!readOnly && u.role !== "admin" && (
+        confirmingDelete ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: 11.5, color: C.gray }}>Delete permanently?</span>
+            <Btn size="sm" full={false} variant="danger" disabled={deleting} onClick={() => setStepUpAction("delete")}>Yes</Btn>
+            <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingDelete(false)}>No</Btn>
+          </div>
+        ) : (
+          <Btn size="sm" full={false} variant="danger" onClick={() => setConfirmingDelete(true)}>Delete</Btn>
+        )
+      )}
+      {stepUpAction && (
         <StepUpChallenge
           supabase={supabase}
-          onVerified={() => { setShowStepUp(false); toggleActive(); }}
-          onCancel={() => setShowStepUp(false)}
+          onVerified={() => {
+            const action = stepUpAction;
+            setStepUpAction(null);
+            if (action === "deactivate") toggleActive();
+            else if (action === "delete") handleDelete();
+          }}
+          onCancel={() => setStepUpAction(null)}
         />
+      )}
+      {showReview && (
+        <UserReviewPanel user={u} onClose={() => setShowReview(false)} onFlagsChanged={onChanged} setToast={setToast} readOnly={readOnly} />
       )}
     </div>
   );
