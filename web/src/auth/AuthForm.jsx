@@ -38,6 +38,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
   // admin
   const [adminPass, setAdminPass] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToMonitoring, setAgreedToMonitoring] = useState(false);
   const [smsOptIn, setSmsOptIn] = useState(false);
 
   async function handleAdminLogin() {
@@ -102,6 +103,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     const pcError = passcodeError(passcode);
     if (pcError) { setError(pcError); return; }
     if (!agreedToTerms) { setError("You must agree to the Terms of Service to continue."); return; }
+    if (!agreedToMonitoring) { setError("You must acknowledge chat monitoring to continue."); return; }
 
     setLoading(true);
     // Profile creation happens server-side via a trigger on auth.users (see the
@@ -254,7 +256,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Phone" value={phone} onChange={setPhone} type="tel" placeholder="(optional)" />
           <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
           <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
-          <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
+          <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Create account"}</Btn>
         </>
@@ -269,7 +271,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Phone" value={haulerPhone} onChange={setHaulerPhone} type="tel" placeholder="(555) 867-5309" required />
           <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
           <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
-          <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
+          <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Apply as a hauler"}</Btn>
         </>
