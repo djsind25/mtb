@@ -3,13 +3,15 @@ import { C, mono } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { Avatar, Badge, CenteredNote } from "../ui/Primitives";
 import { loadChat, loadMessages, sendMessage, markChatRead } from "./data";
-import { addJobPhotos } from "../jobs/data";
+import { addJobPhotos, loadPendingSchedule } from "../jobs/data";
+import { ScheduleProposal } from "../jobs/ScheduleProposal";
 import { ChatBubble } from "./ChatBubble";
 import { ReviewPanel } from "./ReviewPanel";
 
 export function ChatThread({ chatId, session, onClose, setToast }) {
   const [chat, setChat] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [pendingSchedule, setPendingSchedule] = useState(null);
   const [draft, setDraft] = useState("");
   const [bannerExpanded, setBannerExpanded] = useState(false);
   const [sending, setSending] = useState(false);
@@ -27,6 +29,17 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
     markChatRead(chatId, session.role).catch(() => {});
     return () => { cancelled = true; };
   }, [chatId, session.role]);
+
+  // schedule_proposals has no Realtime subscription of its own here — propose_schedule() and
+  // confirm_schedule() both insert a system chat message, so refetching whenever a new message
+  // arrives (or the chat first loads) keeps this fresh via infrastructure that already exists,
+  // same "best-effort freshness" reasoning as sync_full_payment_schedule().
+  useEffect(() => {
+    if (!chat?.job_id) return;
+    let cancelled = false;
+    loadPendingSchedule(chat.job_id).then(p => { if (!cancelled) setPendingSchedule(p); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [chat?.job_id, messages.length]);
 
   // Two postgres_changes bindings on a single channel silently breaks delivery of both in
   // this Realtime version (confirmed empirically) — one channel per table subscribed.
@@ -157,7 +170,25 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
             {!isFull && <Badge color={C.teal} bg={C.tealLight}>✓ Deposit paid</Badge>}
           </div>
           {moneyState === "coordinating" ? (
-            <div style={{ fontSize: 11.5, color: C.gray }}>Propose a service date in chat to get this moving — nothing is charged until 48 hours before it.</div>
+            <ScheduleProposal
+              job={{
+                id: chat.job_id,
+                payment_mode: chat.payment_mode,
+                coordinationDeadline: chat.coordination_deadline,
+                coordinationExtendedAt: chat.coordination_extended_at,
+                stalledAt: chat.stalled_at,
+                lockedServiceDate: chat.locked_service_date,
+                lockedFinalPrice: chat.locked_final_price,
+                authorizedAt: chat.authorized_at,
+                capturedAt: chat.captured_at,
+                pendingSchedule,
+              }}
+              viewerRole={viewer}
+              viewerId={session.id}
+              defaultPrice={effectiveAmount}
+              onChanged={() => loadPendingSchedule(chat.job_id).then(setPendingSchedule).catch(() => {})}
+              setToast={setToast}
+            />
           ) : isFull ? (
             <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between" }}>
               <span>{viewer === "hauler" ? "You receive at completion (90%)" : "Released to hauler at completion (90%)"}</span>
@@ -193,10 +224,21 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
                   onChange={e => { handleAddPhotos(e.target.files); e.target.value = ""; }} />
                 <button onClick={() => photoInputRef.current?.click()} disabled={addingPhotos} title="Add photos to this job"
                   aria-label="Add photos to this job" style={{
-                    width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${C.line}`,
+                    position: "relative", width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${C.line}`,
                     cursor: addingPhotos ? "default" : "pointer", background: C.paper,
                     color: C.gray, fontSize: 15, opacity: addingPhotos ? 0.6 : 1,
-                  }}>{addingPhotos ? "…" : "📷"}</button>
+                  }}>
+                    {addingPhotos ? "…" : (
+                      <>
+                        📷
+                        <span style={{
+                          position: "absolute", top: -3, right: -3, width: 15, height: 15, borderRadius: "50%",
+                          background: C.ember, color: C.paper, fontSize: 11, fontWeight: 700, lineHeight: "15px",
+                          textAlign: "center", border: `1.5px solid ${C.paper}`,
+                        }}>+</span>
+                      </>
+                    )}
+                  </button>
               </>
             )}
             <textarea value={draft} onChange={e => setDraft(e.target.value)}

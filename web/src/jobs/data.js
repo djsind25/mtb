@@ -197,6 +197,14 @@ export async function confirmSchedule({ proposalId }) {
   if (error) throw error;
 }
 
+// Single-job counterpart to attachPendingSchedule's batched query — used by ChatThread, which only
+// ever needs the one job it's already open on rather than a whole job list.
+export async function loadPendingSchedule(jobId) {
+  const { data, error } = await supabase.from("schedule_proposals").select("*").eq("job_id", jobId).eq("status", "pending").maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function loadJobPhotos(jobId) {
   const { data: rows, error } = await supabase.from("job_photos").select("*").eq("job_id", jobId);
   if (error) throw error;

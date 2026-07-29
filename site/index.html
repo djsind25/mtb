@@ -648,7 +648,7 @@
         <a href="#how">How it works</a><a href="#reviews">Reviews</a>
       </div>
       <div class="foot-col"><h5>Haulers</h5><a href="#haulers">Start bidding</a><a href="#" id="footGetVetted" target="_blank" rel="noopener">Get vetted</a><a href="#" id="footListInventory" target="_blank" rel="noopener">List dumpster inventory</a></div>
-      <div class="foot-col"><h5>Company</h5><a href="#about">About</a><a href="mailto:support@mytrashbid.com">Contact</a><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy Policy</a></div>
+      <div class="foot-col"><h5>Company</h5><a href="#about">About</a><a href="/contact.html">Contact</a><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy Policy</a></div>
     </div>
     <div class="foot-bottom">
       <span>© 2026 MyTrashBid. All rights reserved.</span>
@@ -705,6 +705,10 @@
     <label class="auth-terms" id="authTermsRow" style="display:none;">
       <input type="checkbox" id="authTerms">
       <span>I agree to the <a href="#" id="authTermsToggle" style="color:var(--green); text-decoration:underline;">Terms of Service</a>, including the platform abuse and account suspension policy.</span>
+    </label>
+    <label class="auth-terms" id="authMonitoringRow" style="display:none;">
+      <input type="checkbox" id="authMonitoring">
+      <span>I acknowledge that chats are actively monitored, and that hauler business names are hidden until a bid is accepted.</span>
     </label>
     <div class="auth-terms-text" id="authTermsText">
       <strong>MyTrashBid Terms of Service (summary)</strong>
@@ -972,6 +976,7 @@
     document.getElementById('authDivider').style.display = showSocial ? 'flex' : 'none';
     document.getElementById('authNameField').style.display = mode === 'signup' ? 'block' : 'none';
     document.getElementById('authTermsRow').style.display = mode === 'signup' ? 'flex' : 'none';
+    document.getElementById('authMonitoringRow').style.display = mode === 'signup' ? 'flex' : 'none';
     document.getElementById('authTermsText').style.display = 'none';
     document.getElementById('authEmailField').style.display = mode === 'recovery' ? 'none' : 'block';
     document.getElementById('authPasscodeField').style.display = mode === 'reset' ? 'none' : 'block';
@@ -1057,6 +1062,7 @@
       if (!name) { authErr('Enter your name.'); btn.disabled = false; return; }
       if (passcode.length < 6) { authErr('Passcode must be at least 6 characters.'); btn.disabled = false; return; }
       if (!document.getElementById('authTerms').checked) { authErr('You must agree to the Terms of Service to continue.'); btn.disabled = false; return; }
+      if (!document.getElementById('authMonitoring').checked) { authErr('You must acknowledge chat monitoring to continue.'); btn.disabled = false; return; }
 
       // Profile creation happens server-side via a trigger on auth.users (see the
       // auto_create_profile_on_signup migration) — it reads this metadata regardless of whether

@@ -17,9 +17,10 @@ export function RequestCancellationControl({ job, onRequested, setToast }) {
   }
 
   async function submit() {
+    if (!reason.trim()) return;
     setRequesting(true);
     try {
-      await requestCancellation({ jobId: job.id, reason: reason.trim() || null });
+      await requestCancellation({ jobId: job.id, reason: reason.trim() });
       // Message A from the scheduling spec — warm and low-friction, shown right at the moment of
       // cancelling. Deliberately not scolding: things come up. Message B (the separate "stay
       // protected" nudge) lives in the chat banner instead, not stacked here.
@@ -40,7 +41,7 @@ export function RequestCancellationControl({ job, onRequested, setToast }) {
   return (
     <div style={{ marginTop: 8 }}>
       <textarea
-        value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (optional)" rows={2}
+        value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for cancellation (required)" rows={2}
         style={{
           width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8,
           padding: "8px 10px", fontSize: 12.5, fontFamily: "inherit", resize: "vertical", marginBottom: 6, color: C.ink,
@@ -48,7 +49,7 @@ export function RequestCancellationControl({ job, onRequested, setToast }) {
       />
       <div style={{ display: "flex", gap: 8 }}>
         <Btn size="sm" full={false} variant="ghost" onClick={() => setShowForm(false)}>Cancel</Btn>
-        <Btn size="sm" full={false} variant="danger" disabled={requesting} onClick={submit}>{requesting ? "Requesting…" : "Submit request"}</Btn>
+        <Btn size="sm" full={false} variant="danger" disabled={!reason.trim() || requesting} onClick={submit}>{requesting ? "Requesting…" : "Submit request"}</Btn>
       </div>
     </div>
   );
