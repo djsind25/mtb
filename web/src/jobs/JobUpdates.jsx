@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, mono } from "../theme";
+import { C, sans } from "../theme";
 import { Btn } from "../ui/Primitives";
 import { loadJobUpdates, postJobUpdate } from "./data";
 
@@ -71,7 +71,7 @@ export function JobUpdates({ jobId, viewerRole, jobOpen, setToast }) {
             style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "7px 10px", fontSize: 12.5, fontFamily: "inherit", outline: "none", resize: "vertical", marginBottom: 6 }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-            <span style={{ fontFamily: mono, fontSize: 10.5, color: C.gray }}>{draft.length}/{UPDATE_CAP}</span>
+            <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 10.5, color: C.gray }}>{draft.length}/{UPDATE_CAP}</span>
             <Btn size="sm" full={false} disabled={!draft.trim() || posting} onClick={submit}>
               {posting ? "Posting…" : "Add"}
             </Btn>

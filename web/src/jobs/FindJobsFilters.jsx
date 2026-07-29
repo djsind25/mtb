@@ -6,7 +6,7 @@ const DISTANCE_BANDS = [10, 25, 50];
 
 function chipStyle(active) {
   return {
-    border: `1.5px solid ${active ? C.green : C.line}`, borderRadius: 20,
+    border: `1.5px solid ${active ? C.pine : C.line}`, borderRadius: 20,
     background: active ? C.tealLight : C.paper, padding: "5px 12px",
     cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: C.ink, fontFamily: "inherit",
   };
@@ -41,7 +41,7 @@ export function FindJobsFilters({
       {savedViewActive && (
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap",
-          background: C.tealLight, border: `1px solid ${C.green}55`, borderRadius: 8, padding: "8px 12px", marginBottom: 10,
+          background: C.tealLight, border: `1px solid ${C.pine}55`, borderRadius: 8, padding: "8px 12px", marginBottom: 10,
         }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: C.teal }}>📌 Showing your saved view</span>
           <button onClick={onResetToRadius} style={{ background: "none", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>

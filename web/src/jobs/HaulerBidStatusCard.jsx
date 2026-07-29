@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { C, mono, expiryLabel, isExpired, daysLeft } from "../theme";
+import { C, sans, expiryLabel, isExpired, daysLeft } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "./CompletionPhotos";
 import { JobPhotos } from "./JobPhotos";
@@ -61,7 +61,7 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{job.title}</span>
-        <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${myBid?.amount}</span>
+        <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.teal }}>${myBid?.amount}</span>
       </div>
       <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 6 }}>
         📍 ZIP {job.zip}{job.city ? ` · ${job.city}, ${job.state}` : ""} · {job.bid_count} bid{job.bid_count !== 1 ? "s" : ""} on this job

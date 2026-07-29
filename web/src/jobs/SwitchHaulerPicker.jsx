@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { C, mono, sans } from "../theme";
+import { C, sans } from "../theme";
 import { Btn, ErrorMsg } from "../ui/Primitives";
 import { getStripe } from "../lib/stripeClient";
 import { previewBidSwitch, startBidSwitch, confirmBidSwitch } from "./data";
@@ -113,7 +113,7 @@ export function SwitchHaulerPicker({ job, onSwitched, setToast, onClose }) {
                     background: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                   }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep }}>{bid.businessName}</span>
-                    <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${bid.amount}</span>
+                    <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.teal }}>${bid.amount}</span>
                   </button>
                 ))}
               </div>

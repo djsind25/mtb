@@ -8,10 +8,17 @@ export const C = {
   teal: "#2E7D22", tealLight: "#E2F2DE",
   ink: "#16232D", paper: "#FFFFFF", gray: "#5E6B63", grayLight: "#E4E9E3",
   line: "#D8E0D6", amber: "#B8860B", amberLight: "#FBF3DD", red: "#C0392B", redLight: "#FBEAE8",
-  green: "#41A62E", greenDeep: "#2E7D22", charcoal: "#16232D",
+  // Neutral blue-gray for monitoring/security surfaces — distinct from the warning (amber) and
+  // success (teal) palettes, so "we're watching for safety" doesn't read as a warning.
+  slate: "#5B6B7A", slateLight: "#EEF1F3",
 };
 export const sans = "'Inter', system-ui, sans-serif";
-export const mono = "'JetBrains Mono', monospace";
+
+// Additive scale for the chat redesign's card style — soft shadows and 12-16px radii instead of
+// the flat/no-shadow look most of the app still uses. Not retrofitted everywhere yet.
+export const RADIUS = { sm: 8, md: 12, lg: 16 };
+export const SHADOW_SM = "0 1px 2px rgba(22,35,45,0.06)";
+export const SHADOW_MD = "0 2px 10px rgba(22,35,45,0.08)";
 
 export const MAX_RADIUS_MI = 50;
 export const COMMISSION_RATE = 0.10;

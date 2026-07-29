@@ -205,6 +205,15 @@ export async function loadPendingSchedule(jobId) {
   return data;
 }
 
+// Every proposal ever made on this chat, oldest first — propose_schedule() marks the prior
+// pending row 'superseded' rather than deleting it, so this is a real, queryable negotiation
+// history, not something that needs its own tracking table.
+export async function loadScheduleHistory(chatId) {
+  const { data, error } = await supabase.from("schedule_proposals").select("*").eq("chat_id", chatId).order("created_at");
+  if (error) throw error;
+  return data || [];
+}
+
 export async function loadJobPhotos(jobId) {
   const { data: rows, error } = await supabase.from("job_photos").select("*").eq("job_id", jobId);
   if (error) throw error;

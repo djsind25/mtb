@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, mono, expiryLabel, isExpired, timelineMeta } from "../theme";
+import { C, sans, expiryLabel, isExpired, timelineMeta } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
 import { JobQuestions } from "../jobs/JobQuestions";
@@ -83,7 +83,7 @@ export function JobRowExpanded({ job }) {
           {(job.bids || []).map(b => (
             <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
               <span>{b.businessName} {b.id === job.accepted_bid_id && <Badge color={C.teal} bg={C.tealLight}>Won</Badge>} {job.status === "open" && <Badge color={isExpired(b.expires_at) ? C.red : C.gray} bg={isExpired(b.expires_at) ? C.redLight : C.grayLight}>{expiryLabel(b.expires_at)}</Badge>}</span>
-              <span style={{ fontFamily: mono, fontWeight: 700 }}>${b.amount} <span style={{ color: C.gray, fontWeight: 400 }}>(${(b.amount * 0.1).toFixed(2)} deposit)</span></span>
+              <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>${b.amount} <span style={{ color: C.gray, fontWeight: 400 }}>(${(b.amount * 0.1).toFixed(2)} deposit)</span></span>
             </div>
           ))}
         </div>

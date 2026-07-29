@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, mono, expiryLabel, isExpired, memberSinceLabel } from "../theme";
+import { C, sans, expiryLabel, isExpired, memberSinceLabel } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { acceptBid } from "./data";
 import { AcceptBidPayment } from "./AcceptBidPayment";
@@ -66,7 +66,7 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
             {SHOW_MEMBER_SINCE && memberSinceLabel(bid.haulerSince) && <span>{memberSinceLabel(bid.haulerSince)}</span>}
           </div>
         </div>
-        <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${bid.amount}</span>
+        <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.teal }}>${bid.amount}</span>
       </div>
       {bid.note && <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 8 }}>"{bid.note}"</div>}
       <div style={{ marginBottom: 10 }}>
@@ -80,18 +80,18 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
             <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.gray }}>Full price — nothing charged until 48h before your scheduled date</span>
-                <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
+                <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
               </div>
             </div>
           ) : (
             <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
                 <span style={{ color: C.gray }}>Pay now to lock in (10% deposit)</span>
-                <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
+                <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.gray }}>Pay hauler at completion</span>
-                <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${balanceDue.toFixed(2)}</span>
+                <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${balanceDue.toFixed(2)}</span>
               </div>
             </div>
           )}

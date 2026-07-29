@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { C, mono } from "../theme";
+import { C, sans } from "../theme";
 import { Avatar, CenteredNote } from "../ui/Primitives";
 import { loadMyChats } from "../chat/data";
 import { ChatThread } from "../chat/ChatThread";
@@ -61,7 +61,7 @@ export function MessagesTab({ session, setToast, initialChatId, onConsumedInitia
                   </div>
                 )}
               </div>
-              <span style={{ fontFamily: mono, fontSize: 13, fontWeight: 700, color: C.teal, flexShrink: 0 }}>${c.bid_amount}</span>
+              <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 13, fontWeight: 700, color: C.teal, flexShrink: 0 }}>${c.bid_amount}</span>
             </button>
           );
         })}

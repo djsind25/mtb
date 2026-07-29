@@ -1,4 +1,4 @@
-import { C, mono, COMMISSION_RATE } from "../theme";
+import { C, sans, COMMISSION_RATE } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 
 const MONTH_LABEL = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
@@ -71,7 +71,7 @@ function FullPaymentSummary({ summary }) {
         {cards.map(c => (
           <div key={c.label} style={{ background: c.bg, borderRadius: 10, padding: "10px 12px" }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: C.gray, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 4 }}>{c.label}</div>
-            <div style={{ fontFamily: mono, fontSize: 17, fontWeight: 700, color: c.color }}>${c.value.toFixed(2)}</div>
+            <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 17, fontWeight: 700, color: c.color }}>${c.value.toFixed(2)}</div>
           </div>
         ))}
       </div>
@@ -112,20 +112,20 @@ export function RevenueTab({ jobs, fullPaymentSummary }) {
               {rows.map(r => (
                 <tr key={r.key} style={{ borderBottom: `1px solid ${C.line}` }}>
                   <td style={{ padding: "9px 10px", fontWeight: 600, color: C.pineDeep }}>{MONTH_LABEL.format(new Date(`${r.key}-01T00:00:00`))}</td>
-                  <td style={{ padding: "9px 10px", fontFamily: mono }}>{r.jobCount}</td>
-                  <td style={{ padding: "9px 10px", fontFamily: mono }}>${r.gmv.toFixed(2)}</td>
-                  <td style={{ padding: "9px 10px", fontFamily: mono, color: C.teal, fontWeight: 700 }}>${r.deposit.toFixed(2)}</td>
-                  <td style={{ padding: "9px 10px", fontFamily: mono }}>${r.haulerDirect.toFixed(2)}</td>
+                  <td style={{ padding: "9px 10px", fontFamily: sans, fontVariantNumeric: "tabular-nums" }}>{r.jobCount}</td>
+                  <td style={{ padding: "9px 10px", fontFamily: sans, fontVariantNumeric: "tabular-nums" }}>${r.gmv.toFixed(2)}</td>
+                  <td style={{ padding: "9px 10px", fontFamily: sans, fontVariantNumeric: "tabular-nums", color: C.teal, fontWeight: 700 }}>${r.deposit.toFixed(2)}</td>
+                  <td style={{ padding: "9px 10px", fontFamily: sans, fontVariantNumeric: "tabular-nums" }}>${r.haulerDirect.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr style={{ borderTop: `2px solid ${C.line}` }}>
                 <td style={{ padding: "9px 10px", fontWeight: 800, color: C.pineDeep }}>All time</td>
-                <td style={{ padding: "9px 10px", fontFamily: mono, fontWeight: 800 }}>{totals.jobCount}</td>
-                <td style={{ padding: "9px 10px", fontFamily: mono, fontWeight: 800 }}>${totals.gmv.toFixed(2)}</td>
-                <td style={{ padding: "9px 10px", fontFamily: mono, fontWeight: 800, color: C.teal }}>${totals.deposit.toFixed(2)}</td>
-                <td style={{ padding: "9px 10px", fontFamily: mono, fontWeight: 800 }}>${totals.haulerDirect.toFixed(2)}</td>
+                <td style={{ padding: "9px 10px", fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 800 }}>{totals.jobCount}</td>
+                <td style={{ padding: "9px 10px", fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 800 }}>${totals.gmv.toFixed(2)}</td>
+                <td style={{ padding: "9px 10px", fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 800, color: C.teal }}>${totals.deposit.toFixed(2)}</td>
+                <td style={{ padding: "9px 10px", fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 800 }}>${totals.haulerDirect.toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>

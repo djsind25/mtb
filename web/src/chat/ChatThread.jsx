@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { C, mono } from "../theme";
+import { C, sans, RADIUS, SHADOW_SM } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { Avatar, Badge, CenteredNote } from "../ui/Primitives";
 import { loadChat, loadMessages, sendMessage, markChatRead } from "./data";
-import { addJobPhotos, loadPendingSchedule } from "../jobs/data";
-import { ScheduleProposal } from "../jobs/ScheduleProposal";
+import { addJobPhotos, loadPendingSchedule, loadScheduleHistory } from "../jobs/data";
+import { JobStatusPanel } from "./JobStatusPanel";
 import { ChatBubble } from "./ChatBubble";
 import { ReviewPanel } from "./ReviewPanel";
 
@@ -12,6 +12,7 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
   const [chat, setChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [pendingSchedule, setPendingSchedule] = useState(null);
+  const [scheduleHistory, setScheduleHistory] = useState([]);
   const [draft, setDraft] = useState("");
   const [bannerExpanded, setBannerExpanded] = useState(false);
   const [sending, setSending] = useState(false);
@@ -34,12 +35,13 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
   // confirm_schedule() both insert a system chat message, so refetching whenever a new message
   // arrives (or the chat first loads) keeps this fresh via infrastructure that already exists,
   // same "best-effort freshness" reasoning as sync_full_payment_schedule().
-  useEffect(() => {
+  function refreshSchedule() {
     if (!chat?.job_id) return;
-    let cancelled = false;
-    loadPendingSchedule(chat.job_id).then(p => { if (!cancelled) setPendingSchedule(p); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [chat?.job_id, messages.length]);
+    Promise.all([loadPendingSchedule(chat.job_id), loadScheduleHistory(chatId)])
+      .then(([p, h]) => { setPendingSchedule(p); setScheduleHistory(h); })
+      .catch(() => {});
+  }
+  useEffect(refreshSchedule, [chat?.job_id, chatId, messages.length]);
 
   // Two postgres_changes bindings on a single channel silently breaks delivery of both in
   // this Realtime version (confirmed empirically) — one channel per table subscribed.
@@ -114,143 +116,117 @@ export function ChatThread({ chatId, session, onClose, setToast }) {
     : "coordinating";
 
   return (
-    <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 16px 0", display: "flex", flexDirection: "column", height: "calc(100vh - 64px)" }}>
+    <div style={{ maxWidth: 880, margin: "0 auto", padding: "16px 16px 0" }}>
+      <style>{`
+        .mtb-chat-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+        .mtb-chat-sidebar { position: sticky; top: 16px; }
+        @media (max-width: 860px) {
+          .mtb-chat-grid { grid-template-columns: 1fr; }
+          .mtb-chat-sidebar { position: static; order: 2; }
+          .mtb-chat-main { order: 1; }
+        }
+      `}</style>
+
       <button onClick={onClose} style={{ background: "none", border: "none", color: C.gray, fontSize: 13, cursor: "pointer", marginBottom: 10, textAlign: "left" }}>← Back to chats</button>
 
-      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ background: C.paper, borderBottom: `1px solid ${C.line}`, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar emoji={otherIsBiz ? "🚛" : "👤"} bg={otherIsBiz ? C.tealLight : C.sandWarm} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep }}>{otherName}</div>
-            <div style={{ fontSize: 11, color: C.gray }}>{chat.jobTitle}</div>
+      <div className="mtb-chat-grid">
+        <div className="mtb-chat-main" style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.lg, boxShadow: SHADOW_SM, display: "flex", flexDirection: "column", height: "calc(100vh - 96px)", overflow: "hidden" }}>
+          <div style={{ background: C.paper, borderBottom: `1px solid ${C.line}`, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+            <Avatar emoji={otherIsBiz ? "🚛" : "👤"} bg={otherIsBiz ? C.tealLight : C.sandWarm} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep }}>{otherName}</div>
+              <div style={{ fontSize: 11, color: C.gray }}>{chat.jobTitle}</div>
+            </div>
+            <Badge color={C.slate} bg={C.slateLight}>🛡️ Monitored</Badge>
           </div>
-          <Badge color={C.gray} bg={C.grayLight}>🛡️ Monitored</Badge>
-        </div>
 
-        <div style={{ background: C.amberLight, borderBottom: `1px solid ${C.amber}33`, padding: bannerExpanded ? "12px 16px" : "9px 16px" }}>
-          <button onClick={() => setBannerExpanded(e => !e)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, padding: 0, fontFamily: "inherit", textAlign: "left" }}>
-            <span>🛡️</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#8A6604", flex: 1 }}>This chat is monitored to keep the platform fair</span>
-            <span style={{ fontSize: 11, color: "#8A6604" }}>{bannerExpanded ? "▲" : "▼"}</span>
-          </button>
-          {bannerExpanded && (
-            <div style={{ fontSize: 12, color: "#6B5103", lineHeight: 1.55, marginTop: 8, paddingLeft: 22 }}>
-              <div style={{ marginBottom: 8 }}>Messages here are screened in real time, and phone numbers and email addresses are automatically hidden if shared.</div>
-              {chat?.payment_mode === "full" ? (
-                moneyState === "coordinating" || moneyState === "scheduled" ? (
-                  <>Nothing is charged until 48 hours before your scheduled service date — then it's held securely and released once the job is confirmed complete. There's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+          {/* Consolidated trust-and-safety notice — one collapsible surface instead of the old
+              separate amber "monitored" banner plus a second teal "stay on-platform" banner (that
+              second banner's content now lives as a short reminder in JobStatusPanel instead). */}
+          <div style={{ background: C.slateLight, borderBottom: `1px solid ${C.line}`, padding: bannerExpanded ? "12px 16px" : "9px 16px" }}>
+            <button onClick={() => setBannerExpanded(e => !e)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, padding: 0, fontFamily: sans, textAlign: "left" }}>
+              <span>🛡️</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.slate, flex: 1 }}>This chat is monitored to keep the platform fair</span>
+              <span style={{ fontSize: 11, color: C.slate }}>{bannerExpanded ? "▲" : "▼"}</span>
+            </button>
+            {bannerExpanded && (
+              <div style={{ fontSize: 12, color: C.slate, lineHeight: 1.55, marginTop: 8, paddingLeft: 22 }}>
+                <div style={{ marginBottom: 8 }}>Messages here are screened in real time, and phone numbers and email addresses are automatically hidden if shared.</div>
+                {chat?.payment_mode === "full" ? (
+                  moneyState === "coordinating" || moneyState === "scheduled" ? (
+                    <>Nothing is charged until 48 hours before your scheduled service date — then it's held securely and released once the job is confirmed complete. There's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+                  ) : (
+                    <>Your payment is held securely and released once the job is confirmed complete — there's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+                  )
                 ) : (
-                  <>Your payment is held securely and released once the job is confirmed complete — there's nothing to pay directly. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip that protection. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
-                )
-              ) : (
-                <>Paying your hauler the remaining balance directly is expected and fine. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip the deposit that keeps this service running. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Message B from the scheduling spec — a calm, benefit-framed nudge to stay on-platform,
-            shown whenever the chat is open on an active full-mode job. Deliberately NOT shown at
-            the cancellation moment (that's Message A, a warm toast — see RequestCancellationControl)
-            so it never reads as accusatory right when someone's already cancelling. */}
-        {isFull && !chat.customer_ack_at && (
-          <div style={{ background: C.tealLight, borderBottom: `1px solid ${C.teal}33`, padding: "8px 16px", fontSize: 11.5, color: C.pineDeep, lineHeight: 1.4 }}>
-            🛡️ Keep your job on MyTrashBid — it's how we make sure both sides are protected and the work actually gets done. Off-platform deals have no coverage if something goes wrong.
-          </div>
-        )}
-
-        <div style={{ background: C.sand, padding: "12px 16px", borderBottom: `1px solid ${C.line}` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontFamily: mono, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>${effectiveAmount} total</span>
-            {moneyState === "legacyHeld" && <Badge color={C.teal} bg={C.tealLight}>✓ Held by MyTrashBid</Badge>}
-            {moneyState === "coordinating" && <Badge color={C.gray} bg={C.grayLight}>🗓 Coordinating — no charge yet</Badge>}
-            {moneyState === "scheduled" && <Badge color={C.gray} bg={C.grayLight}>📅 Scheduled — not charged yet</Badge>}
-            {moneyState === "authorized" && <Badge color={C.teal} bg={C.tealLight}>💳 Authorized &amp; held</Badge>}
-            {moneyState === "captured" && <Badge color={C.teal} bg={C.tealLight}>✓ Captured</Badge>}
-            {!isFull && <Badge color={C.teal} bg={C.tealLight}>✓ Deposit paid</Badge>}
-          </div>
-          {moneyState === "coordinating" ? (
-            <ScheduleProposal
-              job={{
-                id: chat.job_id,
-                payment_mode: chat.payment_mode,
-                coordinationDeadline: chat.coordination_deadline,
-                coordinationExtendedAt: chat.coordination_extended_at,
-                stalledAt: chat.stalled_at,
-                lockedServiceDate: chat.locked_service_date,
-                lockedFinalPrice: chat.locked_final_price,
-                authorizedAt: chat.authorized_at,
-                capturedAt: chat.captured_at,
-                pendingSchedule,
-              }}
-              viewerRole={viewer}
-              viewerId={session.id}
-              defaultPrice={effectiveAmount}
-              onChanged={() => loadPendingSchedule(chat.job_id).then(setPendingSchedule).catch(() => {})}
-              setToast={setToast}
-            />
-          ) : isFull ? (
-            <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between" }}>
-              <span>{viewer === "hauler" ? "You receive at completion (90%)" : "Released to hauler at completion (90%)"}</span>
-              <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${haulerCut.toFixed(2)}</span>
-            </div>
-          ) : (
-            <>
-              <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span>Deposit paid to MyTrashBid (10%)</span>
-                <span style={{ fontFamily: mono, fontWeight: 700, color: C.teal }}>${deposit.toFixed(2)}</span>
+                  <>Paying your hauler the remaining balance directly is expected and fine. What we do flag is sharing contact info to arrange jobs <em>outside</em> MyTrashBid to skip the deposit that keeps this service running. First mentions send with a warning; repeated attempts are flagged for Trust &amp; Safety review.</>
+                )}
               </div>
-              <div style={{ fontSize: 11.5, color: C.gray, display: "flex", justifyContent: "space-between" }}>
-                <span>{viewer === "hauler" ? "You collect directly at completion" : "Pay hauler directly at completion"}</span>
-                <span style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${balanceDue.toFixed(2)}</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {chat.reviews_unlocked && (
-          <ReviewPanel chat={chat} chatId={chatId} viewer={viewer} setToast={setToast} />
-        )}
-
-        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "10px 0" }}>
-          {messages.map(m => <ChatBubble key={m.id} msg={m} viewer={viewer} />)}
-        </div>
-
-        <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 12px" }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-            {viewer === "customer" && (
-              <>
-                <input ref={photoInputRef} type="file" accept="image/*,.heic,.heif" multiple style={{ display: "none" }}
-                  onChange={e => { handleAddPhotos(e.target.files); e.target.value = ""; }} />
-                <button onClick={() => photoInputRef.current?.click()} disabled={addingPhotos} title="Add photos to this job"
-                  aria-label="Add photos to this job" style={{
-                    position: "relative", width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${C.line}`,
-                    cursor: addingPhotos ? "default" : "pointer", background: C.paper,
-                    color: C.gray, fontSize: 15, opacity: addingPhotos ? 0.6 : 1,
-                  }}>
-                    {addingPhotos ? "…" : (
-                      <>
-                        📷
-                        <span style={{
-                          position: "absolute", top: -3, right: -3, width: 15, height: 15, borderRadius: "50%",
-                          background: C.ember, color: C.paper, fontSize: 11, fontWeight: 700, lineHeight: "15px",
-                          textAlign: "center", border: `1.5px solid ${C.paper}`,
-                        }}>+</span>
-                      </>
-                    )}
-                  </button>
-              </>
             )}
-            <textarea value={draft} onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Message about this job…" rows={1}
-              style={{ flex: 1, resize: "none", border: `1.5px solid ${C.line}`, borderRadius: 20, padding: "9px 15px", fontSize: 13.5, fontFamily: "inherit", outline: "none", color: C.ink, background: C.sand }} />
-            <button onClick={send} disabled={!draft.trim() || sending} style={{
-              width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: "none",
-              cursor: draft.trim() ? "pointer" : "default", background: draft.trim() ? C.ember : C.grayLight,
-              color: C.paper, fontSize: 14,
-            }}>➤</button>
           </div>
+
+          {chat.reviews_unlocked && (
+            <ReviewPanel chat={chat} chatId={chatId} viewer={viewer} setToast={setToast} />
+          )}
+
+          <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "10px 0" }}>
+            {messages.map(m => <ChatBubble key={m.id} msg={m} viewer={viewer} />)}
+          </div>
+
+          <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 12px" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              {viewer === "customer" && (
+                <>
+                  <input ref={photoInputRef} type="file" accept="image/*,.heic,.heif" multiple style={{ display: "none" }}
+                    onChange={e => { handleAddPhotos(e.target.files); e.target.value = ""; }} />
+                  <button onClick={() => photoInputRef.current?.click()} disabled={addingPhotos} title="Add photos to this job"
+                    aria-label="Add photos to this job" style={{
+                      position: "relative", width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${C.line}`,
+                      cursor: addingPhotos ? "default" : "pointer", background: C.paper,
+                      color: C.gray, fontSize: 15, opacity: addingPhotos ? 0.6 : 1,
+                    }}>
+                      {addingPhotos ? "…" : (
+                        <>
+                          📷
+                          <span style={{
+                            position: "absolute", top: -3, right: -3, width: 15, height: 15, borderRadius: "50%",
+                            background: C.ember, color: C.paper, fontSize: 11, fontWeight: 700, lineHeight: "15px",
+                            textAlign: "center", border: `1.5px solid ${C.paper}`,
+                          }}>+</span>
+                        </>
+                      )}
+                    </button>
+                </>
+              )}
+              <textarea value={draft} onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                placeholder="Message about this job…" rows={1}
+                style={{ flex: 1, resize: "none", border: `1.5px solid ${C.line}`, borderRadius: 20, padding: "9px 15px", fontSize: 13.5, fontFamily: "inherit", outline: "none", color: C.ink, background: C.sand }} />
+              <button onClick={send} disabled={!draft.trim() || sending} style={{
+                width: 36, height: 36, borderRadius: "50%", flexShrink: 0, border: "none",
+                cursor: draft.trim() ? "pointer" : "default", background: draft.trim() ? C.ember : C.grayLight,
+                color: C.paper, fontSize: 14,
+              }}>➤</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mtb-chat-sidebar">
+          <JobStatusPanel
+            chat={chat}
+            pendingSchedule={pendingSchedule}
+            scheduleHistory={scheduleHistory}
+            viewer={viewer}
+            viewerId={session.id}
+            effectiveAmount={effectiveAmount}
+            haulerCut={haulerCut}
+            moneyState={moneyState}
+            isFull={isFull}
+            deposit={deposit}
+            balanceDue={balanceDue}
+            onScheduleChanged={refreshSchedule}
+            setToast={setToast}
+          />
         </div>
       </div>
     </div>

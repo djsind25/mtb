@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, mono } from "../theme";
+import { C, sans } from "../theme";
 import { Btn, Field, Badge, CenteredNote } from "../ui/Primitives";
 import { supabase } from "../lib/supabaseClient";
 import {
@@ -424,7 +424,7 @@ export function AccountTab({ session, setToast }) {
                 <div style={{ fontSize: 11.5, color: C.gray }}>{h.otherParty || "—"} · {new Date(h.createdAt).toLocaleDateString()}</div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontFamily: mono, fontWeight: 700, color: h.kind === "refund" ? C.red : C.pineDeep, marginBottom: 3 }}>
+                <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: h.kind === "refund" ? C.red : C.pineDeep, marginBottom: 3 }}>
                   {h.kind === "refund" ? "−" : ""}${Number(h.amount).toFixed(2)}
                 </div>
                 <Badge color={h.kind === "refund" || h.status === "refunded" ? C.red : C.teal} bg={h.kind === "refund" || h.status === "refunded" ? C.redLight : C.tealLight}>

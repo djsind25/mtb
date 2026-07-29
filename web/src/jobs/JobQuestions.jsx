@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, mono } from "../theme";
+import { C, sans } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { supabase } from "../lib/supabaseClient";
 import { loadJobQuestions, askJobQuestion, answerJobQuestion, countMyOpenQuestions } from "./data";
@@ -175,7 +175,7 @@ export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, eligible = 
                       style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "7px 10px", fontSize: 12.5, fontFamily: "inherit", outline: "none", resize: "vertical", marginBottom: 6 }}
                     />
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontFamily: mono, fontSize: 10.5, color: C.gray }}>{(answerDrafts[q.id] || "").length}/{QUESTION_CAP}</span>
+                      <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 10.5, color: C.gray }}>{(answerDrafts[q.id] || "").length}/{QUESTION_CAP}</span>
                       <div style={{ display: "flex", gap: 6 }}>
                         {editingId === q.id && (
                           <Btn size="sm" full={false} variant="ghost" onClick={() => setEditingId(null)}>Cancel</Btn>
@@ -215,7 +215,7 @@ export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, eligible = 
                 style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "7px 10px", fontSize: 12.5, fontFamily: "inherit", outline: "none", resize: "vertical", marginBottom: 6 }}
               />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <span style={{ fontFamily: mono, fontSize: 10.5, color: C.gray }}>{draft.length}/{QUESTION_CAP}</span>
+                <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 10.5, color: C.gray }}>{draft.length}/{QUESTION_CAP}</span>
                 <Btn size="sm" full={false} disabled={!draft.trim() || asking} onClick={submitQuestion}>
                   {asking ? "Posting…" : "Ask"}
                 </Btn>
