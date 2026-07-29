@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, sans, expiryLabel, isExpired, timelineMeta } from "../theme";
+import { C, sans, expiryLabel, isExpired, timelineMeta, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
 import { JobQuestions } from "../jobs/JobQuestions";
@@ -43,7 +43,7 @@ export function JobRowExpanded({ job }) {
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline);
   return (
-    <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
+    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, overflow: "hidden" }}>
       <button onClick={() => setOpen(o => !o)} style={{ width: "100%", background: "none", border: "none", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontFamily: "inherit" }}>
         <div style={{ textAlign: "left" }}>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>{job.title}</div>
@@ -65,7 +65,7 @@ export function JobRowExpanded({ job }) {
             </div>
           )}
           {job.status === "booked" && job.scheduling && schedulingState(job.scheduling) && (
-            <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
+            <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: job.scheduling.lockedServiceDate ? 4 : 0 }}>
                 <span style={{ fontWeight: 700, color: C.pineDeep }}>Scheduling:</span>
                 <Badge color={schedulingState(job.scheduling).color} bg={schedulingState(job.scheduling).bg}>{schedulingState(job.scheduling).label}</Badge>

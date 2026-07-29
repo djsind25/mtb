@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, sans, nowStr } from "../theme";
+import { C, sans, nowStr, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "../jobs/CompletionPhotos";
 import { reviewCompletion } from "./data";
@@ -21,7 +21,7 @@ function Row({ chat, onChanged, setToast, readOnly }) {
   }
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${chat.admin_reviewed_at ? C.line : C.teal + "66"}`, borderRadius: 12, padding: 14 }}>
+    <div style={{ background: C.paper, border: `1px solid ${chat.admin_reviewed_at ? C.line : C.teal + "66"}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{chat.jobTitle || "Job"}</div>

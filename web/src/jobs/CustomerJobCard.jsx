@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { C, expiryLabel, isExpired, timelineMeta } from "../theme";
+import { C, expiryLabel, isExpired, timelineMeta, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
@@ -58,14 +58,14 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
   }
 
   const tally = bids.length > 0 && (
-    <div style={{ fontSize: 12, color: C.pineDeep, background: C.tealLight, borderRadius: 8, padding: "8px 11px", marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}>
+    <div style={{ fontSize: 12, color: C.pineDeep, background: C.tealLight, borderRadius: RADIUS.sm, padding: "8px 11px", marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}>
       <span>🎉</span>
       <span><strong>{bids.length}</strong> quote{bids.length === 1 ? "" : "s"} from haulers — compare below!</span>
     </div>
   );
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${jobExpired ? C.amber + "66" : C.line}`, borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ background: C.paper, border: `1px solid ${jobExpired ? C.amber + "66" : C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, overflow: "hidden" }}>
       <button onClick={() => setExpanded(e => !e)} style={{ width: "100%", background: "none", border: "none", padding: 16, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>

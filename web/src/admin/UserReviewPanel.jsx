@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, sans } from "../theme";
+import { C, sans, RADIUS, SHADOW_MD } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { userDisplayName } from "./UserRow";
 import { loadUserFlags, flagUser, resolveUserFlag, loadUserChats, loadUserCancellationCount } from "./data";
@@ -79,7 +79,7 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
       position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
-      <div style={{ background: C.paper, borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "88vh", border: `1px solid ${C.line}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ background: C.paper, borderRadius: RADIUS.lg, boxShadow: SHADOW_MD, width: "100%", maxWidth: 560, maxHeight: "88vh", border: `1px solid ${C.line}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.line}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <div style={{ fontFamily: sans, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>{displayName}</div>
@@ -97,7 +97,7 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
           {flags && flags.length > 0 && (
             <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
               {flags.map(f => (
-                <div key={f.id} style={{ background: C.sand, border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 12px" }}>
+                <div key={f.id} style={{ background: C.sand, border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "9px 12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
                     <Badge color={f.resolved_at ? C.gray : C.red} bg={f.resolved_at ? C.grayLight : C.redLight}>
                       {REASON_LABELS[f.reason_type] || f.reason_type}
@@ -120,7 +120,7 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
           )}
 
           {!readOnly && (
-            <div style={{ background: C.sand, border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 12px", marginBottom: 18 }}>
+            <div style={{ background: C.sand, border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "9px 12px", marginBottom: 18 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.pineDeep, marginBottom: 6 }}>Flag this user</div>
               <select value={reasonType} onChange={e => setReasonType(e.target.value)} style={{
                 width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 6,
@@ -149,7 +149,7 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
               {chats.map(c => (
                 <button key={c.id} onClick={() => setOpenChatId(c.id)} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
-                  background: C.paper, border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 12px",
+                  background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "9px 12px",
                   cursor: "pointer", textAlign: "left", fontFamily: "inherit", width: "100%",
                 }}>
                   <div>

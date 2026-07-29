@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C } from "../theme";
+import { C, RADIUS, SHADOW_SM } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 import { loadAutoExportEnabled, setAutoExportEnabled, sendMonthlyExportNow } from "./data";
 
@@ -48,7 +48,7 @@ export function AutoExportTab({ session, setToast }) {
         tax and bookkeeping records.
       </p>
 
-      <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: "14px 16px", marginBottom: 14 }}>
+      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "14px 16px", marginBottom: 14 }}>
         <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 700, color: C.pineDeep, cursor: session.superAdmin ? "pointer" : "default" }}>
           <input
             type="checkbox"

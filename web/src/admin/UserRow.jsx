@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C } from "../theme";
+import { C, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
 import { updateUserProfile, setUserActive, sendPasswordReset, deleteUser } from "./data";
 import { tierName } from "../membership";
@@ -74,7 +74,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const displayName = userDisplayName(u);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: 10, background: u.active ? C.sand : C.redLight }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, background: u.active ? C.sand : C.redLight }}>
       <Avatar emoji={u.role === "customer" ? "👤" : u.role === "hauler" ? "🚛" : "🛡️"} size={32} bg={u.role === "customer" ? C.sandWarm : C.tealLight} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>

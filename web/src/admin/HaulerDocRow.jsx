@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C } from "../theme";
+import { C, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { reviewHaulerDocument } from "./data";
 
@@ -47,7 +47,7 @@ export function HaulerDocRow({ doc, onChanged, setToast, readOnly }) {
   return (
     <div style={{
       border: `1px solid ${pending ? C.amber + "66" : C.line}`, background: pending ? C.amberLight : C.paper,
-      borderRadius: 10, padding: "10px 12px", display: "grid", gap: 6,
+      borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "10px 12px", display: "grid", gap: 6,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep }}>
@@ -68,7 +68,7 @@ export function HaulerDocRow({ doc, onChanged, setToast, readOnly }) {
         rejecting ? (
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <input value={note} onChange={e => setNote(e.target.value)} placeholder="Reason (optional)"
-              style={{ flex: 1, minWidth: 140, border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "6px 10px", fontSize: 12 }} />
+              style={{ flex: 1, minWidth: 140, border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "6px 10px", fontSize: 12 }} />
             <Btn size="sm" full={false} variant="danger" disabled={working} onClick={reject}>Confirm reject</Btn>
             <Btn size="sm" full={false} variant="ghost" onClick={() => setRejecting(false)}>Cancel</Btn>
           </div>

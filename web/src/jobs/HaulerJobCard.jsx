@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, expiryLabel, timelineMeta, shortDateLabel } from "../theme";
+import { C, expiryLabel, timelineMeta, shortDateLabel, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Field, Btn } from "../ui/Primitives";
 import { JobPhotos } from "./JobPhotos";
 import { JobQuestions } from "./JobQuestions";
@@ -85,7 +85,7 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
   const showFullHeader = density === "card" || expanded;
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${dismissed ? C.grayLight : C.line}`, borderRadius: 12, overflow: "hidden", opacity: dismissed && !expanded ? 0.6 : 1 }}>
+    <div style={{ background: C.paper, border: `1px solid ${dismissed ? C.grayLight : C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, overflow: "hidden", opacity: dismissed && !expanded ? 0.6 : 1 }}>
       <div style={{ display: "flex", alignItems: "stretch" }}>
         <button onClick={() => setExpanded(e => !e)} style={{
           flex: 1, minWidth: 0, background: "none", border: "none",
@@ -110,7 +110,7 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
           <JobPhotos jobId={job.id} />
           {isRental ? (
-            <div style={{ background: C.sand, borderRadius: 8, padding: "10px 12px", marginBottom: 14, fontSize: 13, color: C.ink }}>
+            <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "10px 12px", marginBottom: 14, fontSize: 13, color: C.ink }}>
               <div><strong>{job.dumpster_type === "trailer" ? "Trailer" : "Roll-off dumpster"}</strong></div>
               <div style={{ color: C.gray, marginTop: 2 }}>Needed {formatDate(job.rental_start_date)} – {formatDate(job.rental_end_date)}</div>
             </div>
@@ -120,7 +120,7 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
           {timeline && (
             <div style={{
               display: "flex", alignItems: "center", gap: 8, marginBottom: 14, padding: "9px 12px",
-              borderRadius: 8, background: timeline.urgent ? C.redLight : C.sand,
+              borderRadius: RADIUS.sm, background: timeline.urgent ? C.redLight : C.sand,
               border: `1px solid ${timeline.urgent ? C.red + "55" : C.line}`,
             }}>
               <span style={{ fontSize: 13 }}>{timeline.urgent ? "⚡" : "⏱"}</span>
@@ -140,7 +140,7 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Message to customer</label>
-                  <textarea value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Why pick you?" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "10px 13px", fontSize: 13.5, fontFamily: "inherit", outline: "none", minHeight: 60, resize: "vertical" }} />
+                  <textarea value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Why pick you?" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "10px 13px", fontSize: 13.5, fontFamily: "inherit", outline: "none", minHeight: 60, resize: "vertical" }} />
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn size="sm" full={false} variant="ghost" onClick={() => setEditingBid(false)}>Cancel</Btn>
@@ -162,7 +162,7 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Message to customer</label>
-                <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Why pick you?" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "10px 13px", fontSize: 13.5, fontFamily: "inherit", outline: "none", minHeight: 60, resize: "vertical" }} />
+                <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Why pick you?" style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "10px 13px", fontSize: 13.5, fontFamily: "inherit", outline: "none", minHeight: 60, resize: "vertical" }} />
               </div>
               <div style={{ fontSize: 11, color: C.gray, marginBottom: 10 }}>
                 Your bid stays open for the customer to accept for {isRental ? 30 : 14} days, unless you renew it. This is a sealed bid — other haulers can't see your price.

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C } from "../theme";
+import { C, RADIUS, SHADOW_SM } from "../theme";
 import { Btn, Field, Badge } from "../ui/Primitives";
 import { createAdminInvite, cancelAdminInvite } from "./data";
 
@@ -24,7 +24,7 @@ export function InviteAdminForm({ onChanged, setToast }) {
   }
 
   return (
-    <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "12px 14px", marginBottom: 16 }}>
       <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep, marginBottom: 10 }}>Invite a new admin</div>
       <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="new-admin@example.com" />
       <div style={{ display: "flex", gap: 14, marginBottom: 14, fontSize: 13 }}>
@@ -59,7 +59,7 @@ export function AdminInviteRow({ invite, onChanged, setToast, canCancel }) {
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", border: `1px solid ${C.line}`, borderRadius: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", border: `1px solid ${C.line}`, borderRadius: RADIUS.md }}>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.pineDeep }}>{invite.email}</div>
         <div style={{ fontSize: 11, color: C.gray }}>

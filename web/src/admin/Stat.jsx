@@ -1,14 +1,14 @@
-import { C, sans } from "../theme";
+import { C, sans, RADIUS, SHADOW_SM } from "../theme";
 
 export function Stat({ label, value, mono: isMono, accent, onClick }) {
   return (
     <div
       onClick={onClick}
       style={{
-        background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 14px",
+        background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, padding: "12px 14px",
         cursor: onClick ? "pointer" : "default", transition: "border-color 0.15s, box-shadow 0.15s",
       }}
-      onMouseEnter={e => { if (onClick) { e.currentTarget.style.borderColor = C.teal; e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.08)"; } }}
+      onMouseEnter={e => { if (onClick) { e.currentTarget.style.borderColor = C.teal; e.currentTarget.style.boxShadow = SHADOW_SM; } }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.boxShadow = "none"; }}
     >
       <div style={{ fontSize: 10.5, color: C.gray, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{label}</div>

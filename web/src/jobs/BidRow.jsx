@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, sans, expiryLabel, isExpired, memberSinceLabel } from "../theme";
+import { C, sans, expiryLabel, isExpired, memberSinceLabel, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { acceptBid } from "./data";
 import { AcceptBidPayment } from "./AcceptBidPayment";
@@ -48,7 +48,7 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
   }
 
   return (
-    <div style={{ border: `1px solid ${bidExpired ? C.amber + "66" : C.line}`, borderRadius: 10, padding: 12 }}>
+    <div style={{ background: C.paper, border: `1px solid ${bidExpired ? C.amber + "66" : C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
         <div>
           <div>
@@ -77,14 +77,14 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
       ) : (
         <>
           {isFull ? (
-            <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
+            <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: C.gray }}>Full price — nothing charged until 48h before your scheduled date</span>
                 <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
               </div>
             </div>
           ) : (
-            <div style={{ background: C.sand, borderRadius: 8, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
+            <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
                 <span style={{ color: C.gray }}>Pay now to lock in (10% deposit)</span>
                 <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>

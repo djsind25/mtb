@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, sans } from "../theme";
+import { C, sans, RADIUS, SHADOW_MD } from "../theme";
 import { Badge, CenteredNote } from "../ui/Primitives";
 import { loadChat, loadMessages } from "../chat/data";
 import { ChatBubble } from "../chat/ChatBubble";
@@ -27,7 +27,7 @@ export function AdminChatViewer({ chatId, onClose }) {
       position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
-      <div style={{ background: C.paper, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "85vh", border: `1px solid ${C.line}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ background: C.paper, borderRadius: RADIUS.lg, boxShadow: SHADOW_MD, width: "100%", maxWidth: 480, maxHeight: "85vh", border: `1px solid ${C.line}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.line}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <div style={{ fontFamily: sans, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>{chat?.jobTitle || "Conversation"}</div>

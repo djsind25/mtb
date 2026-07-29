@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, sans, nowStr } from "../theme";
+import { C, sans, nowStr, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn, Field, ErrorMsg } from "../ui/Primitives";
 import { processCancellationRefund } from "./data";
 import { supabase } from "../lib/supabaseClient";
@@ -30,7 +30,7 @@ function Row({ request, onChanged, setToast, readOnly }) {
   }
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${request.status === "pending" ? C.ember + "66" : C.line}`, borderRadius: 12, padding: 14 }}>
+    <div style={{ background: C.paper, border: `1px solid ${request.status === "pending" ? C.ember + "66" : C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{request.jobTitle || "Job"}</div>
