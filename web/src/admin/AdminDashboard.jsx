@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { C, sans } from "../theme";
+import { C, sans, RADIUS } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
@@ -138,7 +138,7 @@ export function AdminDashboard({ session, setToast }) {
 
       {readOnly && (
         <div style={{
-          background: C.amberLight, border: `1px solid ${C.amber}66`, borderRadius: 10,
+          background: C.amberLight, border: `1px solid ${C.amber}66`, borderRadius: RADIUS.md,
           padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "#8A6604", fontWeight: 600,
         }}>
           👁️ View-only admin — you can see everything here, but can't make changes.
@@ -146,7 +146,7 @@ export function AdminDashboard({ session, setToast }) {
       )}
 
       <div style={{
-        background: C.tealLight, border: `1px solid ${C.teal}44`, borderRadius: 10,
+        background: C.tealLight, border: `1px solid ${C.teal}44`, borderRadius: RADIUS.md,
         padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
       }}>
         <span style={{ fontSize: 18 }}>💳</span>
@@ -162,7 +162,7 @@ export function AdminDashboard({ session, setToast }) {
       </div>
 
       <div style={{
-        background: changeOrdersEnabled ? C.tealLight : C.grayLight, border: `1px solid ${changeOrdersEnabled ? C.teal + "44" : C.line}`, borderRadius: 10,
+        background: changeOrdersEnabled ? C.tealLight : C.grayLight, border: `1px solid ${changeOrdersEnabled ? C.teal + "44" : C.line}`, borderRadius: RADIUS.md,
         padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
       }}>
         <span style={{ fontSize: 18 }}>📝</span>
@@ -219,7 +219,7 @@ export function AdminDashboard({ session, setToast }) {
         ].map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "support") setSupportSubTab("open"); }} style={{
             background: tab === t.id ? C.pine : C.paper, color: tab === t.id ? C.paper : C.ink,
-            border: `1px solid ${tab === t.id ? C.pine : C.line}`, borderRadius: 8, padding: "8px 14px",
+            border: `1px solid ${tab === t.id ? C.pine : C.line}`, borderRadius: RADIUS.sm, padding: "8px 14px",
             fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
           }}>{t.label}</button>
         ))}
@@ -248,7 +248,7 @@ export function AdminDashboard({ session, setToast }) {
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
             <div style={{ flex: 1 }}><Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" /></div>
             <select value={userSort} onChange={e => setUserSort(e.target.value)} style={{
-              border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 10px", fontSize: 12.5,
+              border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "9px 10px", fontSize: 12.5,
               fontFamily: "inherit", color: C.ink, background: C.paper,
             }}>
               <option value="newest">Newest first</option>
@@ -271,7 +271,7 @@ export function AdminDashboard({ session, setToast }) {
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
             <div style={{ flex: 1 }}><Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" /></div>
             <select value={userSort} onChange={e => setUserSort(e.target.value)} style={{
-              border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 10px", fontSize: 12.5,
+              border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "9px 10px", fontSize: 12.5,
               fontFamily: "inherit", color: C.ink, background: C.paper,
             }}>
               <option value="newest">Newest first</option>
@@ -437,7 +437,7 @@ export function AdminDashboard({ session, setToast }) {
               ].map(st => (
                 <button key={st.id} onClick={() => setSupportSubTab(st.id)} style={{
                   background: supportSubTab === st.id ? C.pine : C.paper, color: supportSubTab === st.id ? C.paper : C.ink,
-                  border: `1px solid ${supportSubTab === st.id ? C.pine : C.line}`, borderRadius: 8, padding: "6px 12px",
+                  border: `1px solid ${supportSubTab === st.id ? C.pine : C.line}`, borderRadius: RADIUS.sm, padding: "6px 12px",
                   fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                 }}>{st.label}</button>
               ))}

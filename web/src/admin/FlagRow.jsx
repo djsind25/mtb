@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C } from "../theme";
+import { C, RADIUS, SHADOW_SM } from "../theme";
 import { nowStr } from "../theme";
 import { AdminChatViewer } from "./AdminChatViewer";
 import { setFlagReviewed, setJobQuestionFlagReviewed, setJobUpdateFlagReviewed } from "./data";
@@ -42,7 +42,7 @@ export function FlagRow({ flag, expanded, onChanged, readOnly }) {
     <div style={{
       border: `1px solid ${reviewed ? C.line : (isRepeat ? C.red : C.amber) + "55"}`,
       background: reviewed ? C.paper : (isRepeat ? C.redLight : C.amberLight),
-      borderRadius: 10, padding: "10px 12px", opacity: reviewed ? 0.65 : 1,
+      borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "10px 12px", opacity: reviewed ? 0.65 : 1,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
         <span style={{ fontSize: 12.5, fontWeight: 700, color: reviewed ? C.gray : (isRepeat ? C.red : "#8A6604") }}>
@@ -52,7 +52,7 @@ export function FlagRow({ flag, expanded, onChanged, readOnly }) {
       </div>
       <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 4 }}>Job: {flag.jobTitle || "—"}</div>
       {expanded && (
-        <div style={{ fontSize: 13, color: C.ink, background: C.paper, borderRadius: 8, padding: "8px 10px", marginBottom: 8 }}>
+        <div style={{ fontSize: 13, color: C.ink, background: C.paper, borderRadius: RADIUS.sm, padding: "8px 10px", marginBottom: 8 }}>
           {kind === "question" ? (
             <>
               <div>Q: "{flag.question}"</div>

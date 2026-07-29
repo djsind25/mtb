@@ -1,10 +1,10 @@
-import { C, nowStr } from "../theme";
+import { C, nowStr, RADIUS, SHADOW_SM } from "../theme";
 import { Badge } from "../ui/Primitives";
 
 export function SupportChatRow({ chat, onOpen }) {
   return (
     <button onClick={() => onOpen(chat.id)} style={{
-      width: "100%", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: 12,
+      width: "100%", background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: 12,
       display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
     }}>
       <div style={{ minWidth: 0 }}>

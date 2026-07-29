@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, sans } from "../theme";
+import { C, sans, RADIUS, SHADOW_MD } from "../theme";
 import { Btn, Field, ErrorMsg } from "../ui/Primitives";
 import { updateUserProfile, loadZipHistory } from "./data";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
@@ -59,7 +59,7 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
       position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
-      <div style={{ background: C.paper, borderRadius: 16, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}` }}>
+      <div style={{ background: C.paper, borderRadius: RADIUS.lg, boxShadow: SHADOW_MD, padding: 24, width: "100%", maxWidth: 420, border: `1px solid ${C.line}` }}>
         <div style={{ fontFamily: sans, fontSize: 19, fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>Edit user</div>
         <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>{user.email} · {user.role}</div>
 
@@ -110,7 +110,7 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
 
             <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Membership tier</label>
             <select value={membershipTier} onChange={e => setMembershipTier(e.target.value)} style={{
-              width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8,
+              width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm,
               padding: "10px 13px", fontSize: 14, fontFamily: "inherit", color: C.ink, background: C.paper, marginBottom: 14,
             }}>
               {Object.keys(MEMBERSHIP_TIERS).map(t => <option key={t} value={t}>{tierName(t)}</option>)}

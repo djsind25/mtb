@@ -1,4 +1,4 @@
-import { C, sans, COMMISSION_RATE } from "../theme";
+import { C, sans, COMMISSION_RATE, RADIUS, SHADOW_SM } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 
 const MONTH_LABEL = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
@@ -69,7 +69,7 @@ function FullPaymentSummary({ summary }) {
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10 }}>
         {cards.map(c => (
-          <div key={c.label} style={{ background: c.bg, borderRadius: 10, padding: "10px 12px" }}>
+          <div key={c.label} style={{ background: c.bg, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "10px 12px" }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: C.gray, textTransform: "uppercase", letterSpacing: "0.03em", marginBottom: 4 }}>{c.label}</div>
             <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 17, fontWeight: 700, color: c.color }}>${c.value.toFixed(2)}</div>
           </div>

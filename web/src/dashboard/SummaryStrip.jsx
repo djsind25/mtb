@@ -1,11 +1,11 @@
-import { C, sans } from "../theme";
+import { C, sans, RADIUS, SHADOW_SM } from "../theme";
 
 export function SummaryStrip({ stats }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(120px, 1fr))`, gap: 10, marginBottom: 20 }}>
       {stats.map(s => {
         const cardStyle = {
-          background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px",
+          background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "12px 14px",
           textAlign: "left", fontFamily: "inherit",
         };
         const content = (

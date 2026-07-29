@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, nowStr } from "../theme";
+import { C, nowStr, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { approveProfileChangeRequest, denyProfileChangeRequest } from "./data";
 
@@ -39,7 +39,7 @@ export function ProfileChangeRequestRow({ request, onChanged, setToast, readOnly
     <div style={{
       border: `1px solid ${request.status === "pending" ? C.amber + "66" : C.line}`,
       background: request.status === "pending" ? C.amberLight : C.paper,
-      borderRadius: 10, padding: "10px 12px", display: "grid", gap: 6,
+      borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "10px 12px", display: "grid", gap: 6,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep }}>
