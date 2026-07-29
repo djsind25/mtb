@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, mono, nowStr } from "../theme";
+import { C, sans, nowStr } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "../jobs/CompletionPhotos";
 import { reviewCompletion } from "./data";
@@ -30,7 +30,7 @@ function Row({ chat, onChanged, setToast, readOnly }) {
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontFamily: mono, fontWeight: 700, color: C.pineDeep }}>${Number(chat.bid_amount).toFixed(2)}</div>
+          <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${Number(chat.bid_amount).toFixed(2)}</div>
           <div style={{ fontSize: 10.5, color: C.gray }}>hauler owed ${owed} (90%)</div>
         </div>
       </div>

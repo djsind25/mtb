@@ -1,4 +1,4 @@
-import { C, sans, mono } from "../theme";
+import { C, sans } from "../theme";
 
 export function Stat({ label, value, mono: isMono, accent, onClick }) {
   return (
@@ -12,7 +12,7 @@ export function Stat({ label, value, mono: isMono, accent, onClick }) {
       onMouseLeave={e => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.boxShadow = "none"; }}
     >
       <div style={{ fontSize: 10.5, color: C.gray, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontFamily: isMono ? mono : sans, fontSize: 19, fontWeight: 800, color: accent ? C.ember : C.pineDeep }}>{value}</div>
+      <div style={{ fontFamily: sans, fontVariantNumeric: isMono ? "tabular-nums" : undefined, fontSize: 19, fontWeight: 800, color: accent ? C.ember : C.pineDeep }}>{value}</div>
       {onClick && <div style={{ fontSize: 10.5, color: C.teal, fontWeight: 600, marginTop: 4 }}>View details →</div>}
     </div>
   );

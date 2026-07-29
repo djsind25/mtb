@@ -94,7 +94,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
             <div style={{ display: "flex", gap: 8 }}>
               {[{ id: "rolloff", label: "🗑️ Roll-off dumpster" }, { id: "trailer", label: "🚛 Trailer" }].map(o => (
                 <button key={o.id} onClick={() => setDumpsterType(o.id)} type="button" style={{
-                  flex: 1, border: `1.5px solid ${dumpsterType === o.id ? C.green : C.line}`, borderRadius: 10,
+                  flex: 1, border: `1.5px solid ${dumpsterType === o.id ? C.pine : C.line}`, borderRadius: 10,
                   background: dumpsterType === o.id ? C.tealLight : C.paper, padding: "12px 10px",
                   cursor: "pointer", fontSize: 13, fontWeight: 600, color: C.ink, fontFamily: sans,
                 }}>{o.label}</button>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, sans, mono } from "../theme";
+import { C, sans } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { userDisplayName } from "./UserRow";
 import { loadUserFlags, flagUser, resolveUserFlag, loadUserChats, loadUserCancellationCount } from "./data";
@@ -155,7 +155,7 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{c.jobTitle || "Untitled job"}</div>
                     <div style={{ fontSize: 11, color: C.gray }}>
-                      with {c.otherPartyName || "unknown"} · <span style={{ fontFamily: mono }}>{timeAgo(c.created_at)}</span>
+                      with {c.otherPartyName || "unknown"} · <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums" }}>{timeAgo(c.created_at)}</span>
                       {c.superseded_at && " · superseded"}
                     </div>
                   </div>

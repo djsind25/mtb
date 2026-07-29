@@ -319,7 +319,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
             <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
               {BID_FILTERS.map(f => (
                 <button key={f.id} onClick={() => setBidFilter(f.id)} style={{
-                  border: `1.5px solid ${bidFilter === f.id ? C.green : C.line}`, borderRadius: 20,
+                  border: `1.5px solid ${bidFilter === f.id ? C.pine : C.line}`, borderRadius: 20,
                   background: bidFilter === f.id ? C.tealLight : C.paper, padding: "5px 12px",
                   cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: C.ink, fontFamily: "inherit",
                 }}>

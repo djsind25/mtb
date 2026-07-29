@@ -1,4 +1,4 @@
-import { C, mono } from "../theme";
+import { C, sans } from "../theme";
 
 export function SummaryStrip({ stats }) {
   return (
@@ -10,7 +10,7 @@ export function SummaryStrip({ stats }) {
         };
         const content = (
           <>
-            <div style={{ fontFamily: mono, fontSize: 20, fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>{s.value}</div>
+            <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 20, fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>{s.value}</div>
             <div style={{ fontSize: 11, color: C.gray, lineHeight: 1.3 }}>{s.label}</div>
           </>
         );

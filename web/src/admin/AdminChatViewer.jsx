@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, sans, mono } from "../theme";
+import { C, sans } from "../theme";
 import { Badge, CenteredNote } from "../ui/Primitives";
 import { loadChat, loadMessages } from "../chat/data";
 import { ChatBubble } from "../chat/ChatBubble";
@@ -33,7 +33,7 @@ export function AdminChatViewer({ chatId, onClose }) {
             <div style={{ fontFamily: sans, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>{chat?.jobTitle || "Conversation"}</div>
             {chat && (
               <div style={{ fontSize: 12, color: C.gray, marginTop: 2 }}>
-                {chat.customerName} ↔ {chat.businessName} · <span style={{ fontFamily: mono }}>${chat.bid_amount}</span>
+                {chat.customerName} ↔ {chat.businessName} · <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums" }}>${chat.bid_amount}</span>
               </div>
             )}
           </div>
