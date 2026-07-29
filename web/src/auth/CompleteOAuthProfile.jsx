@@ -17,6 +17,7 @@ export function CompleteOAuthProfile({ supabase, profile, roleHint, onDone, onBa
   const [phone, setPhone] = useState("");
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToMonitoring, setAgreedToMonitoring] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -37,6 +38,7 @@ export function CompleteOAuthProfile({ supabase, profile, roleHint, onDone, onBa
     if (role === "hauler" && !businessName.trim()) { setError("Business name is required."); return; }
     if (role === "hauler" && !phone.trim()) { setError("Phone is required."); return; }
     if (!agreedToTerms) { setError("You must agree to the Terms of Service to continue."); return; }
+    if (!agreedToMonitoring) { setError("You must acknowledge chat monitoring to continue."); return; }
 
     setLoading(true);
     const { data, error: rpcError } = await supabase.rpc("complete_oauth_profile", {
@@ -69,7 +71,7 @@ export function CompleteOAuthProfile({ supabase, profile, roleHint, onDone, onBa
         placeholder={role === "hauler" ? "(555) 867-5309" : "(optional)"} required={role === "hauler"}
       />
       <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
-      <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} />
+      <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
       {error && <ErrorMsg>{error}</ErrorMsg>}
       <Btn onClick={handleSubmit} disabled={loading} size="lg">{loading ? "Saving…" : "Finish setting up"}</Btn>
     </AuthShell>
