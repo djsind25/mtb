@@ -70,6 +70,13 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
         <Field label="ZIP code" value={zip} onChange={setZip} />
         <Field label="Phone" value={phone} onChange={setPhone} placeholder="(optional)" />
 
+        {user.role === "customer" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 14 }}>
+            <input type="checkbox" checked={!!user.email_verified_at} disabled />
+            Email verified{user.email_verified_at && ` (${new Date(user.email_verified_at).toLocaleDateString()})`}
+          </label>
+        )}
+
         {user.role === "hauler" && (
           <div style={{ marginBottom: 10 }}>
             <button onClick={toggleZipHistory} style={{

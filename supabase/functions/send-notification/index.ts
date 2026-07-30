@@ -43,6 +43,11 @@ const EVENT_SUBJECTS: Record<string, string> = {
   scheduleConfirmed: "Service date confirmed",
   coordinationNudge: "Lock in a service date",
   paymentAuthorized: "Your payment method was authorized",
+  supportRequested: "Support requested",
+  adminJoined: "Support joined your conversation",
+  supportResolved: "Support request resolved",
+  chatLocked: "Your conversation was locked",
+  chatUnlocked: "Your conversation was unlocked",
 };
 
 export default {

@@ -539,6 +539,106 @@ export async function loadStalledJobs() {
   }));
 }
 
+// The "Job chat support" queue: every chat with an open or active support request (plus a
+// caller-controlled toggle to include resolved ones), joined against job/customer/hauler/
+// assigned-admin names — same shape as loadCancellationRequests/loadStalledJobs.
+export async function loadChatSupportQueue(includeResolved) {
+  const statuses = includeResolved ? ["requested", "active", "resolved"] : ["requested", "active"];
+  const { data: chats, error } = await supabase
+    .from("chats")
+    .select("id, job_id, customer_id, hauler_id, support_status, admin_locked_at, assigned_admin_id, created_at")
+    .in("support_status", statuses)
+    .is("superseded_at", null)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  if (chats.length === 0) return [];
+
+  const jobIds = [...new Set(chats.map(c => c.job_id))];
+  const chatIds = chats.map(c => c.id);
+  const peopleIds = [...new Set([...chats.flatMap(c => [c.customer_id, c.hauler_id]), ...chats.map(c => c.assigned_admin_id).filter(Boolean)])];
+  const [{ data: jobs, error: jobsError }, { data: people, error: peopleError }, { data: requests, error: requestsError }] = await Promise.all([
+    supabase.from("jobs").select("id, title, zip").in("id", jobIds),
+    supabase.from("public_profiles").select("id, name, business_name").in("id", peopleIds),
+    supabase.from("support_requests").select("*").in("chat_id", chatIds).order("created_at", { ascending: false }),
+  ]);
+  if (jobsError) throw jobsError;
+  if (peopleError) throw peopleError;
+  if (requestsError) throw requestsError;
+  const jobById = Object.fromEntries((jobs || []).map(j => [j.id, j]));
+  const nameById = Object.fromEntries((people || []).map(p => [p.id, p.business_name || p.name]));
+  // Newest-first, so the first row seen per chat_id is that chat's most recent request.
+  const latestRequestByChatId = {};
+  for (const r of requests || []) {
+    if (!latestRequestByChatId[r.chat_id]) latestRequestByChatId[r.chat_id] = r;
+  }
+
+  return chats.map(c => ({
+    ...c,
+    jobTitle: jobById[c.job_id]?.title,
+    zip: jobById[c.job_id]?.zip,
+    customerName: nameById[c.customer_id],
+    haulerName: nameById[c.hauler_id],
+    assignedAdminName: c.assigned_admin_id ? nameById[c.assigned_admin_id] : null,
+    latestRequest: latestRequestByChatId[c.id] || null,
+  }));
+}
+
+export async function loadChatAdminSessions(chatId) {
+  const { data, error } = await supabase.from("chat_admin_sessions").select("*").eq("chat_id", chatId).order("joined_at", { ascending: false });
+  if (error) throw error;
+  if (data.length === 0) return [];
+  const adminIds = [...new Set(data.map(s => s.admin_id))];
+  const { data: people } = await supabase.from("public_profiles").select("id, name").in("id", adminIds);
+  const nameById = Object.fromEntries((people || []).map(p => [p.id, p.name]));
+  return data.map(s => ({ ...s, adminName: nameById[s.admin_id] }));
+}
+
+export async function loadSupportRequestsForChat(chatId) {
+  const { data, error } = await supabase.from("support_requests").select("*").eq("chat_id", chatId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function loadChatAdminAuditLog(chatId) {
+  const { data, error } = await supabase.from("chat_admin_audit_log").select("*").eq("chat_id", chatId).order("created_at", { ascending: false });
+  if (error) throw error;
+  if (data.length === 0) return [];
+  const adminIds = [...new Set(data.map(a => a.admin_id))];
+  const { data: people } = await supabase.from("public_profiles").select("id, name").in("id", adminIds);
+  const nameById = Object.fromEntries((people || []).map(p => [p.id, p.name]));
+  return data.map(a => ({ ...a, adminName: nameById[a.admin_id] }));
+}
+
+export async function joinChat(chatId) {
+  const { error } = await supabase.rpc("admin_join_chat", { p_chat_id: chatId });
+  if (error) throw error;
+}
+
+export async function leaveChat(chatId) {
+  const { error } = await supabase.rpc("admin_leave_chat", { p_chat_id: chatId });
+  if (error) throw error;
+}
+
+export async function lockChat(chatId, reason) {
+  const { error } = await supabase.rpc("admin_lock_chat", { p_chat_id: chatId, p_reason: reason || null });
+  if (error) throw error;
+}
+
+export async function unlockChat(chatId) {
+  const { error } = await supabase.rpc("admin_unlock_chat", { p_chat_id: chatId });
+  if (error) throw error;
+}
+
+export async function resolveSupportRequest(requestId, note) {
+  const { error } = await supabase.rpc("admin_resolve_support", { p_request_id: requestId, p_resolution_note: note || null });
+  if (error) throw error;
+}
+
+export async function reopenSupportRequest(chatId, note) {
+  const { error } = await supabase.rpc("admin_reopen_support", { p_chat_id: chatId, p_note: note || null });
+  if (error) throw error;
+}
+
 export async function processCancellationRefund({ requestId, jobId, refundAmount }) {
   const { data, error } = await supabase.functions.invoke("process-cancellation-refund", { body: { requestId, jobId, refundAmount } });
   if (error) {

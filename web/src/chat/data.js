@@ -75,8 +75,17 @@ export async function loadMessages(chatId) {
   return data;
 }
 
-export async function sendMessage({ chatId, senderRole, senderId, text }) {
-  const { error } = await supabase.from("messages").insert({ chat_id: chatId, sender_role: senderRole, sender_id: senderId, text });
+export async function sendMessage({ chatId, senderRole, senderId, text, visibility = "participants" }) {
+  const { error } = await supabase.from("messages").insert({ chat_id: chatId, sender_role: senderRole, sender_id: senderId, text, visibility });
+  if (error) throw error;
+}
+
+// Either the customer or hauler on a job's active chat can ask for support — request_chat_support
+// derives the caller's role and the job's current (superseded_at is null) chat server-side, dedups
+// against any already-pending request, and notifies every admin. See
+// supabase/migrations/20260814000000_admin_chat_participation.sql.
+export async function requestChatSupport(jobId, reason) {
+  const { error } = await supabase.rpc("request_chat_support", { p_job_id: jobId, p_reason: reason || null });
   if (error) throw error;
 }
 
