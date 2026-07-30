@@ -77,6 +77,24 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
           </label>
         )}
 
+        {user.role !== "admin" && (user.status && user.status !== "active") && (
+          <div style={{ fontSize: 12, color: C.gray, marginBottom: 14, background: C.sand, border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "8px 10px" }}>
+            <div style={{ fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>Account status: {user.status}</div>
+            {user.status === "suspended" && user.suspended_at && (
+              <div>Suspended {new Date(user.suspended_at).toLocaleDateString()}{user.suspension_reason && ` — "${user.suspension_reason}"`}</div>
+            )}
+            {user.status === "deletion_requested" && (
+              <div>
+                Requested {user.deletion_requested_at ? new Date(user.deletion_requested_at).toLocaleDateString() : "—"},
+                {" "}scheduled {user.deletion_scheduled_for ? new Date(user.deletion_scheduled_for).toLocaleDateString() : "—"}
+                {user.deletion_reason && ` — "${user.deletion_reason}"`}
+              </div>
+            )}
+            {user.status === "anonymized" && user.anonymized_at && <div>Anonymized {new Date(user.anonymized_at).toLocaleDateString()}</div>}
+            {user.status === "deleted" && user.deleted_at && <div>Marked deleted {new Date(user.deleted_at).toLocaleDateString()}</div>}
+          </div>
+        )}
+
         {user.role === "hauler" && (
           <div style={{ marginBottom: 10 }}>
             <button onClick={toggleZipHistory} style={{

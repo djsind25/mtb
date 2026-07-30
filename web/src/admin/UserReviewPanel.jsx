@@ -2,8 +2,13 @@ import { useEffect, useState } from "react";
 import { C, sans, RADIUS, SHADOW_MD } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { userDisplayName } from "./UserRow";
-import { loadUserFlags, flagUser, resolveUserFlag, loadUserChats, loadUserCancellationCount } from "./data";
+import {
+  loadUserFlags, flagUser, resolveUserFlag, loadUserChats, loadUserCancellationCount,
+  loadAccountDeletionBlockers, adminStartDeletion, adminCancelPendingDeletion, adminAnonymizeNow,
+} from "./data";
 import { AdminChatViewer } from "./AdminChatViewer";
+import { supabase } from "../lib/supabaseClient";
+import { StepUpChallenge } from "../auth/StepUpChallenge";
 
 const REASON_LABELS = {
   circumvention: "Circumvention attempt",
@@ -30,20 +35,29 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
   const [resolvingId, setResolvingId] = useState(null);
   const [openChatId, setOpenChatId] = useState(null);
 
+  const [blockers, setBlockers] = useState(null);
+  const [lifecycleReason, setLifecycleReason] = useState("");
+  const [overrideBlockers, setOverrideBlockers] = useState(false);
+  const [forceAnonymize, setForceAnonymize] = useState(false);
+  const [lifecycleStepUp, setLifecycleStepUp] = useState(null); // null | "start" | "cancel" | "anonymize"
+  const [lifecycleWorking, setLifecycleWorking] = useState(false);
+
   const displayName = userDisplayName(user);
 
   async function reload() {
-    const [f, c, cc] = await Promise.all([
+    const [f, c, cc, b] = await Promise.all([
       loadUserFlags(user.id), loadUserChats(user.id), loadUserCancellationCount(user.id),
+      user.role === "admin" ? Promise.resolve([]) : loadAccountDeletionBlockers(user.id),
     ]);
     setFlags(f);
     setChats(c);
     setCancellationCount(cc);
+    setBlockers(b);
   }
 
   useEffect(() => {
     let cancelled = false;
-    reload().catch(() => { if (!cancelled) { setFlags([]); setChats([]); } });
+    reload().catch(() => { if (!cancelled) { setFlags([]); setChats([]); setBlockers([]); } });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
@@ -74,6 +88,52 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
     setResolvingId(null);
   }
 
+  async function doStartDeletion() {
+    setLifecycleWorking(true);
+    try {
+      await adminStartDeletion(user.id, lifecycleReason.trim(), overrideBlockers);
+      setToast("Deletion started for this account.");
+      setLifecycleReason("");
+      setOverrideBlockers(false);
+      await reload();
+      onFlagsChanged?.();
+    } catch (e) {
+      setToast(e.message || "Could not start deletion.");
+    }
+    setLifecycleWorking(false);
+  }
+
+  async function doCancelLifecycleDeletion() {
+    setLifecycleWorking(true);
+    try {
+      await adminCancelPendingDeletion(user.id, lifecycleReason.trim() || null);
+      setToast("Pending deletion cancelled.");
+      setLifecycleReason("");
+      await reload();
+      onFlagsChanged?.();
+    } catch (e) {
+      setToast(e.message || "Could not cancel the pending deletion.");
+    }
+    setLifecycleWorking(false);
+  }
+
+  async function doAnonymizeNow() {
+    setLifecycleWorking(true);
+    try {
+      await adminAnonymizeNow(user.id, lifecycleReason.trim(), forceAnonymize);
+      setToast("Account anonymized.");
+      setLifecycleReason("");
+      setForceAnonymize(false);
+      await reload();
+      onFlagsChanged?.();
+    } catch (e) {
+      setToast(e.message || "Could not anonymize this account.");
+    }
+    setLifecycleWorking(false);
+  }
+
+  const hasBlockers = blockers && blockers.length > 0;
+
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
@@ -91,6 +151,55 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+          {user.role !== "admin" && (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Account lifecycle</div>
+              <div style={{ background: C.sand, border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "9px 12px" }}>
+                <div style={{ fontSize: 12.5, color: C.ink, marginBottom: 8 }}>
+                  Status: <strong>{user.status || "active"}</strong>
+                  {user.status === "deletion_requested" && user.deletion_scheduled_for && (
+                    <> · scheduled {new Date(user.deletion_scheduled_for).toLocaleDateString()}</>
+                  )}
+                </div>
+                {blockers === null && <CenteredNote>Checking blockers…</CenteredNote>}
+                {hasBlockers && (
+                  <ul style={{ margin: "0 0 8px", paddingLeft: 18, fontSize: 12, color: C.red }}>
+                    {blockers.map((b, i) => <li key={i}>{b.message}</li>)}
+                  </ul>
+                )}
+                {!readOnly && user.status !== "anonymized" && user.status !== "deleted" && (
+                  <>
+                    <input value={lifecycleReason} onChange={e => setLifecycleReason(e.target.value)} placeholder="Reason (required for destructive actions)"
+                      style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "6px 8px", fontSize: 12.5, fontFamily: "inherit", marginBottom: 6 }} />
+                    {user.status === "deletion_requested" ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <Btn size="sm" full={false} variant="ghost" disabled={lifecycleWorking} onClick={() => setLifecycleStepUp("cancel")}>Cancel pending deletion</Btn>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: C.gray }}>
+                          <input type="checkbox" checked={forceAnonymize} onChange={e => setForceAnonymize(e.target.checked)} /> force
+                        </label>
+                        <Btn size="sm" full={false} variant="danger" disabled={lifecycleWorking || (hasBlockers && !forceAnonymize)} onClick={() => setLifecycleStepUp("anonymize")}>
+                          Anonymize now
+                        </Btn>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        {hasBlockers && (
+                          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, color: C.gray }}>
+                            <input type="checkbox" checked={overrideBlockers} onChange={e => setOverrideBlockers(e.target.checked)} /> override
+                          </label>
+                        )}
+                        <Btn size="sm" full={false} variant="danger" disabled={lifecycleWorking || !lifecycleReason.trim() || (hasBlockers && !overrideBlockers)}
+                          onClick={() => setLifecycleStepUp("start")}>
+                          Start deletion
+                        </Btn>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           <div style={{ fontSize: 12.5, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Flags</div>
           {flags === null && <CenteredNote>Loading…</CenteredNote>}
           {flags?.length === 0 && <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 14 }}>No flags on this user.</div>}
@@ -168,6 +277,20 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
       </div>
 
       {openChatId && <AdminChatViewer chatId={openChatId} onClose={() => setOpenChatId(null)} />}
+
+      {lifecycleStepUp && (
+        <StepUpChallenge
+          supabase={supabase}
+          onVerified={() => {
+            const action = lifecycleStepUp;
+            setLifecycleStepUp(null);
+            if (action === "start") doStartDeletion();
+            else if (action === "cancel") doCancelLifecycleDeletion();
+            else if (action === "anonymize") doAnonymizeNow();
+          }}
+          onCancel={() => setLifecycleStepUp(null)}
+        />
+      )}
     </div>
   );
 }

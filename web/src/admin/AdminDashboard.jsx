@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, sans, RADIUS } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { loadSupportChats } from "../support/data";
+import { processDueAccountDeletions } from "../jobs/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { Stat } from "./Stat";
 import { Panel } from "./Panel";
@@ -22,6 +23,7 @@ import { CompletionReview } from "./CompletionReview";
 import { CancellationRequestsTab } from "./CancellationRequestsTab";
 import { StalledJobsTab } from "./StalledJobsTab";
 import { JobChatSupportQueueTab } from "./JobChatSupportQueueTab";
+import { AccountDeletionsTab } from "./AccountDeletionsTab";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -37,6 +39,8 @@ export function AdminDashboard({ session, setToast }) {
   const [cancellationRequests, setCancellationRequests] = useState([]);
   const [stalledJobs, setStalledJobs] = useState([]);
   const [chatSupportQueue, setChatSupportQueue] = useState([]);
+  const [accountDeletionQueue, setAccountDeletionQueue] = useState([]);
+  const [accountLifecycleAuditLog, setAccountLifecycleAuditLog] = useState([]);
   const [profileChangeRequests, setProfileChangeRequests] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
@@ -53,16 +57,18 @@ export function AdminDashboard({ session, setToast }) {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr, coe, sj, csq] = await Promise.all([
+      await processDueAccountDeletions();
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr, coe, sj, csq, adq, alog] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
         loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
-        loadStalledJobs(), loadChatSupportQueue(true),
+        loadStalledJobs(), loadChatSupportQueue(true), loadAccountDeletionQueue(), loadAccountLifecycleAuditLog(),
       ]);
       // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
       setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe); setStalledJobs(sj); setChatSupportQueue(csq);
+      setAccountDeletionQueue(adq); setAccountLifecycleAuditLog(alog);
     } catch (e) {
       console.error("AdminDashboard: loadAll failed:", e);
       setToast?.(e.message || "Could not load the admin dashboard. Try refreshing.");
@@ -199,6 +205,7 @@ export function AdminDashboard({ session, setToast }) {
         <Stat label="Cancellation requests" value={pendingCancellationCount} accent={pendingCancellationCount > 0} onClick={() => setTab("cancellations")} />
         <Stat label="Stalled jobs" value={stalledJobs.length} accent={stalledJobs.length > 0} onClick={() => setTab("stalled")} />
         <Stat label="Job chat support open" value={openChatSupportCount} accent={openChatSupportCount > 0} onClick={() => setTab("chatSupport")} />
+        <Stat label="Account deletions pending" value={accountDeletionQueue.length} accent={accountDeletionQueue.length > 0} onClick={() => setTab("accountDeletions")} />
         <Stat label="Profile change requests" value={pendingProfileChangeCount} accent={pendingProfileChangeCount > 0} onClick={() => setTab("profileChanges")} />
         <Stat label="Haulers by tier" value={Object.keys(MEMBERSHIP_TIERS).map(t => `${tierName(t)} ${tierCounts[t]}`).join(" · ")} onClick={() => setTab("haulers")} />
       </div>
@@ -219,6 +226,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "cancellations", label: `Cancellation requests (${pendingCancellationCount}/${cancellationRequests.length})` },
           { id: "stalled", label: `Stalled jobs (${stalledJobs.length})` },
           { id: "chatSupport", label: `Job chat support (${openChatSupportCount}/${chatSupportQueue.length})` },
+          { id: "accountDeletions", label: `Account deletions (${accountDeletionQueue.length})` },
           { id: "profileChanges", label: `Profile change requests (${pendingProfileChangeCount}/${profileChangeRequests.length})` },
           { id: "support", label: `Open chat tickets (${openSupportChats.length})` },
         ].map(t => (
@@ -407,6 +415,17 @@ export function AdminDashboard({ session, setToast }) {
             support system).
           </p>
           <JobChatSupportQueueTab queue={chatSupportQueue} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} />
+        </Panel>
+      )}
+
+      {tab === "accountDeletions" && (
+        <Panel title="Account deletions">
+          <p style={{ fontSize: 12, color: C.gray, marginBottom: 12 }}>
+            Accounts in their 30-day self-service or admin-initiated deletion window. Anonymization
+            runs on-access (whenever any dashboard loads) plus on demand here — there's no
+            background worker in this pass.
+          </p>
+          <AccountDeletionsTab queue={accountDeletionQueue} auditLog={accountLifecycleAuditLog} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
         </Panel>
       )}
 

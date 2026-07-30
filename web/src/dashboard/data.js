@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { loadOpenJobsForHauler } from "../jobs/data";
+import { parseRpcError } from "../lib/rpcError";
 
 export async function loadCustomerStats(customerId) {
   const [{ data: jobs, error: jobsError }, { data: payments, error: paymentsError }] = await Promise.all([
@@ -177,6 +178,36 @@ export async function deactivateOwnAccount(password) {
   const { error } = await supabase.rpc("deactivate_own_account", { p_password: password || null });
   if (error) throw error;
   await supabase.auth.signOut();
+}
+
+// Structured blocker list (active job, accepted-but-incomplete bid, pending payment/payout, open
+// dispute) — shown in the Account tab's Danger zone before the delete flow is ever offered.
+export async function loadAccountDeletionBlockers() {
+  const { data, error } = await supabase.rpc("check_account_deletion_blockers", { p_target_user_id: null });
+  if (error) throw error;
+  return data || [];
+}
+
+// Same reauth chain as deactivateOwnAccount (verified TOTP -> step-up; else a password on file ->
+// re-check; pure-OAuth-no-password -> nothing left to check) — see request_own_account_deletion()
+// in 20260815000000_account_deletion_and_suspension.sql. Signs the caller out immediately after,
+// same as deactivateOwnAccount, since a deletion_requested account only re-enters via the
+// deletion_pending recovery stage on the next login.
+export async function requestOwnAccountDeletion(reason, password) {
+  const { error } = await supabase.rpc("request_own_account_deletion", {
+    p_reason: reason || null, p_password: password || null, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw Object.assign(new Error(parseRpcError(error).message), { code: parseRpcError(error).code });
+  await supabase.auth.signOut();
+}
+
+// Called from the deletion_pending recovery stage (App.jsx) — deliberately does NOT sign out, so
+// the caller can continue straight into the app once cancelled.
+export async function cancelOwnPendingDeletion(password) {
+  const { error } = await supabase.rpc("cancel_own_pending_deletion", {
+    p_password: password || null, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw Object.assign(new Error(parseRpcError(error).message), { code: parseRpcError(error).code });
 }
 
 export async function loadHaulerDocuments(haulerId) {

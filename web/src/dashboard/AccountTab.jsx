@@ -6,6 +6,7 @@ import {
   loadCustomerPayments, loadHaulerEarnings, updateOwnProfile, updateNotificationPrefs,
   changeEmail, changePassword, deactivateOwnAccount, resendVerificationEmail, loadHaulerDocuments,
   requestProfileChange, loadMyProfileChangeRequests,
+  loadAccountDeletionBlockers, requestOwnAccountDeletion, cancelOwnPendingDeletion,
 } from "./data";
 import { HaulerDocuments } from "./HaulerDocuments";
 import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
@@ -93,6 +94,13 @@ export function AccountTab({ session, setToast }) {
 
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+
+  const [deleteBlockers, setDeleteBlockers] = useState(null); // null = not checked yet this visit
+  const [checkingBlockers, setCheckingBlockers] = useState(false);
+  const [deletionReasonText, setDeletionReasonText] = useState("");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [cancellingDeletion, setCancellingDeletion] = useState(false);
 
   // Holds the function to run once StepUpChallenge confirms re-verification — one shared gate for
   // password change, email change, and account deactivation, rather than a separate flag per action.
@@ -250,6 +258,50 @@ export function AccountTab({ session, setToast }) {
       setToast(e.message || "Could not deactivate account.");
       setDeactivating(false);
     }
+  }
+
+  async function checkDeletionBlockers() {
+    setCheckingBlockers(true);
+    try {
+      setDeleteBlockers(await loadAccountDeletionBlockers());
+    } catch (e) {
+      setToast(e.message || "Could not check your account status.");
+    }
+    setCheckingBlockers(false);
+  }
+
+  function confirmDelete() {
+    setStepUpAction(() => (password) => doDelete(password));
+  }
+
+  async function doDelete(password) {
+    setDeleting(true);
+    try {
+      setToast("Deletion requested. Signing you out…");
+      await requestOwnAccountDeletion(deletionReasonText.trim() || null, password);
+      // supabase.auth.signOut() inside requestOwnAccountDeletion fires the app-level SIGNED_OUT
+      // listener (App.jsx), same as doDeactivate above.
+    } catch (e) {
+      setToast(e.message || "Could not request account deletion.");
+      setDeleting(false);
+    }
+  }
+
+  function confirmCancelDeletion() {
+    setStepUpAction(() => (password) => doCancelDeletion(password));
+  }
+
+  async function doCancelDeletion(password) {
+    setCancellingDeletion(true);
+    try {
+      await cancelOwnPendingDeletion(password);
+      const { data: p } = await supabase.from("profiles").select("*").eq("id", session.id).single();
+      setProfile(p);
+      setToast("Deletion request cancelled.");
+    } catch (e) {
+      setToast(e.message || "Could not cancel the deletion request.");
+    }
+    setCancellingDeletion(false);
   }
 
   async function resendVerification() {
@@ -471,6 +523,53 @@ export function AccountTab({ session, setToast }) {
             <Btn variant="ghost" full={false} onClick={() => setConfirmingDeactivate(false)}>Cancel</Btn>
             <Btn variant="danger" full={false} onClick={confirmDeactivate} disabled={deactivating}>{deactivating ? "Deactivating…" : "Yes, deactivate"}</Btn>
           </div>
+        )}
+
+        <div style={{ height: 1, background: C.red + "33", margin: "16px 0" }} />
+
+        {profile.status === "deletion_requested" ? (
+          <>
+            <p style={{ fontSize: 12.5, color: C.ink, marginBottom: 8 }}>
+              Your account is scheduled to be permanently deleted on{" "}
+              <strong>{profile.deletion_scheduled_for ? new Date(profile.deletion_scheduled_for).toLocaleDateString() : "—"}</strong>.
+              {profile.deletion_reason && <> Reason given: "{profile.deletion_reason}"</>}
+            </p>
+            <Btn variant="danger" full={false} onClick={confirmCancelDeletion} disabled={cancellingDeletion}>
+              {cancellingDeletion ? "Cancelling…" : "Cancel deletion, keep my account"}
+            </Btn>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 10 }}>
+              Deleting is permanent — your job/payment/review history is preserved for records, but
+              your account can no longer be used to log in, post, or bid.
+            </p>
+            {deleteBlockers === null ? (
+              <Btn variant="danger" full={false} onClick={checkDeletionBlockers} disabled={checkingBlockers}>
+                {checkingBlockers ? "Checking…" : "Delete my account"}
+              </Btn>
+            ) : deleteBlockers.length > 0 ? (
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.red, marginBottom: 6 }}>
+                  This account can't be deleted yet:
+                </div>
+                <ul style={{ margin: "0 0 10px", paddingLeft: 18, fontSize: 12, color: C.ink }}>
+                  {deleteBlockers.map((b, i) => <li key={i} style={{ marginBottom: 4 }}>{b.message}</li>)}
+                </ul>
+                <Btn variant="ghost" full={false} onClick={() => setDeleteBlockers(null)}>Check again later</Btn>
+              </div>
+            ) : !confirmingDelete ? (
+              <div>
+                <Field label="Why are you leaving? (optional)" value={deletionReasonText} onChange={setDeletionReasonText} placeholder="Optional reason" />
+                <Btn variant="danger" full={false} onClick={() => setConfirmingDelete(true)}>Delete my account</Btn>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="ghost" full={false} onClick={() => setConfirmingDelete(false)}>Cancel</Btn>
+                <Btn variant="danger" full={false} onClick={confirmDelete} disabled={deleting}>{deleting ? "Deleting…" : "Yes, delete my account"}</Btn>
+              </div>
+            )}
+          </>
         )}
       </section>
 
