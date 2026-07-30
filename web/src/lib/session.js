@@ -19,5 +19,13 @@ export function mapProfileToSession(profile) {
     active: profile.active,
     adminReadOnly: !!profile.admin_read_only,
     superAdmin: !!profile.super_admin,
+    status: profile.status || "active",
+    suspendedAt: profile.suspended_at,
+    suspensionReason: profile.suspension_reason,
+    deletionRequestedAt: profile.deletion_requested_at,
+    deletionScheduledFor: profile.deletion_scheduled_for,
+    deletionReason: profile.deletion_reason,
+    biddingRestricted: !!profile.bidding_restricted,
+    postingRestricted: !!profile.posting_restricted,
   };
 }

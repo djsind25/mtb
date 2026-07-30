@@ -76,6 +76,19 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       setError("This account has been deactivated. Contact support if you believe this is a mistake.");
       return;
     }
+    if (profile.status === "suspended") {
+      await supabase.auth.signOut();
+      setError("This account has been suspended. Contact support if you believe this is a mistake.");
+      return;
+    }
+    if (profile.status === "anonymized" || profile.status === "deleted") {
+      await supabase.auth.signOut();
+      setError("This account is no longer active.");
+      return;
+    }
+    // deletion_requested is deliberately NOT blocked here — it falls through to onAuthed so
+    // App.jsx's finishLogin can route it to the deletion_pending recovery stage instead of the
+    // dashboard.
     onAuthed(mapProfileToSession(profile));
   }
 

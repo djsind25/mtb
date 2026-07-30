@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { C, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
-import { updateUserProfile, setUserActive, sendPasswordReset, deleteUser } from "./data";
+import {
+  updateUserProfile, setUserActive, sendPasswordReset, deleteUser,
+  adminSuspendUser, adminRestoreUser, adminSetBiddingRestricted, adminSetPostingRestricted,
+} from "./data";
 import { tierName } from "../membership";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
@@ -17,9 +20,16 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const [confirmingAdminRole, setConfirmingAdminRole] = useState(false);
   const [working, setWorking] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [stepUpAction, setStepUpAction] = useState(null); // null | "deactivate" | "delete"
+  const [stepUpAction, setStepUpAction] = useState(null); // null | "deactivate" | "delete" | "suspend" | "restrict"
   const [sendingReset, setSendingReset] = useState(false);
   const [showReview, setShowReview] = useState(false);
+
+  const [confirmingSuspend, setConfirmingSuspend] = useState(false);
+  const [suspendReason, setSuspendReason] = useState("");
+  const [suspending, setSuspending] = useState(false);
+  const [confirmingRestrict, setConfirmingRestrict] = useState(false);
+  const [restrictReason, setRestrictReason] = useState("");
+  const [togglingRestrict, setTogglingRestrict] = useState(false);
 
   async function handleSendPasswordReset() {
     setSendingReset(true);
@@ -58,6 +68,45 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
     setConfirmingDelete(false);
   }
 
+  async function doSuspendOrRestore() {
+    setSuspending(true);
+    try {
+      if (u.status === "suspended") {
+        await adminRestoreUser(u.id);
+        setToast(`${displayName} restored to active.`);
+      } else {
+        await adminSuspendUser(u.id, suspendReason.trim());
+        setToast(`${displayName} suspended.`);
+      }
+      setSuspendReason("");
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not update suspension status.");
+    }
+    setSuspending(false);
+    setConfirmingSuspend(false);
+  }
+
+  const isRestricted = u.role === "hauler" ? u.bidding_restricted : u.posting_restricted;
+
+  async function doToggleRestrict() {
+    setTogglingRestrict(true);
+    try {
+      const next = !isRestricted;
+      if (u.role === "hauler") await adminSetBiddingRestricted(u.id, next, next ? restrictReason.trim() : null);
+      else await adminSetPostingRestricted(u.id, next, next ? restrictReason.trim() : null);
+      setToast(next
+        ? `${displayName} is now blocked from ${u.role === "hauler" ? "bidding" : "posting"}.`
+        : `${displayName} can ${u.role === "hauler" ? "bid" : "post"} again.`);
+      setRestrictReason("");
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not update this restriction.");
+    }
+    setTogglingRestrict(false);
+    setConfirmingRestrict(false);
+  }
+
   async function toggleAdminReadOnly() {
     setWorking(true);
     try {
@@ -74,7 +123,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const displayName = userDisplayName(u);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, background: u.active ? C.sand : C.redLight }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, background: u.active ? C.sand : C.redLight }}>
       <Avatar emoji={u.role === "customer" ? "👤" : u.role === "hauler" ? "🚛" : "🛡️"} size={32} bg={u.role === "customer" ? C.sandWarm : C.tealLight} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>
@@ -84,6 +133,16 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
         <div style={{ fontSize: 11.5, color: C.gray }}>{u.email} · ZIP {u.zip || "—"} · joined {new Date(u.created_at).toLocaleDateString()}</div>
       </div>
       {!u.active && <Badge color={C.red} bg={C.redLight}>deactivated</Badge>}
+      {u.status === "suspended" && <Badge color={C.amber} bg={C.amberLight}>suspended</Badge>}
+      {u.status === "deletion_requested" && (
+        <Badge color={C.red} bg={C.redLight}>
+          deletion pending{u.deletion_scheduled_for ? ` (${Math.max(0, Math.ceil((new Date(u.deletion_scheduled_for) - new Date()) / 86400000))}d)` : ""}
+        </Badge>
+      )}
+      {(u.status === "anonymized" || u.status === "deleted") && <Badge color={C.gray} bg={C.grayLight}>{u.status}</Badge>}
+      {isRestricted && (
+        <Badge color={C.amber} bg={C.amberLight}>{u.role === "hauler" ? "bidding blocked" : "posting blocked"}</Badge>
+      )}
       {u.flagCounts?.active > 0 && (
         <Badge color={C.red} bg={C.redLight}>🚩 {u.flagCounts.active} flag{u.flagCounts.active === 1 ? "" : "s"}</Badge>
       )}
@@ -149,6 +208,44 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
           <Btn size="sm" full={false} variant="danger" onClick={() => setConfirmingDelete(true)}>Delete</Btn>
         )
       )}
+      {!readOnly && u.role !== "admin" && u.status !== "deletion_requested" && u.status !== "anonymized" && u.status !== "deleted" && (
+        confirmingSuspend ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            {u.status !== "suspended" && (
+              <input value={suspendReason} onChange={e => setSuspendReason(e.target.value)} placeholder="Reason (required)"
+                style={{ border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "6px 10px", fontSize: 12, minWidth: 140 }} />
+            )}
+            <span style={{ fontSize: 11.5, color: C.gray }}>{u.status === "suspended" ? "Restore this account?" : "Suspend this account?"}</span>
+            <Btn size="sm" full={false} variant={u.status === "suspended" ? "teal" : "danger"} disabled={suspending || (u.status !== "suspended" && !suspendReason.trim())}
+              onClick={() => setStepUpAction("suspend")}>Yes</Btn>
+            <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingSuspend(false)}>No</Btn>
+          </div>
+        ) : (
+          <Btn size="sm" full={false} variant={u.status === "suspended" ? "teal" : "danger"} onClick={() => setConfirmingSuspend(true)}>
+            {u.status === "suspended" ? "Restore" : "Suspend"}
+          </Btn>
+        )
+      )}
+      {!readOnly && (u.role === "hauler" || u.role === "customer") && (
+        confirmingRestrict ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            {!isRestricted && (
+              <input value={restrictReason} onChange={e => setRestrictReason(e.target.value)} placeholder="Reason (required)"
+                style={{ border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "6px 10px", fontSize: 12, minWidth: 140 }} />
+            )}
+            <span style={{ fontSize: 11.5, color: C.gray }}>
+              {isRestricted ? `Allow ${u.role === "hauler" ? "bidding" : "posting"} again?` : `Block ${u.role === "hauler" ? "bidding" : "posting"}?`}
+            </span>
+            <Btn size="sm" full={false} variant={isRestricted ? "teal" : "danger"} disabled={togglingRestrict || (!isRestricted && !restrictReason.trim())}
+              onClick={() => setStepUpAction("restrict")}>Yes</Btn>
+            <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingRestrict(false)}>No</Btn>
+          </div>
+        ) : (
+          <Btn size="sm" full={false} variant={isRestricted ? "teal" : "ghost"} onClick={() => setConfirmingRestrict(true)}>
+            {isRestricted ? `Allow ${u.role === "hauler" ? "bidding" : "posting"}` : `Block ${u.role === "hauler" ? "bidding" : "posting"}`}
+          </Btn>
+        )
+      )}
       {stepUpAction && (
         <StepUpChallenge
           supabase={supabase}
@@ -157,6 +254,8 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
             setStepUpAction(null);
             if (action === "deactivate") toggleActive();
             else if (action === "delete") handleDelete();
+            else if (action === "suspend") doSuspendOrRestore();
+            else if (action === "restrict") doToggleRestrict();
           }}
           onCancel={() => setStepUpAction(null)}
         />

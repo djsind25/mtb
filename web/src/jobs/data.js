@@ -120,8 +120,22 @@ export async function syncFullPaymentSchedule() {
   }
 }
 
+// Same opportunistic, no-worker idiom as syncFullPaymentSchedule() above — processes any account
+// whose 30-day deletion window is already up, re-checking blockers each time. Whichever user's or
+// admin's dashboard happens to load next nudges the global queue forward; there's no cron in this
+// trimmed pass. See process_due_account_deletions() in
+// 20260815000000_account_deletion_and_suspension.sql.
+export async function processDueAccountDeletions() {
+  try {
+    await supabase.rpc("process_due_account_deletions");
+  } catch {
+    // best-effort — a failed sweep just means the next load tries again
+  }
+}
+
 export async function loadCustomerJobs(customerId) {
   await syncFullPaymentSchedule();
+  await processDueAccountDeletions();
   const { data: jobs, error } = await supabase.from("jobs").select("*").eq("customer_id", customerId).order("created_at", { ascending: false });
   if (error) throw error;
   const jobIds = jobs.map(j => j.id);
@@ -136,6 +150,7 @@ export async function loadCustomerJobs(customerId) {
 }
 
 export async function loadOpenJobsForHauler() {
+  await processDueAccountDeletions();
   const { data, error } = await supabase.rpc("list_open_jobs_for_hauler");
   if (error) throw error;
   return data;
@@ -169,6 +184,7 @@ export async function undismissJob({ haulerId, jobId }) {
 // instead of the real total.
 export async function loadMyBidJobs(haulerId) {
   await syncFullPaymentSchedule();
+  await processDueAccountDeletions();
   const { data: myBids, error } = await supabase.from("bids").select("*").eq("hauler_id", haulerId);
   if (error) throw error;
   if (myBids.length === 0) return [];

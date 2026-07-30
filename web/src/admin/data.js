@@ -1,4 +1,10 @@
 import { supabase } from "../lib/supabaseClient";
+import { parseRpcError } from "../lib/rpcError";
+
+function rpcError(error) {
+  const { code, message } = parseRpcError(error);
+  return Object.assign(new Error(message), { code });
+}
 
 // Attaches { active, total } flag counts to each user so the list view can show a "🚩 N flags"
 // badge without a per-row query — one extra platform-wide query, aggregated client-side (same
@@ -42,6 +48,97 @@ export async function setUserActive(userId, active) {
 export async function deleteUser(userId) {
   const { error } = await supabase.rpc("admin_delete_user", { p_user_id: userId });
   if (error) throw error;
+}
+
+// ─── Account deletion & suspension (20260815000000_account_deletion_and_suspension.sql) ────────
+
+// Same structured blocker check the self-service flow uses — pass a target user id to check
+// someone else's account (admin-only; IDOR-guarded server-side).
+export async function loadAccountDeletionBlockers(userId) {
+  const { data, error } = await supabase.rpc("check_account_deletion_blockers", { p_target_user_id: userId });
+  if (error) throw rpcError(error);
+  return data || [];
+}
+
+export async function adminSuspendUser(userId, reason) {
+  const { error } = await supabase.rpc("admin_suspend_user", { p_user_id: userId, p_reason: reason, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+export async function adminRestoreUser(userId, reason) {
+  const { error } = await supabase.rpc("admin_restore_user", { p_user_id: userId, p_reason: reason || null, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+export async function adminSetBiddingRestricted(userId, restricted, reason) {
+  const { error } = await supabase.rpc("admin_set_bidding_restricted", {
+    p_user_id: userId, p_restricted: restricted, p_reason: reason || null, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw rpcError(error);
+}
+
+export async function adminSetPostingRestricted(userId, restricted, reason) {
+  const { error } = await supabase.rpc("admin_set_posting_restricted", {
+    p_user_id: userId, p_restricted: restricted, p_reason: reason || null, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw rpcError(error);
+}
+
+export async function adminStartDeletion(userId, reason, override = false) {
+  const { error } = await supabase.rpc("admin_start_deletion", {
+    p_user_id: userId, p_reason: reason, p_override: override, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw rpcError(error);
+}
+
+export async function adminCancelPendingDeletion(userId, reason) {
+  const { error } = await supabase.rpc("admin_cancel_pending_deletion", {
+    p_user_id: userId, p_reason: reason || null, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw rpcError(error);
+}
+
+export async function adminAnonymizeNow(userId, reason, force = false) {
+  const { error } = await supabase.rpc("admin_anonymize_now", {
+    p_user_id: userId, p_reason: reason, p_force: force, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw rpcError(error);
+}
+
+export async function adminMarkDeleted(userId, reason) {
+  const { error } = await supabase.rpc("admin_mark_deleted", { p_user_id: userId, p_reason: reason || null, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+export async function adminPurgeRetainedFiles(userId, reason) {
+  const { error } = await supabase.rpc("admin_purge_retained_files", { p_user_id: userId, p_reason: reason || null, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+// Safe to call on demand — re-checks blockers for every past-due account every time; this is the
+// same function the (nonexistent) background worker would call, just triggered manually for now.
+export async function processDueAccountDeletions() {
+  const { error } = await supabase.rpc("process_due_account_deletions");
+  if (error) throw rpcError(error);
+}
+
+export async function loadAccountDeletionQueue() {
+  const { data, error } = await supabase.from("profiles").select("*")
+    .eq("status", "deletion_requested").order("deletion_scheduled_for", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function loadAccountLifecycleAuditLog(userId) {
+  let query = supabase.from("account_lifecycle_audit_log").select("*").order("created_at", { ascending: false });
+  if (userId) query = query.eq("target_user_id", userId);
+  const { data, error } = await query;
+  if (error) throw error;
+  const ids = [...new Set(data.flatMap(r => [r.actor_id, r.target_user_id]).filter(Boolean))];
+  if (ids.length === 0) return data;
+  const { data: people } = await supabase.from("profiles").select("id, name, business_name, role").in("id", ids);
+  const byId = Object.fromEntries((people || []).map(p => [p.id, p.role === "hauler" ? (p.business_name || p.name) : p.name]));
+  return data.map(r => ({ ...r, actorName: r.actor_id ? byId[r.actor_id] : null, targetName: byId[r.target_user_id] }));
 }
 
 // Triggers the same password-reset email a user gets from "Forgot passcode?" on the login

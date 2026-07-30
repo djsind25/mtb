@@ -13,6 +13,7 @@ import { MfaEnrollment } from "./auth/MfaEnrollment";
 import { MfaChallenge } from "./auth/MfaChallenge";
 import { listVerifiedTotpFactors, getAAL } from "./lib/mfa";
 import { LegalReaccept } from "./auth/LegalReaccept";
+import { DeletionPending } from "./auth/DeletionPending";
 import { needsLegalReaccept } from "./lib/legal";
 import { TopBar } from "./ui/TopBar";
 import { Toast } from "./ui/Toast";
@@ -21,7 +22,7 @@ import { HaulerDashboard } from "./dashboard/HaulerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 
 export default function App() {
-  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | oauth_profile | legal_reaccept | mfa_enroll | mfa_challenge | app
+  const [stage, setStage] = useState("loading"); // loading | landing | auth | recovery | admin_invite | oauth_profile | legal_reaccept | mfa_enroll | mfa_challenge | deletion_pending | app
   const [authRole, setAuthRole] = useState(null);
   const [session, setSession] = useState(null);
   const [oauthProfile, setOauthProfile] = useState(null);
@@ -68,6 +69,18 @@ export default function App() {
     if (!profile.active) {
       await supabase.auth.signOut();
       setToast("This account has been deactivated. Contact support if you believe this is a mistake.");
+      setStage("landing");
+      return;
+    }
+    if (profile.status === "suspended") {
+      await supabase.auth.signOut();
+      setToast("This account has been suspended. Contact support if you believe this is a mistake.");
+      setStage("landing");
+      return;
+    }
+    if (profile.status === "anonymized" || profile.status === "deleted") {
+      await supabase.auth.signOut();
+      setToast("This account is no longer active.");
       setStage("landing");
       return;
     }
@@ -154,6 +167,14 @@ export default function App() {
         return;
       }
     }
+    // deletion_requested accounts can still log in during their 30-day window — they just land
+    // here instead of the dashboard until the request is cancelled. Admins are never routed
+    // through self-service deletion, so this only applies to customer/hauler accounts.
+    if (mapped.role !== "admin" && mapped.status === "deletion_requested") {
+      setPendingSession(mapped);
+      setStage("deletion_pending");
+      return;
+    }
     if (mapped.role === "admin") {
       try {
         const factors = await listVerifiedTotpFactors(supabase);
@@ -239,6 +260,15 @@ export default function App() {
             onComplete={() => finishLogin(pendingSession)}
           />
         </AuthShell>
+      )}
+
+      {stage === "deletion_pending" && pendingSession && (
+        <DeletionPending
+          supabase={supabase}
+          session={pendingSession}
+          onCancelled={(freshSession) => finishLogin(freshSession)}
+          onBack={async () => { await supabase.auth.signOut(); setPendingSession(null); setStage("landing"); }}
+        />
       )}
 
       {stage === "mfa_challenge" && pendingSession && (

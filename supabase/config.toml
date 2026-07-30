@@ -479,6 +479,12 @@ verify_jwt = false
 import_map = "./functions/send-verification-email/deno.json"
 entrypoint = "./functions/send-verification-email/index.ts"
 
+[functions.send-account-deletion-email]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-account-deletion-email/deno.json"
+entrypoint = "./functions/send-account-deletion-email/index.ts"
+
 [functions.receive-inbound-email]
 enabled = true
 verify_jwt = false
