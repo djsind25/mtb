@@ -66,6 +66,10 @@ const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link:
   scheduleConfirmed: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
   coordinationNudge: (title, _body, link) => `${title} — pick a date to keep this job moving. ${link}`,
   paymentAuthorized: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
+  // adminJoined/supportResolved/chatLocked/chatUnlocked are deliberately absent — email + in-app
+  // only, same graceful no-op as any other unmapped event type. supportRequested is the one
+  // urgent, admin-facing exception (a delayed pickup has no other channel to catch it).
+  supportRequested: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
 };
 
 async function sendSms(to: string, body: string): Promise<boolean> {
