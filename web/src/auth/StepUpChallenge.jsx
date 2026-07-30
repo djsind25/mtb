@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { C, sans } from "../theme";
 import { Btn, Field, ErrorMsg } from "../ui/Primitives";
 import { getAAL, listVerifiedTotpFactors, challengeAndVerify } from "../lib/mfa";
@@ -25,12 +25,15 @@ export function StepUpChallenge({ supabase, onVerified, onCancel }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const autoVerifiedRef = useRef(false);
 
   useEffect(() => {
     (async () => {
       try {
         const aal = await getAAL(supabase);
         if (aal.currentLevel === "aal2") {
+          if (autoVerifiedRef.current) return;
+          autoVerifiedRef.current = true;
           onVerified();
           return;
         }
