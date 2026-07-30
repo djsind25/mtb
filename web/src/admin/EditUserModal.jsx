@@ -1,20 +1,48 @@
 import { useState } from "react";
 import { C, sans, RADIUS, SHADOW_MD } from "../theme";
-import { Btn, Field, ErrorMsg } from "../ui/Primitives";
-import { updateUserProfile, loadZipHistory } from "./data";
+import { Btn, Field, ErrorMsg, Badge } from "../ui/Primitives";
+import { updateUserProfile, loadZipHistory, adminSetHaulerVerificationFlag } from "./data";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
+import { supabase } from "../lib/supabaseClient";
+import { StepUpChallenge } from "../auth/StepUpChallenge";
+
+const VERIFICATION_FIELDS = [
+  { key: "verified", label: "Verified hauler" },
+  { key: "license_active", label: "Verified business license" },
+  { key: "insurance_active", label: "Verified insurance" },
+];
 
 export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
   const [name, setName] = useState(user.name || "");
   const [businessName, setBusinessName] = useState(user.business_name || "");
   const [zip, setZip] = useState(user.zip || "");
   const [phone, setPhone] = useState(user.phone || "");
-  const [verified, setVerified] = useState(!!user.verified);
-  const [licenseActive, setLicenseActive] = useState(!!user.license_active);
-  const [insuranceActive, setInsuranceActive] = useState(!!user.insurance_active);
   const [membershipTier, setMembershipTier] = useState(user.membership_tier || "free");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // verified/license_active/insurance_active are no longer part of the plain-save form — they're
+  // RPC-only now (20260816000000_hauler_verification_override.sql), so this bypasses the document
+  // upload/review flow (Hauler docs tab) only with a recorded reason, not silently.
+  const [confirmingField, setConfirmingField] = useState(null); // null | 'verified' | 'license_active' | 'insurance_active'
+  const [verificationReason, setVerificationReason] = useState("");
+  const [verificationStepUp, setVerificationStepUp] = useState(false);
+  const [savingVerification, setSavingVerification] = useState(false);
+
+  async function doSetVerificationFlag() {
+    setSavingVerification(true);
+    try {
+      const nextValue = !user[confirmingField];
+      await adminSetHaulerVerificationFlag(user.id, confirmingField, nextValue, verificationReason.trim());
+      setToast("Verification status updated.");
+      setConfirmingField(null);
+      setVerificationReason("");
+      onSaved();
+    } catch (e) {
+      setToast(e.message || "Could not update verification status.");
+    }
+    setSavingVerification(false);
+  }
 
   const [zipHistory, setZipHistory] = useState(null);
   const [loadingZipHistory, setLoadingZipHistory] = useState(false);
@@ -40,9 +68,6 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
       const fields = { name: name.trim(), zip: zip.trim(), phone: phone.trim() || null };
       if (user.role === "hauler") {
         fields.business_name = businessName.trim();
-        fields.verified = verified;
-        fields.license_active = licenseActive;
-        fields.insurance_active = insuranceActive;
         fields.membership_tier = membershipTier;
       }
       await updateUserProfile(user.id, fields);
@@ -117,20 +142,47 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
 
         {user.role === "hauler" && (
           <>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 10, cursor: "pointer" }}>
-              <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)} />
-              Verified hauler
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 10, cursor: "pointer" }}>
-              <input type="checkbox" checked={licenseActive} onChange={e => setLicenseActive(e.target.checked)} />
-              Verified business license
-            </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 14, cursor: "pointer" }}>
-              <input type="checkbox" checked={insuranceActive} onChange={e => setInsuranceActive(e.target.checked)} />
-              Verified insurance
-            </label>
-            <div style={{ fontSize: 11, color: C.gray, marginTop: -8, marginBottom: 14 }}>
-              Checking these directly unlocks bidding — it bypasses the document upload/review flow in the Hauler docs tab.
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 6 }}>Verification status</div>
+            <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
+              Normally set by reviewing documents in the Hauler docs tab. Overriding here bypasses
+              that review and requires a reason — it's logged.
+            </div>
+            <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
+              {VERIFICATION_FIELDS.map(f => {
+                const value = !!user[f.key];
+                const isConfirming = confirmingField === f.key;
+                return (
+                  <div key={f.key} style={{ border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "8px 10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                      <div style={{ fontSize: 13, color: C.ink }}>{f.label}</div>
+                      <Badge color={value ? C.teal : C.gray} bg={value ? C.tealLight : C.grayLight}>{value ? "✓ Yes" : "No"}</Badge>
+                    </div>
+                    {!readOnly && !isConfirming && (
+                      <button onClick={() => { setConfirmingField(f.key); setVerificationReason(""); }} style={{
+                        background: "none", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0, marginTop: 6,
+                      }}>
+                        {value ? "Revoke" : "Approve"} manually…
+                      </button>
+                    )}
+                    {isConfirming && (
+                      <div style={{ marginTop: 8 }}>
+                        <input value={verificationReason} onChange={e => setVerificationReason(e.target.value)}
+                          placeholder="Reason (required)" style={{
+                            width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 6,
+                            padding: "6px 8px", fontSize: 12.5, fontFamily: "inherit", marginBottom: 6,
+                          }} />
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingField(null)}>Cancel</Btn>
+                          <Btn size="sm" full={false} variant={value ? "danger" : "teal"} disabled={savingVerification || !verificationReason.trim()}
+                            onClick={() => setVerificationStepUp(true)}>
+                            {value ? "Confirm revoke" : "Confirm approve"}
+                          </Btn>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Membership tier</label>
@@ -153,6 +205,14 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
           {!readOnly && <Btn onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Btn>}
         </div>
       </div>
+
+      {verificationStepUp && (
+        <StepUpChallenge
+          supabase={supabase}
+          onVerified={() => { setVerificationStepUp(false); doSetVerificationFlag(); }}
+          onCancel={() => setVerificationStepUp(false)}
+        />
+      )}
     </div>
   );
 }

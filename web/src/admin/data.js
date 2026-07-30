@@ -115,6 +115,17 @@ export async function adminPurgeRetainedFiles(userId, reason) {
   if (error) throw rpcError(error);
 }
 
+// The only path that can change verified/license_active/insurance_active now — the plain
+// EditUserModal checkbox save used to flip these directly with no reason or audit trail, bypassing
+// the real hauler_documents upload/review flow entirely. See
+// 20260816000000_hauler_verification_override.sql.
+export async function adminSetHaulerVerificationFlag(userId, field, value, reason) {
+  const { error } = await supabase.rpc("admin_set_hauler_verification_flag", {
+    p_user_id: userId, p_field: field, p_value: value, p_reason: reason, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw rpcError(error);
+}
+
 // Safe to call on demand — re-checks blockers for every past-due account every time; this is the
 // same function the (nonexistent) background worker would call, just triggered manually for now.
 export async function processDueAccountDeletions() {
