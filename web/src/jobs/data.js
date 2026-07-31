@@ -428,19 +428,22 @@ export async function loadCompletionPhotos(jobId) {
   return withUrls;
 }
 
-// Browser geolocation captured at upload time — required, not best-effort: a completion photo is
-// meant to be on-site proof, so a photo with no location attached isn't useful proof at all.
-// Rejects (rather than resolving null) on denial/timeout/no-GPS so the caller can block the
-// upload with a clear message instead of silently saving lat/lng as null.
+// Browser geolocation captured at upload time — best-effort, not required. This used to reject
+// (blocking the entire upload) on denial/timeout/no-GPS, which meant a hauler with Location
+// Services off, a denied permission prompt, or just a weak GPS lock indoors couldn't upload ANY
+// completion photo at all — worse than an unverified one, and the actual bug behind "adding
+// photos doesn't work". lat/lng are already nullable and CompletionPhotos already renders a
+// "no loc" badge for exactly this case, so a failure here just falls back to that instead of
+// blocking the upload.
 function getGeolocation() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      reject(new Error("Your browser doesn't support location access, which is required for completion photos."));
+      resolve({ lat: null, lng: null });
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => reject(new Error("Location access is required to upload a completion photo — please allow location access and try again.")),
+      () => resolve({ lat: null, lng: null }),
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
     );
   });

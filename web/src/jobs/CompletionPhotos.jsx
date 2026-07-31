@@ -118,7 +118,7 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
       {section("after", "After photos")}
       {editable && (
         <div style={{ fontSize: 10.5, color: C.gray, marginTop: -2 }}>
-          📍 Location access is required — each photo is time-stamped and geotagged when taken.
+          📍 Each photo is time-stamped, and geotagged when location access is available.
         </div>
       )}
 
