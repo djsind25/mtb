@@ -569,6 +569,32 @@ export async function setChangeOrdersEnabled(enabled) {
   if (error) throw error;
 }
 
+// Platform fees (global default + per-tier overrides) — see 20260817000000_platform_fee_config.sql.
+// Read directly off the table (RLS: any admin, view-only included, can select); every mutation
+// goes through an RPC that enforces super_admin/allow_admin_fee_edits gating server-side and logs
+// to platform_fee_audit_log.
+export async function loadPlatformFeeConfig() {
+  const { data, error } = await supabase.from("platform_fee_config").select("*").eq("id", true).single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setGlobalPlatformFeeRate(rate) {
+  const { error } = await supabase.rpc("set_global_platform_fee_rate", { p_rate: rate });
+  if (error) throw rpcError(error);
+}
+
+// p_rate = null clears the tier's override, falling back to the global default.
+export async function setTierPlatformFeeRate(tier, rate) {
+  const { error } = await supabase.rpc("set_tier_platform_fee_rate", { p_tier: tier, p_rate: rate });
+  if (error) throw rpcError(error);
+}
+
+export async function setAllowAdminFeeEdits(enabled) {
+  const { error } = await supabase.rpc("set_allow_admin_fee_edits", { p_enabled: enabled });
+  if (error) throw rpcError(error);
+}
+
 export async function loadCancellationRequests() {
   const { data: requests, error } = await supabase.from("cancellation_requests").select("*").order("created_at", { ascending: false });
   if (error) throw error;
@@ -770,19 +796,21 @@ export async function processCancellationRefund({ requestId, jobId, refundAmount
 // snapshot — a full-mode job renegotiated at scheduling time (ScheduleProposal) has a locked
 // price that can differ from what the bid was originally accepted at, and bid_amount/commission
 // are deliberately never rewritten (append-only — see 20260803000000_full_payment_scheduling.sql).
-// 0.10 mirrors price_breakdown()'s flat commission_rate — every membership tier resolves to the
-// same rate today (see membership.js), so this simple recompute stays correct without an RPC round trip.
+// Prefers the chat's own stamped commission_rate (frozen at accept_bid time — see
+// 20260817000000_platform_fee_config.sql) so this recompute stays correct per-job even after the
+// admin changes the global/tier fee; 0.10 is only a fallback for chats booked before that column
+// existed (commission_rate null).
 function effectiveAmount(c) {
   return c.locked_final_price != null ? Number(c.locked_final_price) : Number(c.bid_amount);
 }
 function effectiveCommission(c) {
-  return c.locked_final_price != null ? Math.round(Number(c.locked_final_price) * 0.10 * 100) / 100 : Number(c.commission);
+  return c.locked_final_price != null ? Math.round(Number(c.locked_final_price) * (c.commission_rate ?? 0.10) * 100) / 100 : Number(c.commission);
 }
 
 export async function loadFullPaymentSummary() {
   const [{ data: chats, error: chatsError }, { data: payments, error: paymentsError }] = await Promise.all([
     supabase.from("chats").select(`
-      bid_amount, commission, commission_status, locked_final_price, authorized_at,
+      bid_amount, commission, commission_rate, commission_status, locked_final_price, authorized_at,
       coordination_deadline, coordination_extended_at, stalled_at, locked_service_date,
       jobs!inner(status)
     `).eq("payment_mode", "full").is("superseded_at", null),
