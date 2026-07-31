@@ -22,10 +22,10 @@ export function ProposeBidRevisionControl({ job, onProposed, setToast }) {
   }
 
   async function submit() {
-    if (!amount.trim()) return;
+    if (!amount.trim() || !reason.trim()) return;
     setProposing(true);
     try {
-      await proposeBidRevision({ jobId: job.id, newAmount: amount, reason: reason.trim() || null });
+      await proposeBidRevision({ jobId: job.id, newAmount: amount, reason: reason.trim() });
       setToast("Price revision proposed — the customer needs to approve it before it takes effect.");
       setShowForm(false);
       setAmount("");
@@ -48,7 +48,7 @@ export function ProposeBidRevisionControl({ job, onProposed, setToast }) {
           width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8,
           padding: "8px 10px", fontSize: 12.5, fontFamily: "inherit", color: C.ink, marginBottom: 6,
         }} />
-      <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (optional)" rows={2}
+      <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (required)" rows={2}
         style={{
           width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8,
           padding: "8px 10px", fontSize: 12.5, fontFamily: "inherit", resize: "vertical", marginBottom: 6, color: C.ink,
@@ -58,7 +58,7 @@ export function ProposeBidRevisionControl({ job, onProposed, setToast }) {
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <Btn size="sm" full={false} variant="ghost" onClick={() => setShowForm(false)}>Cancel</Btn>
-        <Btn size="sm" full={false} disabled={!amount.trim() || proposing} onClick={submit}>
+        <Btn size="sm" full={false} disabled={!amount.trim() || !reason.trim() || proposing} onClick={submit}>
           {proposing ? "Proposing…" : "Propose to customer"}
         </Btn>
       </div>
