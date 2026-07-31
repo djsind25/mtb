@@ -30,6 +30,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const [confirmingRestrict, setConfirmingRestrict] = useState(false);
   const [restrictReason, setRestrictReason] = useState("");
   const [togglingRestrict, setTogglingRestrict] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   async function handleSendPasswordReset() {
     setSendingReset(true);
@@ -123,7 +124,11 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
   const displayName = userDisplayName(u);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "10px 12px", border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, background: u.active ? C.sand : C.redLight }}>
+    <div style={{ border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, background: u.active ? C.sand : C.redLight }}>
+    <div
+      onClick={() => setExpanded(v => !v)}
+      style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "10px 12px", cursor: "pointer" }}
+    >
       <Avatar emoji={u.role === "customer" ? "👤" : u.role === "hauler" ? "🚛" : "🛡️"} size={32} bg={u.role === "customer" ? C.sandWarm : C.tealLight} />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>
@@ -162,6 +167,10 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
           {u.admin_read_only ? "view-only" : "full admin"}
         </Badge>
       )}
+      <span style={{ fontSize: 13, color: C.gray, flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>▸</span>
+    </div>
+    {expanded && (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "0 12px 12px 12px" }}>
       {!readOnly && <Btn size="sm" full={false} variant="ghost" onClick={() => onEdit(u)}>Edit</Btn>}
       {!readOnly && u.role === "admin" && !u.super_admin && (
         confirmingAdminRole ? (
@@ -246,6 +255,8 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
           </Btn>
         )
       )}
+      </div>
+    )}
       {stepUpAction && (
         <StepUpChallenge
           supabase={supabase}
