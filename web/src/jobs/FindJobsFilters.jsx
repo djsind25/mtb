@@ -75,6 +75,16 @@ export function FindJobsFilters({
         </div>
         <span style={{ fontSize: 11.5, color: C.gray }}>
           Showing {matchCount} of {totalCount} job{totalCount === 1 ? "" : "s"}
+          {dismissedCount > 0 && !showDismissed && (
+            <>
+              {" · "}
+              <button onClick={() => { setOpen(true); onShowDismissedChange(true); }} style={{
+                background: "none", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0, fontFamily: "inherit",
+              }}>
+                {dismissedCount} hidden job{dismissedCount === 1 ? "" : "s"}
+              </button>
+            </>
+          )}
         </span>
       </div>
 

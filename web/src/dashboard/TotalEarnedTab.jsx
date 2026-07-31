@@ -3,11 +3,13 @@ import { sans, C, shortDateLabel } from "../theme";
 import { Btn, CenteredNote } from "../ui/Primitives";
 import { loadHaulerEarningsByJob } from "./data";
 
-const PERIODS = [
-  { id: "month", label: "This month" },
-  { id: "ytd", label: "Year to date" },
-  { id: "all", label: "Overall" },
-];
+function periodsFor(year) {
+  return [
+    { id: "month", label: "This month" },
+    { id: "ytd", label: `Year to Date ${year}` },
+    { id: "all", label: "Overall" },
+  ];
+}
 
 function inPeriod(iso, period) {
   if (period === "all") return true;
@@ -43,6 +45,7 @@ function downloadCsv(rows, period) {
 export function TotalEarnedTab({ haulerId, onOpenJob, setToast }) {
   const [rows, setRows] = useState(null);
   const [period, setPeriod] = useState("month");
+  const PERIODS = periodsFor(new Date().getFullYear());
 
   useEffect(() => {
     loadHaulerEarningsByJob(haulerId).then(setRows).catch(e => {
@@ -62,7 +65,7 @@ export function TotalEarnedTab({ haulerId, onOpenJob, setToast }) {
 
   return (
     <>
-      <h2 style={{ fontFamily: sans, fontSize: 20, color: C.pineDeep, marginBottom: 14 }}>Total earned</h2>
+      <h2 style={{ fontFamily: sans, fontSize: 20, color: C.pineDeep, marginBottom: 14 }}>Earnings History</h2>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
         {PERIODS.map(p => (
@@ -78,7 +81,7 @@ export function TotalEarnedTab({ haulerId, onOpenJob, setToast }) {
 
       <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 14px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 11, color: C.gray, marginBottom: 2 }}>Net earned ({PERIODS.find(p => p.id === period).label.toLowerCase()})</div>
+          <div style={{ fontSize: 11, color: C.gray, marginBottom: 2 }}>Net Earnings ({PERIODS.find(p => p.id === period).label.toLowerCase()})</div>
           <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 22, fontWeight: 700, color: C.pineDeep }}>${totals.net.toFixed(2)}</div>
           <div style={{ fontSize: 11, color: C.gray }}>${totals.gross.toFixed(2)} gross · {filtered.length} job{filtered.length === 1 ? "" : "s"}</div>
         </div>

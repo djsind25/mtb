@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, sans, RADIUS } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadDefaultPaymentMode, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { loadSupportChats } from "../support/data";
@@ -44,9 +44,9 @@ export function AdminDashboard({ session, setToast }) {
   const [accountLifecycleAuditLog, setAccountLifecycleAuditLog] = useState([]);
   const [profileChangeRequests, setProfileChangeRequests] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
-  const [defaultPaymentMode, setDefaultPaymentModeState] = useState(null);
   const [changeOrdersEnabled, setChangeOrdersEnabledState] = useState(false);
   const [togglingChangeOrders, setTogglingChangeOrders] = useState(false);
+  const [bidRevisionsExpanded, setBidRevisionsExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
@@ -59,15 +59,15 @@ export function AdminDashboard({ session, setToast }) {
     setLoading(true);
     try {
       await processDueAccountDeletions();
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, pm, cr, fps, pcr, coe, sj, csq, adq, alog] = await Promise.all([
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, cr, fps, pcr, coe, sj, csq, adq, alog] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
-        loadAdminInvites(), loadCompletedJobs(), loadDefaultPaymentMode(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
+        loadAdminInvites(), loadCompletedJobs(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
         loadStalledJobs(), loadChatSupportQueue(true), loadAccountDeletionQueue(), loadAccountLifecycleAuditLog(),
       ]);
       // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj); setDefaultPaymentModeState(pm);
+      setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj);
       setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe); setStalledJobs(sj); setChatSupportQueue(csq);
       setAccountDeletionQueue(adq); setAccountLifecycleAuditLog(alog);
     } catch (e) {
@@ -154,43 +154,6 @@ export function AdminDashboard({ session, setToast }) {
           👁️ View-only admin — you can see everything here, but can't make changes.
         </div>
       )}
-
-      <div style={{
-        background: C.tealLight, border: `1px solid ${C.teal}44`, borderRadius: RADIUS.md,
-        padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
-      }}>
-        <span style={{ fontSize: 18 }}>💳</span>
-        <div style={{ fontSize: 12.5, color: C.pineDeep, lineHeight: 1.55, flex: 1 }}>
-          <strong>Default payment model for new jobs: {defaultPaymentMode === "full" ? "Full payment, held until complete" : "Deposit-only (launch model)"}</strong>
-          <div style={{ color: C.gray, marginTop: 3 }}>
-            {defaultPaymentMode === "full"
-              ? "Customers pay the full bid amount up front, held by MyTrashBid and released to the hauler (90%, keeping our 10%) once the job is confirmed complete by both sides."
-              : "Customers prepay a 10% deposit (our revenue); the 90% balance is paid hauler-direct, off-platform."}
-            {" "}This only affects new jobs — every already-booked job keeps whatever mode it was created under.
-          </div>
-        </div>
-      </div>
-
-      <div style={{
-        background: changeOrdersEnabled ? C.tealLight : C.grayLight, border: `1px solid ${changeOrdersEnabled ? C.teal + "44" : C.line}`, borderRadius: RADIUS.md,
-        padding: "12px 14px", marginBottom: 20, display: "flex", gap: 10, alignItems: "flex-start",
-      }}>
-        <span style={{ fontSize: 18 }}>📝</span>
-        <div style={{ fontSize: 12.5, color: C.pineDeep, lineHeight: 1.55, flex: 1 }}>
-          <strong>Bid revisions (change orders): {changeOrdersEnabled ? "Live" : "Off"}</strong>
-          <div style={{ color: C.gray, marginTop: 3 }}>
-            Lets a hauler propose a new price on a booked-but-not-completed job, requiring the customer's
-            explicit approval before it takes effect — append-only, nothing is ever overwritten.
-          </div>
-          {session.superAdmin && (
-            <div style={{ marginTop: 10 }}>
-              <Btn size="sm" full={false} variant="ghost" disabled={togglingChangeOrders} onClick={toggleChangeOrders}>
-                {togglingChangeOrders ? "Switching…" : changeOrdersEnabled ? "Turn off" : "Turn on"}
-              </Btn>
-            </div>
-          )}
-        </div>
-      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 24 }}>
         <Stat label="Customers" value={customers.length} />
@@ -496,6 +459,35 @@ export function AdminDashboard({ session, setToast }) {
           </Panel>
         )
       )}
+
+      <div style={{
+        background: changeOrdersEnabled ? C.tealLight : C.grayLight, border: `1px solid ${changeOrdersEnabled ? C.teal + "44" : C.line}`, borderRadius: RADIUS.md,
+        marginTop: 24,
+      }}>
+        <div
+          onClick={() => setBidRevisionsExpanded(v => !v)}
+          style={{ padding: "12px 14px", display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }}
+        >
+          <span style={{ fontSize: 18 }}>📝</span>
+          <div style={{ fontSize: 12.5, color: C.pineDeep, fontWeight: 700, flex: 1 }}>
+            Bid revisions (change orders): {changeOrdersEnabled ? "Live" : "Off"}
+          </div>
+          <span style={{ fontSize: 13, color: C.gray, transform: bidRevisionsExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>▸</span>
+        </div>
+        {bidRevisionsExpanded && (
+          <div style={{ padding: "0 14px 14px 14px", fontSize: 12.5, color: C.gray, lineHeight: 1.55 }}>
+            Lets a hauler propose a new price on a booked-but-not-completed job, requiring the customer's
+            explicit approval before it takes effect — append-only, nothing is ever overwritten.
+            {session.superAdmin && (
+              <div style={{ marginTop: 10 }}>
+                <Btn size="sm" full={false} variant="ghost" disabled={togglingChangeOrders} onClick={toggleChangeOrders}>
+                  {togglingChangeOrders ? "Switching…" : changeOrdersEnabled ? "Turn off" : "Turn on"}
+                </Btn>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {editingUser && (
         <EditUserModal
