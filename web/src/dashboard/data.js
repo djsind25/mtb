@@ -110,25 +110,6 @@ export async function loadCustomerPayments(customerId) {
   }));
 }
 
-export async function loadHaulerEarnings(haulerId) {
-  const { data, error } = await supabase
-    .from("payments")
-    .select("id, amount, status, kind, created_at, job_id, chat_id, jobs(title), chats(customer_id)")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  const customerIds = [...new Set(data.map(p => p.chats?.customer_id).filter(Boolean))];
-  const customerById = await loadPublicProfilesById(customerIds);
-  return data.map(p => ({
-    id: p.id,
-    jobTitle: p.jobs?.title,
-    otherParty: customerById[p.chats?.customer_id]?.name,
-    amount: p.amount,
-    status: p.status,
-    kind: p.kind,
-    createdAt: p.created_at,
-  }));
-}
-
 async function loadPublicProfilesById(ids) {
   if (ids.length === 0) return {};
   const { data, error } = await supabase.from("public_profiles").select("id, name, business_name").in("id", ids);

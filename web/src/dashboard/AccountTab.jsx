@@ -3,7 +3,7 @@ import { C, sans } from "../theme";
 import { Btn, Field, Badge, CenteredNote } from "../ui/Primitives";
 import { supabase } from "../lib/supabaseClient";
 import {
-  loadCustomerPayments, loadHaulerEarnings, updateOwnProfile, updateNotificationPrefs,
+  loadCustomerPayments, updateOwnProfile, updateNotificationPrefs,
   changeEmail, changePassword, deactivateOwnAccount, resendVerificationEmail, loadHaulerDocuments,
   requestProfileChange, loadMyProfileChangeRequests,
   loadAccountDeletionBlockers, requestOwnAccountDeletion, cancelOwnPendingDeletion,
@@ -68,7 +68,7 @@ const SMS_EVENT_LABELS = {
 const sectionTitle = { fontSize: 15, fontWeight: 700, color: C.pineDeep, marginBottom: 12 };
 const checkboxRow = { display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 8, cursor: "pointer" };
 
-export function AccountTab({ session, setToast }) {
+export function AccountTab({ session, setToast, onOpenEarnings }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -137,9 +137,11 @@ export function AccountTab({ session, setToast }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      // Haulers' own earnings history lives entirely in the Earnings History tab (TotalEarnedTab) —
+      // this section now just links there instead of duplicating the data fetch.
       const [{ data: p }, hist, legal] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", session.id).single(),
-        session.role === "customer" ? loadCustomerPayments(session.id) : loadHaulerEarnings(session.id),
+        session.role === "customer" ? loadCustomerPayments(session.id) : Promise.resolve([]),
         loadMyLegalAcceptances(supabase).catch(() => ({})),
       ]);
       if (session.role === "hauler") { await loadDocuments(); await loadPendingRequests(); }
@@ -466,26 +468,32 @@ export function AccountTab({ session, setToast }) {
       </section>
 
       <section>
-        <div style={sectionTitle}>{session.role === "customer" ? "Payment history" : "Earnings history"}</div>
-        {history.length === 0 && <CenteredNote>{session.role === "customer" ? "No payments yet." : "No earnings yet."}</CenteredNote>}
-        <div style={{ display: "grid", gap: 8 }}>
-          {history.map(h => (
-            <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px" }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 13, color: C.pineDeep }}>{h.jobTitle}</div>
-                <div style={{ fontSize: 11.5, color: C.gray }}>{h.otherParty || "—"} · {new Date(h.createdAt).toLocaleDateString()}</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: h.kind === "refund" ? C.red : C.pineDeep, marginBottom: 3 }}>
-                  {h.kind === "refund" ? "−" : ""}${Number(h.amount).toFixed(2)}
+        <div style={sectionTitle}>{session.role === "customer" ? "Payment history" : "Earnings History"}</div>
+        {session.role === "customer" ? (
+          <>
+            {history.length === 0 && <CenteredNote>No payments yet.</CenteredNote>}
+            <div style={{ display: "grid", gap: 8 }}>
+              {history.map(h => (
+                <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px" }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: C.pineDeep }}>{h.jobTitle}</div>
+                    <div style={{ fontSize: 11.5, color: C.gray }}>{h.otherParty || "—"} · {new Date(h.createdAt).toLocaleDateString()}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: h.kind === "refund" ? C.red : C.pineDeep, marginBottom: 3 }}>
+                      {h.kind === "refund" ? "−" : ""}${Number(h.amount).toFixed(2)}
+                    </div>
+                    <Badge color={h.kind === "refund" || h.status === "refunded" ? C.red : C.teal} bg={h.kind === "refund" || h.status === "refunded" ? C.redLight : C.tealLight}>
+                      {h.kind === "refund" ? "refund" : h.status}
+                    </Badge>
+                  </div>
                 </div>
-                <Badge color={h.kind === "refund" || h.status === "refunded" ? C.red : C.teal} bg={h.kind === "refund" || h.status === "refunded" ? C.redLight : C.tealLight}>
-                  {h.kind === "refund" ? "refund" : h.status}
-                </Badge>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          <Btn variant="ghost" full={false} onClick={onOpenEarnings}>View earnings history →</Btn>
+        )}
       </section>
 
       <section>

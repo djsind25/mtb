@@ -247,7 +247,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     { label: "Active bids", value: stats.activeBids, onClick: () => { setTab("bids"); setBidFilter("active"); } },
     { label: "Jobs won", value: stats.won, onClick: () => { setTab("bids"); setBidFilter("won"); } },
     { label: "Completed", value: `${stats.completed}/${stats.won}`, onClick: () => { setTab("bids"); setBidFilter("completed"); } },
-    { label: "Total earned", value: `$${stats.totalEarned.toFixed(2)}`, onClick: () => setTab("earnings") },
+    { label: "Earnings History", value: `$${stats.totalEarned.toFixed(2)}`, onClick: () => setTab("earnings") },
   ] : [];
 
   return (
@@ -355,7 +355,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
         />
       )}
 
-      {tab === "account" && <AccountTab session={session} setToast={setToast} />}
+      {tab === "account" && <AccountTab session={session} setToast={setToast} onOpenEarnings={() => setTab("earnings")} />}
 
       {pendingBid && (
         <div style={{
