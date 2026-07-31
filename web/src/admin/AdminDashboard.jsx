@@ -19,6 +19,7 @@ import { HaulerDocRow } from "./HaulerDocRow";
 import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
 import { RevenueTab, buildMonthlyRevenue } from "./RevenueTab";
 import { AutoExportTab } from "./AutoExportTab";
+import { PlatformFeesTab } from "./PlatformFeesTab";
 import { CompletionReview } from "./CompletionReview";
 import { CancellationRequestsTab } from "./CancellationRequestsTab";
 import { StalledJobsTab } from "./StalledJobsTab";
@@ -219,6 +220,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "jobs", label: `Jobs & bids (${jobs.length})` },
           { id: "revenue", label: "Revenue" },
           { id: "autoExport", label: "Auto export" },
+          { id: "platformFees", label: "Platform fees" },
           { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
           { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
           { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
@@ -349,6 +351,12 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "autoExport" && (
         <Panel title="Auto export">
           <AutoExportTab session={session} setToast={setToast} />
+        </Panel>
+      )}
+
+      {tab === "platformFees" && (
+        <Panel title="Platform fees">
+          <PlatformFeesTab session={session} readOnly={readOnly} setToast={setToast} />
         </Panel>
       )}
 
