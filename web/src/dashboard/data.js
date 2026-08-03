@@ -6,7 +6,7 @@ export async function loadCustomerStats(customerId) {
   const [{ data: jobs, error: jobsError }, { data: payments, error: paymentsError }] = await Promise.all([
     supabase.from("jobs").select("id, status, completed").eq("customer_id", customerId),
     // RLS already scopes this to jobs this customer owns — no extra filter needed.
-    supabase.from("payments").select("amount, kind").eq("status", "succeeded"),
+    supabase.from("payments").select("amount, kind, created_at").eq("status", "succeeded"),
   ]);
   if (jobsError) throw jobsError;
   if (paymentsError) throw paymentsError;
@@ -15,9 +15,13 @@ export async function loadCustomerStats(customerId) {
   const inProgress = jobs.filter(j => j.status === "booked" && !j.completed).length;
   const completed = jobs.filter(j => j.status === "booked" && j.completed).length;
   const cancelled = jobs.filter(j => j.status === "cancelled").length;
-  // Net of refunds (e.g. a switch-hauler delta) — a refund row would otherwise add to "spent"
-  // instead of subtracting from it.
-  const totalSpent = payments.reduce((sum, p) => sum + (p.kind === "refund" ? -Number(p.amount) : Number(p.amount)), 0);
+  // Year-to-date, not all-time — matches the "Total spent - Year to date" stat card label. Net of
+  // refunds (e.g. a switch-hauler delta) — a refund row would otherwise add to "spent" instead of
+  // subtracting from it.
+  const currentYear = new Date().getFullYear();
+  const totalSpent = payments
+    .filter(p => new Date(p.created_at).getFullYear() === currentYear)
+    .reduce((sum, p) => sum + (p.kind === "refund" ? -Number(p.amount) : Number(p.amount)), 0);
 
   const openJobIds = jobs.filter(j => j.status === "open").map(j => j.id);
   let bidsWaiting = 0;
@@ -29,6 +33,31 @@ export async function loadCustomerStats(customerId) {
   }
 
   return { active, bidsWaiting, inProgress, completed, cancelled, totalSpent };
+}
+
+// Per-completed-job breakdown behind the "Total spent" stat, for TotalSpentTab.jsx. Mirrors
+// loadHaulerEarningsByJob's shape (a period-filterable job history) but scoped to completed jobs
+// only — Total Spent is meant to reflect money actually paid for finished work, not funds still
+// held pending completion. completed_at is used as the "spent on" date, matching how the hauler
+// side uses customer_ack_at as its "earned on" date.
+export async function loadCustomerSpendingByJob(customerId) {
+  const { data: jobs, error: jobsError } = await supabase
+    .from("jobs").select("id, title, completed_at").eq("customer_id", customerId).eq("completed", true);
+  if (jobsError) throw jobsError;
+  if (jobs.length === 0) return [];
+
+  const jobIds = jobs.map(j => j.id);
+  const { data: payments, error } = await supabase
+    .from("payments").select("job_id, amount, kind").eq("status", "succeeded").in("job_id", jobIds);
+  if (error) throw error;
+
+  const spentByJob = {};
+  for (const p of payments) {
+    const amount = p.kind === "refund" ? -Number(p.amount) : Number(p.amount);
+    spentByJob[p.job_id] = (spentByJob[p.job_id] || 0) + amount;
+  }
+
+  return jobs.map(j => ({ jobId: j.id, jobTitle: j.title, spent: spentByJob[j.id] || 0, completedAt: j.completed_at }));
 }
 
 export async function loadHaulerStats(haulerId) {
