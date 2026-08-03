@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { C, expiryLabel, isExpired, timelineMeta, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
@@ -13,12 +13,22 @@ import { RequestCancellationControl } from "./RequestCancellationControl";
 import { ResolveBidRevisionControl } from "./ResolveBidRevisionControl";
 import { ScheduleProposal } from "./ScheduleProposal";
 
-export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, onRevisionResolved, onScheduleChanged, setToast }) {
+export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, onRevisionResolved, onScheduleChanged, setToast, highlighted = false }) {
   const [expanded, setExpanded] = useState(false);
   const [resending, setResending] = useState(false);
   const [addingPhotos, setAddingPhotos] = useState(false);
   const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
   const photoInputRef = useRef(null);
+  const cardRef = useRef(null);
+
+  // Deep-link target from Total Spent — scroll this card into view and expand it once when it's
+  // the one being landed on. highlighted itself auto-clears on a timer in CustomerDashboard.
+  useEffect(() => {
+    if (highlighted) {
+      setExpanded(true);
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlighted]);
 
   // JobPhotos only loads on mount — remounting it via a changed key is the simplest way to
   // pick up what was just uploaded, without needing a reload prop on that shared component.
@@ -65,7 +75,11 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
   );
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${jobExpired ? C.amber + "66" : C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, overflow: "hidden" }}>
+    <div ref={cardRef} style={{
+      background: C.paper, borderRadius: RADIUS.md, overflow: "hidden", transition: "box-shadow 0.3s",
+      border: `1px solid ${highlighted ? C.teal : jobExpired ? C.amber + "66" : C.line}`,
+      boxShadow: highlighted ? `0 0 0 3px ${C.teal}33` : SHADOW_SM,
+    }}>
       <button onClick={() => setExpanded(e => !e)} style={{ width: "100%", background: "none", border: "none", padding: 16, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
