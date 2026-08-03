@@ -12,6 +12,7 @@ import { SwitchHaulerPicker } from "./SwitchHaulerPicker";
 import { RequestCancellationControl } from "./RequestCancellationControl";
 import { ResolveBidRevisionControl } from "./ResolveBidRevisionControl";
 import { ScheduleProposal } from "./ScheduleProposal";
+import { JobProgressGauge, stageForJob } from "./JobProgressGauge";
 
 export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, onRevisionResolved, onScheduleChanged, setToast, highlighted = false }) {
   const [expanded, setExpanded] = useState(false);
@@ -107,6 +108,11 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
       </button>
       {expanded && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: 16 }}>
+          {job.status !== "cancelled" && (
+            <div style={{ background: C.sand, borderRadius: RADIUS.md, padding: "14px 16px", marginBottom: 14 }}>
+              <JobProgressGauge compact stage={stageForJob({ status: job.status, completed: job.completed, haulerDoneAt: job.haulerDoneAt, bidCount: bids.length })} />
+            </div>
+          )}
           <JobPhotos jobId={job.id} key={photoRefreshKey} />
           <div style={{ marginBottom: 14 }}>
             <input ref={photoInputRef} type="file" accept="image/*,.heic,.heif" multiple style={{ display: "none" }}
