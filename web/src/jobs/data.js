@@ -435,15 +435,30 @@ export async function loadCompletionPhotos(jobId) {
 // photos doesn't work". lat/lng are already nullable and CompletionPhotos already renders a
 // "no loc" badge for exactly this case, so a failure here just falls back to that instead of
 // blocking the upload.
+//
+// The `timeout` option passed to getCurrentPosition is NOT a reliable backstop on its own — on
+// iOS Safari, when system-wide Location Services is off (or Safari lacks location permission),
+// WebKit can silently hang forever and never invoke either callback, ignoring `timeout` entirely.
+// That left the upload permanently stuck on "Adding" with no error and no photo, which is exactly
+// what this was still doing on iPhone even after the fix above. Racing our own independent
+// setTimeout alongside it guarantees this always settles, regardless of what the platform's
+// geolocation API actually does.
 function getGeolocation() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
       resolve({ lat: null, lng: null });
       return;
     }
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+    setTimeout(() => finish({ lat: null, lng: null }), 8000);
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve({ lat: null, lng: null }),
+      (pos) => finish({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => finish({ lat: null, lng: null }),
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
     );
   });
