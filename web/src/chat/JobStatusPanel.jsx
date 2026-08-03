@@ -2,6 +2,7 @@ import { useState } from "react";
 import { C, sans, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn, Field } from "../ui/Primitives";
 import { proposeSchedule, confirmSchedule } from "../jobs/data";
+import { JobProgressGauge, stageForJob } from "../jobs/JobProgressGauge";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -80,8 +81,17 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
 
   const cardStyle = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.lg, boxShadow: SHADOW_SM, padding: 16 };
 
+  // A chat only ever exists once a bid is accepted, so this always starts at least at "booked" —
+  // the pre-acceptance stages (posted/receiving bids) are only ever relevant on the job card.
+  const progressStage = stageForJob({ status: "booked", completed: !!chat.customer_ack_at, haulerDoneAt: chat.hauler_done_at });
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={cardStyle}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep, marginBottom: 10 }}>Job Progress</div>
+        <JobProgressGauge stage={progressStage} />
+      </div>
+
       <div style={cardStyle}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Job details</div>
         <Row label="Status" value={STATUS_LABEL[moneyState]} />
