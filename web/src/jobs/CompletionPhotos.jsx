@@ -102,7 +102,10 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
 
   const uploadTile = (phase, inputRef, label) => (
     <div key={`upload-${phase}`}>
-      <input ref={inputRef} type="file" accept="image/*,.heic,.heif" multiple capture="environment" style={{ display: "none" }}
+      {/* No `capture` attribute — that forces mobile browsers (especially iOS Safari) straight to
+          the camera, skipping the native "Photo Library / Take Photo" chooser entirely. Omitting
+          it lets the hauler pick an existing photo from their gallery or take a new one. */}
+      <input ref={inputRef} type="file" accept="image/*,.heic,.heif" multiple style={{ display: "none" }}
         onChange={e => { handleFiles(phase, e.target.files); e.target.value = ""; }} />
       <button onClick={() => inputRef.current?.click()} disabled={uploading === phase} style={{
         width: 84, height: 84, borderRadius: 8, border: `2px dashed ${C.line}`, background: "none",
