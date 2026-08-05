@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { parseRpcError } from "../lib/rpcError";
+import { resizeImage } from "../lib/imageResize";
 
 // Silent bids: attaches { businessName, rating, ratingCount, revealed, ... } to each bid via
 // job_hauler_display(), which keeps the real business name hidden (replaced with a stable "Hauler
@@ -246,19 +247,18 @@ export async function loadJobPhotos(jobId) {
 // at creation time, so these just become part of the same album, no separate "chat photos" set.
 // job_photos_insert (RLS) only checks customer_owns_job(), no status restriction, so this works
 // the same whether the job is still open or already booked. toJpegIfHeic is defined further down
-// in this file but hoisted, so it's available here too.
+// in this file but hoisted, so it's available here too. Files upload in parallel, not one at a
+// time — each is independent (own path, own row) so there's no reason to serialize them.
 export async function addJobPhotos({ jobId, files }) {
-  const uploaded = [];
-  for (const file of files || []) {
-    const jpeg = await toJpegIfHeic(file);
+  return Promise.all((files || []).map(async file => {
+    const jpeg = await resizeImage(await toJpegIfHeic(file));
     const path = `${jobId}/${crypto.randomUUID()}-${jpeg.name}`;
     const { error: uploadError } = await supabase.storage.from("job-photos").upload(path, jpeg);
     if (uploadError) throw uploadError;
     const { error: rowError } = await supabase.from("job_photos").insert({ job_id: jobId, storage_path: path, original_name: jpeg.name });
     if (rowError) throw rowError;
-    uploaded.push(jpeg.name);
-  }
-  return uploaded;
+    return jpeg.name;
+  }));
 }
 
 // Q&A reads always go through job_questions_public, never the base table — that view is what
@@ -314,13 +314,15 @@ export async function postJob({ customerId, title, description, zip, photos, ser
   const { data: job, error } = await supabase.from("jobs").insert(row).select().single();
   if (error) throw error;
 
-  for (const file of photos || []) {
+  // PostJobForm already resized/HEIC-converted these client-side before handing them off — just
+  // upload. In parallel: each photo is an independent path+row, nothing to serialize for.
+  await Promise.all((photos || []).map(async file => {
     const path = `${job.id}/${crypto.randomUUID()}-${file.name}`;
     const { error: uploadError } = await supabase.storage.from("job-photos").upload(path, file);
     if (uploadError) throw uploadError;
     const { error: photoRowError } = await supabase.from("job_photos").insert({ job_id: job.id, storage_path: path, original_name: file.name });
     if (photoRowError) throw photoRowError;
-  }
+  }));
   return job;
 }
 
@@ -480,17 +482,23 @@ async function toJpegIfHeic(file) {
   return new File([blob], file.name.replace(/\.hei[cf]$/i, ".jpg"), { type: "image/jpeg" });
 }
 
-export async function uploadCompletionPhoto({ jobId, haulerId, phase, file }) {
+// Geolocation (up to an 8s timeout, see getGeolocation above) is fetched once for the whole batch
+// rather than once per photo — the previous per-file version meant adding 3 "after" photos at once
+// could mean up to 24s of pure geolocation waiting before any upload even started. Uploads
+// themselves also run in parallel, same reasoning as addJobPhotos.
+export async function uploadCompletionPhotos({ jobId, haulerId, phase, files }) {
   const geo = await getGeolocation();
-  const jpeg = await toJpegIfHeic(file);
-  const path = `${jobId}/${crypto.randomUUID()}-${jpeg.name}`;
-  const { error: uploadError } = await supabase.storage.from("completion-photos").upload(path, jpeg);
-  if (uploadError) throw uploadError;
-  const { error: rowError } = await supabase.from("job_completion_photos").insert({
-    job_id: jobId, phase, storage_path: path, original_name: jpeg.name,
-    lat: geo.lat, lng: geo.lng, uploaded_by: haulerId,
-  });
-  if (rowError) throw rowError;
+  return Promise.all((files || []).map(async file => {
+    const jpeg = await resizeImage(await toJpegIfHeic(file));
+    const path = `${jobId}/${crypto.randomUUID()}-${jpeg.name}`;
+    const { error: uploadError } = await supabase.storage.from("completion-photos").upload(path, jpeg);
+    if (uploadError) throw uploadError;
+    const { error: rowError } = await supabase.from("job_completion_photos").insert({
+      job_id: jobId, phase, storage_path: path, original_name: jpeg.name,
+      lat: geo.lat, lng: geo.lng, uploaded_by: haulerId,
+    });
+    if (rowError) throw rowError;
+  }));
 }
 
 export async function deleteCompletionPhoto(photoId, storagePath) {

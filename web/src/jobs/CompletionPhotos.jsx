@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { C, nowStr } from "../theme";
-import { loadCompletionPhotos, uploadCompletionPhoto, deleteCompletionPhoto } from "./data";
+import { loadCompletionPhotos, uploadCompletionPhotos, deleteCompletionPhoto } from "./data";
 
 // Compact "7/31 2:45pm" stamp for the thumbnail/lightbox overlay — nowStr's fuller format ("Jul 31,
 // 2:45 PM") is used for the lightbox caption line instead, where there's room for it.
@@ -77,9 +77,7 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
     if (files.length === 0) return;
     setUploading(phase);
     try {
-      for (const file of files) {
-        await uploadCompletionPhoto({ jobId, haulerId, phase, file });
-      }
+      await uploadCompletionPhotos({ jobId, haulerId, phase, files });
       await reload();
     } catch (e) {
       setToast?.(e.message || "Could not upload photo.");
@@ -127,7 +125,7 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
         {flat.map((p, i) => (
           <div key={p.id} style={{ position: "relative" }}>
             <button onClick={() => setOpenIndex(i)} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", display: "block", position: "relative", width: 84, height: 84, borderRadius: 8, overflow: "hidden", border: `1px solid ${C.line}` }}>
-              <img src={p.url} alt={p.original_name || ""} style={{ width: 84, height: 84, objectFit: "cover", display: "block" }} />
+              <img src={p.url} alt={p.original_name || ""} loading="lazy" style={{ width: 84, height: 84, objectFit: "cover", display: "block" }} />
               <PhotoStamp p={p} />
             </button>
             {editable && (
