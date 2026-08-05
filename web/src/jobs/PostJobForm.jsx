@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { C, sans } from "../theme";
 import { Field, Btn } from "../ui/Primitives";
 import { TimelinePicker } from "./TimelinePicker";
+import { resizeImage } from "../lib/imageResize";
 
 // iPhones default to HEIC/HEIF, which browsers can't render in an <img> tag — the customer's
 // own upload would show as a broken thumbnail. Detect by MIME type (Safari) or extension (iOS
@@ -39,7 +40,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
     setPhotoError("");
     setConvertingPhotos(true);
     try {
-      const converted = await Promise.all(files.map(toJpegIfHeic));
+      const converted = await Promise.all(files.map(f => toJpegIfHeic(f).then(resizeImage)));
       const newPhotos = converted.map(f => ({ file: f, url: URL.createObjectURL(f) }));
       setPhotos(p => [...p, ...newPhotos]);
     } catch {

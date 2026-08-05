@@ -34,7 +34,7 @@ export function JobPhotos({ jobId }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
         {photos.map((p, i) => (
           <button key={p.id} onClick={() => setOpenIndex(i)} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>
-            <img src={p.url} alt={p.original_name || ""} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />
+            <img src={p.url} alt={p.original_name || ""} loading="lazy" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }} />
           </button>
         ))}
       </div>
@@ -70,7 +70,7 @@ export function JobPhotos({ jobId }) {
                   padding: 0, cursor: "pointer", background: "none", borderRadius: 8,
                   border: i === openIndex ? `2px solid ${C.teal}` : "2px solid transparent",
                 }}>
-                  <img src={p.url} alt="" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 6, opacity: i === openIndex ? 1 : 0.6, display: "block" }} />
+                  <img src={p.url} alt="" loading="lazy" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 6, opacity: i === openIndex ? 1 : 0.6, display: "block" }} />
                 </button>
               ))}
             </div>
