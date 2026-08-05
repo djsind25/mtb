@@ -76,7 +76,13 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
   }
 
   return (
-    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 16 }}>
+    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, paddingTop: 40, marginBottom: 16, position: "relative" }}>
+      <button onClick={onCancel} aria-label="Close" style={{
+        position: "absolute", top: 12, right: 14, background: "none", border: "none", cursor: "pointer",
+        display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 600, color: C.gray, fontFamily: sans, padding: 4,
+      }}>
+        <span>✕</span> Close
+      </button>
       <div style={{ display: "flex", gap: 6, marginBottom: 16, background: C.sandWarm, borderRadius: 9, padding: 3 }}>
         {[{ id: "removal", label: "Junk removal" }, { id: "rental", label: "Dumpster / trailer rental" }].map(t => (
           <button key={t.id} onClick={() => setServiceType(t.id)} style={{
