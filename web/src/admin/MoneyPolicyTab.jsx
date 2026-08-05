@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { C, sans, RADIUS, SHADOW_SM } from "../theme";
 import { Btn, CenteredNote, Badge } from "../ui/Primitives";
 import { tierName } from "../membership";
-import { loadPlatformFeeConfig, setGlobalPlatformFeeRate, setTierPlatformFeeRate, setAllowAdminFeeEdits } from "./data";
+import { loadPlatformFeeConfig, setGlobalPlatformFeeRate, setTierPlatformFeeRate, setAllowAdminFeeEdits, setMinBidAmount, setMaxJobAmount } from "./data";
 
 const TIERS = ["free", "pro", "premium"];
 
@@ -15,19 +15,29 @@ function pctToRate(pct) {
   return Math.round((n / 100) * 10000) / 10000;
 }
 
-export function PlatformFeesTab({ session, readOnly, setToast }) {
+export function MoneyPolicyTab({ session, readOnly, setToast }) {
   const [config, setConfig] = useState(null);
   const [globalInput, setGlobalInput] = useState("");
   const [tierInputs, setTierInputs] = useState({ free: "", pro: "", premium: "" });
+  const [minBidInput, setMinBidInput] = useState("");
+  const [maxJobInput, setMaxJobInput] = useState("");
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [savingTier, setSavingTier] = useState(null);
   const [togglingEdits, setTogglingEdits] = useState(false);
+  const [savingMinBid, setSavingMinBid] = useState(false);
+  const [savingMaxJob, setSavingMaxJob] = useState(false);
 
-  async function load() {
-    const cfg = await loadPlatformFeeConfig();
+  function applyConfig(cfg) {
     setConfig(cfg);
     setGlobalInput(pctInput(cfg.global_rate));
     setTierInputs({ free: pctInput(cfg.free_tier_rate), pro: pctInput(cfg.pro_tier_rate), premium: pctInput(cfg.premium_tier_rate) });
+    setMinBidInput(String(cfg.min_bid_amount));
+    setMaxJobInput(String(cfg.max_job_amount));
+  }
+
+  async function load() {
+    const cfg = await loadPlatformFeeConfig();
+    applyConfig(cfg);
   }
 
   useEffect(() => {
@@ -36,11 +46,9 @@ export function PlatformFeesTab({ session, readOnly, setToast }) {
       try {
         const cfg = await loadPlatformFeeConfig();
         if (cancelled) return;
-        setConfig(cfg);
-        setGlobalInput(pctInput(cfg.global_rate));
-        setTierInputs({ free: pctInput(cfg.free_tier_rate), pro: pctInput(cfg.pro_tier_rate), premium: pctInput(cfg.premium_tier_rate) });
+        applyConfig(cfg);
       } catch (e) {
-        if (!cancelled) setToast?.(e.message || "Could not load platform fee settings.");
+        if (!cancelled) setToast?.(e.message || "Could not load money policy settings.");
       }
     })();
     return () => { cancelled = true; };
@@ -91,10 +99,39 @@ export function PlatformFeesTab({ session, readOnly, setToast }) {
     setTogglingEdits(false);
   }
 
+  async function saveMinBid() {
+    const amount = Number(minBidInput);
+    if (!Number.isFinite(amount) || amount <= 0) { setToast("Enter a minimum bid amount greater than $0."); return; }
+    setSavingMinBid(true);
+    try {
+      await setMinBidAmount(amount);
+      await load();
+      setToast("Minimum bid amount updated.");
+    } catch (e) {
+      setToast(e.message || "Could not update the minimum bid amount.");
+    }
+    setSavingMinBid(false);
+  }
+
+  async function saveMaxJob() {
+    const amount = Number(maxJobInput);
+    if (!Number.isFinite(amount) || amount <= 0) { setToast("Enter a maximum job amount greater than $0."); return; }
+    setSavingMaxJob(true);
+    try {
+      await setMaxJobAmount(amount);
+      await load();
+      setToast("Maximum job amount updated.");
+    } catch (e) {
+      setToast(e.message || "Could not update the maximum job amount.");
+    }
+    setSavingMaxJob(false);
+  }
+
   if (config === null) return <CenteredNote>Loading…</CenteredNote>;
 
   const canEditFees = !readOnly && (session.superAdmin || config.allow_admin_fee_edits);
   const canEditToggle = !readOnly && session.superAdmin;
+  const canEditLimits = !readOnly && session.superAdmin;
 
   return (
     <div>
@@ -113,12 +150,12 @@ export function PlatformFeesTab({ session, readOnly, setToast }) {
         </div>
         <div style={{ fontSize: 11.5, color: C.gray }}>
           {readOnly
-            ? "View-only admins can never edit platform fees."
+            ? "View-only admins can never edit money policy."
             : session.superAdmin
-            ? "You're the super admin — you can always edit fees and the toggle below."
+            ? "You're the super admin — you can always edit fees, limits, and the toggle below."
             : config.allow_admin_fee_edits
-            ? "Regular admins can currently edit fees (the super admin turned this on)."
-            : "Regular admins cannot edit fees right now — only view them. The super admin can turn this on below."}
+            ? "Regular admins can currently edit the platform fee (the super admin turned this on). Job/bid limits are always super-admin-only."
+            : "Regular admins cannot edit the platform fee right now — only view it. Job/bid limits are always super-admin-only."}
         </div>
       </div>
 
@@ -176,10 +213,10 @@ export function PlatformFeesTab({ session, readOnly, setToast }) {
 
       <div style={{
         background: config.allow_admin_fee_edits ? C.tealLight : C.grayLight,
-        border: `1px solid ${config.allow_admin_fee_edits ? C.teal + "44" : C.line}`, borderRadius: RADIUS.md, padding: "12px 14px",
+        border: `1px solid ${config.allow_admin_fee_edits ? C.teal + "44" : C.line}`, borderRadius: RADIUS.md, padding: "12px 14px", marginBottom: 14,
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep }}>
-          Let regular admins edit fees: {config.allow_admin_fee_edits ? "On" : "Off"}
+          Let regular admins edit the platform fee: {config.allow_admin_fee_edits ? "On" : "Off"}
         </div>
         <div style={{ fontSize: 11.5, color: C.gray, marginTop: 3 }}>
           Super-admin-only setting. When off, regular admins can view every rate but can't change any of them.
@@ -193,6 +230,55 @@ export function PlatformFeesTab({ session, readOnly, setToast }) {
         )}
         {!canEditToggle && !readOnly && (
           <div style={{ fontSize: 11, color: C.gray, marginTop: 8 }}>Only the super admin can change this.</div>
+        )}
+      </div>
+
+      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "14px 16px" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>Job & bid limits</div>
+        <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 12 }}>
+          Always super-admin-only — these caps shape fraud/chargeback exposure directly, so there's no
+          delegation toggle like the fee above. A bid below the minimum is rejected with a clear message;
+          a bid above the maximum shows a "contact us" message instead of a dead end.
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: C.ink }}>Minimum bid amount</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 9, top: 0, bottom: 0, display: "flex", alignItems: "center", color: C.gray, fontSize: 13, pointerEvents: "none" }}>$</span>
+              <input
+                type="number" step="1" min="0" value={minBidInput}
+                onChange={e => setMinBidInput(e.target.value)}
+                disabled={!canEditLimits || savingMinBid}
+                style={{ width: 90, boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "8px 10px 8px 20px", fontSize: 14, fontFamily: sans, color: C.ink }}
+              />
+            </div>
+            {canEditLimits && (
+              <Btn size="sm" full={false} onClick={saveMinBid} disabled={savingMinBid}>{savingMinBid ? "Saving…" : "Save"}</Btn>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 13, color: C.ink }}>Maximum job amount</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 9, top: 0, bottom: 0, display: "flex", alignItems: "center", color: C.gray, fontSize: 13, pointerEvents: "none" }}>$</span>
+              <input
+                type="number" step="1" min="0" value={maxJobInput}
+                onChange={e => setMaxJobInput(e.target.value)}
+                disabled={!canEditLimits || savingMaxJob}
+                style={{ width: 90, boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "8px 10px 8px 20px", fontSize: 14, fontFamily: sans, color: C.ink }}
+              />
+            </div>
+            {canEditLimits && (
+              <Btn size="sm" full={false} onClick={saveMaxJob} disabled={savingMaxJob}>{savingMaxJob ? "Saving…" : "Save"}</Btn>
+            )}
+          </div>
+        </div>
+
+        {!canEditLimits && !readOnly && (
+          <div style={{ fontSize: 11, color: C.gray, marginTop: 10 }}>Only the super admin can change these.</div>
         )}
       </div>
     </div>

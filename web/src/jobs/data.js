@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { parseRpcError } from "../lib/rpcError";
 
 // Silent bids: attaches { businessName, rating, ratingCount, revealed, ... } to each bid via
 // job_hauler_display(), which keeps the real business name hidden (replaced with a stable "Hauler
@@ -323,11 +324,16 @@ export async function postJob({ customerId, title, description, zip, photos, ser
   return job;
 }
 
+// BID_TOO_LOW / MAX_JOB_AMOUNT come from the enforce_bid_amount_limits() trigger (see
+// 20260819000000_money_policy_limits.sql) — a real Postgres exception, not an RLS denial, so it
+// carries a specific, friendly message rather than a generic 42501. parseRpcError strips the
+// leading CODE: prefix either way, so both this and the plain license/insurance rejection below
+// end up as clean text for the caller's toast.
 export async function submitBid({ jobId, haulerId, amount, note }) {
   const { error } = await supabase.from("bids").insert({ job_id: jobId, hauler_id: haulerId, amount: Number(amount), note });
   if (error) {
     if (error.code === "42501") throw new Error("Please confirm Business License and Insurance are current.");
-    throw error;
+    throw new Error(parseRpcError(error).message);
   }
 }
 
@@ -335,7 +341,7 @@ export async function updateBid({ bidId, amount, note }) {
   const { error } = await supabase.from("bids").update({ amount: Number(amount), note }).eq("id", bidId);
   if (error) {
     if (error.code === "42501") throw new Error("This bid can no longer be edited — it may have expired or already been accepted.");
-    throw error;
+    throw new Error(parseRpcError(error).message);
   }
 }
 
