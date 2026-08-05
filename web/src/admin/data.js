@@ -595,6 +595,19 @@ export async function setAllowAdminFeeEdits(enabled) {
   if (error) throw rpcError(error);
 }
 
+// Job/bid money limits — same platform_fee_config row, but super-admin-only with no
+// allow_admin_fee_edits delegation: these caps shape fraud/chargeback exposure directly, see
+// 20260819000000_money_policy_limits.sql.
+export async function setMinBidAmount(amount) {
+  const { error } = await supabase.rpc("set_min_bid_amount", { p_amount: amount });
+  if (error) throw rpcError(error);
+}
+
+export async function setMaxJobAmount(amount) {
+  const { error } = await supabase.rpc("set_max_job_amount", { p_amount: amount });
+  if (error) throw rpcError(error);
+}
+
 export async function loadCancellationRequests() {
   const { data: requests, error } = await supabase.from("cancellation_requests").select("*").order("created_at", { ascending: false });
   if (error) throw error;
