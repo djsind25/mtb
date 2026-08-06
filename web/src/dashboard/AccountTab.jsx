@@ -11,6 +11,7 @@ import {
 import { HaulerDocuments } from "./HaulerDocuments";
 import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { SmsAgreement } from "../auth/SmsAgreement";
+import { isPushSupported, pushPermission, getCurrentPushSubscription, subscribeToPush, unsubscribeFromPush } from "../lib/push";
 import { entitlementsFor, tierName } from "../membership";
 import { LockedField } from "./LockedField";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
@@ -65,6 +66,15 @@ const SMS_EVENT_LABELS = {
   },
 };
 
+// Scoped to exactly what's wired server-side so far (see 20260821000000_web_push.sql) — new bid,
+// bid accepted/booked, new message. Same shape as EVENT_LABELS, just a smaller set.
+const PUSH_EVENT_LABELS = {
+  bidReceived: "New bid on your job",
+  bidAccepted: "Your bid was accepted",
+  jobBooked: "Your job is booked",
+  newMessage: "New chat message",
+};
+
 const sectionTitle = { fontSize: 15, fontWeight: 700, color: C.pineDeep, marginBottom: 12 };
 const checkboxRow = { display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 8, cursor: "pointer" };
 
@@ -86,6 +96,9 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
   const [prefs, setPrefs] = useState(null);
   const [smsConsent, setSmsConsent] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
+
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [togglingPush, setTogglingPush] = useState(false);
 
   const [history, setHistory] = useState([]);
 
@@ -162,6 +175,32 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
     })();
     return () => { cancelled = true; };
   }, [session.id, session.role]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (isPushSupported()) {
+      getCurrentPushSubscription().then(sub => { if (!cancelled) setPushSubscribed(!!sub); }).catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, []);
+
+  async function togglePush() {
+    setTogglingPush(true);
+    try {
+      if (pushSubscribed) {
+        await unsubscribeFromPush();
+        setPushSubscribed(false);
+        setToast("Push notifications turned off on this device.");
+      } else {
+        await subscribeToPush(session.id);
+        setPushSubscribed(true);
+        setToast("Push notifications enabled on this device.");
+      }
+    } catch (e) {
+      setToast(e.message || "Could not update push notifications.");
+    }
+    setTogglingPush(false);
+  }
 
   // business_name moved out of this free-save path entirely — it's now change-request-only, see
   // the "Business & verification" section below.
@@ -461,6 +500,39 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
             {label}
           </label>
         ))}
+
+        <div style={{ height: 1, background: C.line, margin: "16px 0" }} />
+
+        {!isPushSupported() ? (
+          <div style={{ fontSize: 12, color: C.gray, marginBottom: 8 }}>
+            Push notifications aren't available in this browser. On an iPhone, add MyTrashBid to your
+            Home Screen first (Share → Add to Home Screen), then open it from there to enable push.
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: pushSubscribed ? 8 : 0 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Push notifications</div>
+                <div style={{ fontSize: 11.5, color: C.gray }}>
+                  {pushPermission() === "denied"
+                    ? "Blocked in your browser settings — re-enable notifications for this site to turn it back on."
+                    : "Get a banner notification on this device for the events below."}
+                </div>
+              </div>
+              <Btn variant={pushSubscribed ? "ghost" : "primary"} full={false} onClick={togglePush}
+                disabled={togglingPush || pushPermission() === "denied"}>
+                {togglingPush ? "…" : pushSubscribed ? "Turn off" : "Enable"}
+              </Btn>
+            </div>
+            {pushSubscribed && Object.entries(PUSH_EVENT_LABELS).map(([key, label]) => (
+              <label key={key} style={{ ...checkboxRow, marginLeft: 20, marginTop: 8 }}>
+                <input type="checkbox" checked={prefs.pushEvents?.[key] ?? true}
+                  onChange={e => setPrefs({ ...prefs, pushEvents: { ...prefs.pushEvents, [key]: e.target.checked } })} />
+                {label}
+              </label>
+            ))}
+          </>
+        )}
 
         <div style={{ marginTop: 8 }}>
           <Btn full={false} onClick={savePrefs} disabled={savingPrefs}>{savingPrefs ? "Saving…" : "Save preferences"}</Btn>

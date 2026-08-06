@@ -508,3 +508,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/send-monthly-export/deno.json"
 entrypoint = "./functions/send-monthly-export/index.ts"
+
+[functions.send-web-push]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-web-push/deno.json"
+entrypoint = "./functions/send-web-push/index.ts"

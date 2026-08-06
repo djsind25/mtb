@@ -3,11 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Post a junk removal or dumpster rental job and get competing bids from local haulers." />
     <title>MyTrashBid</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#41A62E" />
+    <!-- iOS ignores the manifest for "Add to Home Screen" styling — these three tags are what
+         actually get it to open full-screen without Safari's browser chrome. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MyTrashBid" />
   </head>
   <body>
     <div id="root"></div>
