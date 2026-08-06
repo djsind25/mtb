@@ -166,6 +166,19 @@ export async function updateNotificationPrefs(id, prefs, smsConsent) {
   if (error) throw error;
 }
 
+// Push subscriptions have no single "opted in" column — a person can have one per device/browser,
+// so upserting on the unique endpoint is what re-subscribing (e.g. after clearing site data) does.
+export async function savePushSubscription(userId, { endpoint, p256dh, auth }) {
+  const { error } = await supabase.from("push_subscriptions")
+    .upsert({ user_id: userId, endpoint, p256dh, auth }, { onConflict: "endpoint" });
+  if (error) throw error;
+}
+
+export async function deletePushSubscription(endpoint) {
+  const { error } = await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+  if (error) throw error;
+}
+
 export async function changeEmail(newEmail) {
   const { error } = await supabase.auth.updateUser({ email: newEmail });
   if (error) throw error;
