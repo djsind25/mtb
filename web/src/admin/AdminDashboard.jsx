@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, sans, RADIUS } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog, loadCustomerStalls, loadRecruitingLeads } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { loadSupportChats } from "../support/data";
@@ -25,6 +25,8 @@ import { CancellationRequestsTab } from "./CancellationRequestsTab";
 import { StalledJobsTab } from "./StalledJobsTab";
 import { JobChatSupportQueueTab } from "./JobChatSupportQueueTab";
 import { AccountDeletionsTab } from "./AccountDeletionsTab";
+import { CustomerStallsTab } from "./CustomerStallsTab";
+import { HaulerRecruitingTab } from "./HaulerRecruitingTab";
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -42,6 +44,9 @@ export function AdminDashboard({ session, setToast }) {
   const [chatSupportQueue, setChatSupportQueue] = useState([]);
   const [accountDeletionQueue, setAccountDeletionQueue] = useState([]);
   const [accountLifecycleAuditLog, setAccountLifecycleAuditLog] = useState([]);
+  const [customerStalls, setCustomerStalls] = useState({ items: [], counts: {} });
+  const [recruitingLeads, setRecruitingLeads] = useState([]);
+  const [leadsSubTab, setLeadsSubTab] = useState("stalls");
   const [profileChangeRequests, setProfileChangeRequests] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [changeOrdersEnabled, setChangeOrdersEnabledState] = useState(false);
@@ -59,17 +64,18 @@ export function AdminDashboard({ session, setToast }) {
     setLoading(true);
     try {
       await processDueAccountDeletions();
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, cr, fps, pcr, coe, sj, csq, adq, alog] = await Promise.all([
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, cr, fps, pcr, coe, sj, csq, adq, alog, cst, rl] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
         loadAdminInvites(), loadCompletedJobs(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
         loadStalledJobs(), loadChatSupportQueue(true), loadAccountDeletionQueue(), loadAccountLifecycleAuditLog(),
+        loadCustomerStalls(), loadRecruitingLeads(),
       ]);
       // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj);
       setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe); setStalledJobs(sj); setChatSupportQueue(csq);
-      setAccountDeletionQueue(adq); setAccountLifecycleAuditLog(alog);
+      setAccountDeletionQueue(adq); setAccountLifecycleAuditLog(alog); setCustomerStalls(cst); setRecruitingLeads(rl);
     } catch (e) {
       console.error("AdminDashboard: loadAll failed:", e);
       setToast?.(e.message || "Could not load the admin dashboard. Try refreshing.");
@@ -168,6 +174,8 @@ export function AdminDashboard({ session, setToast }) {
         <Stat label="Completed — awaiting review" value={completionsNeedingReview} accent={completionsNeedingReview > 0} onClick={() => setTab("completed")} />
         <Stat label="Cancellation requests" value={pendingCancellationCount} accent={pendingCancellationCount > 0} onClick={() => setTab("cancellations")} />
         <Stat label="Stalled jobs" value={stalledJobs.length} accent={stalledJobs.length > 0} onClick={() => setTab("stalled")} />
+        <Stat label="Leads — customer stalls" value={customerStalls.items.length} accent={customerStalls.items.length > 0} onClick={() => { setTab("leads"); setLeadsSubTab("stalls"); }} />
+        <Stat label="Leads — hauler recruiting" value={recruitingLeads.length} onClick={() => { setTab("leads"); setLeadsSubTab("recruiting"); }} />
         <Stat label="Job chat support open" value={openChatSupportCount} accent={openChatSupportCount > 0} onClick={() => setTab("chatSupport")} />
         <Stat label="Account deletions pending" value={accountDeletionQueue.length} accent={accountDeletionQueue.length > 0} onClick={() => setTab("accountDeletions")} />
         <Stat label="Profile change requests" value={pendingProfileChangeCount} accent={pendingProfileChangeCount > 0} onClick={() => setTab("profileChanges")} />
@@ -190,6 +198,7 @@ export function AdminDashboard({ session, setToast }) {
           { id: "completed", label: `Completed jobs (${completionsNeedingReview}/${completedJobs.length})` },
           { id: "cancellations", label: `Cancellation requests (${pendingCancellationCount}/${cancellationRequests.length})` },
           { id: "stalled", label: `Stalled jobs (${stalledJobs.length})` },
+          { id: "leads", label: `Leads (${customerStalls.items.length + recruitingLeads.length})` },
           { id: "chatSupport", label: `Job chat support (${openChatSupportCount}/${chatSupportQueue.length})` },
           { id: "accountDeletions", label: `Account deletions (${accountDeletionQueue.length})` },
           { id: "profileChanges", label: `Profile change requests (${pendingProfileChangeCount}/${profileChangeRequests.length})` },
@@ -375,6 +384,32 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "stalled" && (
         <Panel title="Stalled jobs — no service date locked within ~96 hours">
           <StalledJobsTab chats={stalledJobs} />
+        </Panel>
+      )}
+
+      {tab === "leads" && (
+        <Panel title={leadsSubTab === "stalls" ? "Customer stalls — derived from real job/bid data" : "Hauler recruiting — manual pipeline"}>
+          <p style={{ fontSize: 12, color: C.gray, marginBottom: 12 }}>
+            No automated messaging or AI here — this only surfaces and tracks. Any outreach is a
+            human decision.
+          </p>
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            {[
+              { id: "stalls", label: `Customer stalls (${customerStalls.items.length})` },
+              { id: "recruiting", label: `Hauler recruiting (${recruitingLeads.length})` },
+            ].map(st => (
+              <button key={st.id} onClick={() => setLeadsSubTab(st.id)} style={{
+                background: leadsSubTab === st.id ? C.pine : C.paper, color: leadsSubTab === st.id ? C.paper : C.ink,
+                border: `1px solid ${leadsSubTab === st.id ? C.pine : C.line}`, borderRadius: RADIUS.sm, padding: "6px 12px",
+                fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              }}>{st.label}</button>
+            ))}
+          </div>
+          {leadsSubTab === "stalls" ? (
+            <CustomerStallsTab stalls={customerStalls} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+          ) : (
+            <HaulerRecruitingTab leads={recruitingLeads} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+          )}
         </Panel>
       )}
 

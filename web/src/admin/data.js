@@ -854,3 +854,112 @@ export async function loadFullPaymentSummary() {
 
   return { fundsHeld, releasedToHaulers, platformEarned, totalRefunded };
 }
+
+// ═══ Leads: Pipeline 1 — customer stalls (derived, no new records) ══════════════════════════════
+// Combines the two categorization RPCs (job-based + profile-based) with the existing
+// loadStalledJobs() — reused as-is, not duplicated — into one tagged, sorted list. Dismissals are
+// already filtered server-side inside the RPCs; stalled_coordination is filtered here since
+// loadStalledJobs() predates and knows nothing about dismissals.
+export async function loadCustomerStalls() {
+  const [{ data: jobCats, error: jobCatsError }, { data: abandoned, error: abandonedError }, stalledChats, { data: dismissals, error: dismissalsError }] = await Promise.all([
+    supabase.rpc("admin_customer_stall_categories"),
+    supabase.rpc("admin_abandoned_signups"),
+    loadStalledJobs(),
+    supabase.from("admin_lead_dismissals").select("category, ref_id"),
+  ]);
+  if (jobCatsError) throw jobCatsError;
+  if (abandonedError) throw abandonedError;
+  if (dismissalsError) throw dismissalsError;
+
+  const dismissedKey = new Set((dismissals || []).map(d => `${d.category}:${d.ref_id}`));
+
+  const items = [
+    ...(jobCats || []).map(c => ({
+      category: c.category, refId: c.job_id, title: c.job_title, subtitle: `ZIP ${c.zip || "—"}`,
+      bidCount: c.bid_count, since: c.since, jobId: c.job_id,
+    })),
+    ...(abandoned || []).map(a => ({
+      category: "abandoned_signup", refId: a.customer_id, title: a.name || a.email, subtitle: a.email,
+      bidCount: null, since: a.since, jobId: null,
+    })),
+    ...stalledChats
+      .filter(c => !dismissedKey.has(`stalled_coordination:${c.id}`))
+      .map(c => ({
+        category: "stalled_coordination", refId: c.id, title: c.jobTitle || "Job",
+        subtitle: `${c.customerName} ↔ ${c.haulerName} · ZIP ${c.zip || "—"}`,
+        bidCount: null, since: c.stalled_at, jobId: c.job_id,
+      })),
+  ].sort((a, b) => new Date(a.since) - new Date(b.since));
+
+  const counts = { expired_unbooked: 0, no_bids: 0, no_acceptance: 0, stalled_coordination: 0, abandoned_signup: 0 };
+  items.forEach(i => { counts[i.category] = (counts[i.category] || 0) + 1; });
+
+  return { items, counts };
+}
+
+export async function dismissLead(category, refId, status) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from("admin_lead_dismissals")
+    .insert({ category, ref_id: refId, status, admin_id: user?.id });
+  if (error) throw error;
+}
+
+export async function undismissLead(category, refId) {
+  const { error } = await supabase.from("admin_lead_dismissals")
+    .delete().eq("category", category).eq("ref_id", refId);
+  if (error) throw error;
+}
+
+// ═══ Leads: Pipeline 2 — hauler recruiting CRM (manual, real records) ═══════════════════════════
+export async function loadRecruitingLeads() {
+  const { data, error } = await supabase.from("hauler_recruiting_leads").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  const linkedIds = data.filter(l => l.linked_hauler_id).map(l => l.linked_hauler_id);
+  if (linkedIds.length === 0) return data;
+  const { data: linked } = await supabase.from("profiles").select("id, verified, license_active, insurance_active").in("id", linkedIds);
+  const byId = Object.fromEntries((linked || []).map(p => [p.id, p]));
+  return data.map(l => ({ ...l, linkedHaulerStatus: l.linked_hauler_id ? byId[l.linked_hauler_id] : null }));
+}
+
+export async function createRecruitingLead(fields) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from("hauler_recruiting_leads").insert({ ...fields, created_by: user?.id });
+  if (error) throw error;
+}
+
+export async function updateRecruitingLead(id, fields) {
+  const { error } = await supabase.from("hauler_recruiting_leads").update(fields).eq("id", id);
+  if (error) throw error;
+}
+
+export async function loadRecruitingLeadActivity(leadId) {
+  const { data, error } = await supabase.from("hauler_lead_activity_log")
+    .select("*").eq("lead_id", leadId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function addRecruitingLeadNote(leadId, note) {
+  const { error } = await supabase.rpc("add_recruiting_lead_note", { p_lead_id: leadId, p_note: note });
+  if (error) throw rpcError(error);
+}
+
+export async function linkRecruitingLead(leadId, haulerId) {
+  const { error } = await supabase.rpc("link_recruiting_lead", { p_lead_id: leadId, p_hauler_id: haulerId });
+  if (error) throw rpcError(error);
+}
+
+export async function unlinkRecruitingLead(leadId) {
+  const { error } = await supabase.rpc("unlink_recruiting_lead", { p_lead_id: leadId });
+  if (error) throw rpcError(error);
+}
+
+// Used by the link-to-account picker — small result set, plain ilike search is fine at this scale.
+export async function searchHaulerAccounts(query) {
+  const q = query.trim();
+  if (!q) return [];
+  const { data, error } = await supabase.from("profiles").select("id, name, business_name, email, zip")
+    .eq("role", "hauler").or(`name.ilike.%${q}%,business_name.ilike.%${q}%,email.ilike.%${q}%`).limit(10);
+  if (error) throw error;
+  return data;
+}
