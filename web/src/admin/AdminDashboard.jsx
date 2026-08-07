@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { C, sans, RADIUS } from "../theme";
+import { C, RADIUS } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog, loadCustomerStalls, loadRecruitingLeads } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
@@ -27,6 +27,32 @@ import { JobChatSupportQueueTab } from "./JobChatSupportQueueTab";
 import { AccountDeletionsTab } from "./AccountDeletionsTab";
 import { CustomerStallsTab } from "./CustomerStallsTab";
 import { HaulerRecruitingTab } from "./HaulerRecruitingTab";
+
+function AttentionItem({ item, onOpen }) {
+  return (
+    <button
+      type="button"
+      className={`admin-attention-item${item.priority ? ` admin-attention-item--${item.priority}` : ""}`}
+      onClick={() => onOpen(item.id)}
+    >
+      <span className="admin-attention-item__count">{item.count}</span>
+      <span style={{ minWidth: 0 }}>
+        <span className="admin-attention-item__label">{item.label}</span>
+        <span className="admin-attention-item__description">{item.description}</span>
+      </span>
+      <span className="admin-attention-item__arrow" aria-hidden="true">→</span>
+    </button>
+  );
+}
+
+function SnapshotRow({ label, value, onClick }) {
+  return (
+    <button type="button" className="admin-snapshot-row" onClick={onClick}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </button>
+  );
+}
 
 export function AdminDashboard({ session, setToast }) {
   const [tab, setTab] = useState("overview");
@@ -147,86 +173,189 @@ export function AdminDashboard({ session, setToast }) {
   const tierCounts = Object.fromEntries(Object.keys(MEMBERSHIP_TIERS).map(t => [t, haulers.filter(h => (h.membership_tier || "free") === t).length]));
   const openChatSupportCount = chatSupportQueue.filter(c => c.support_status !== "resolved").length;
 
-  return (
-    <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px 16px 60px" }}>
-      <h2 style={{ fontFamily: sans, fontSize: 24, color: C.pineDeep, marginBottom: 4 }}>🛡️ Admin dashboard</h2>
-      <p style={{ fontSize: 13, color: C.gray, marginBottom: 16 }}>Full visibility — users, jobs, bids, deposit revenue, and flagged messages.</p>
+  function goToTab(nextTab) {
+    setTab(nextTab);
+    if (nextTab === "support") setSupportSubTab("open");
+  }
 
-      {readOnly && (
-        <div style={{
-          background: C.amberLight, border: `1px solid ${C.amber}66`, borderRadius: RADIUS.md,
-          padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "#8A6604", fontWeight: 600,
-        }}>
-          👁️ View-only admin — you can see everything here, but can't make changes.
+  const navigationGroups = [
+    { id: "overview", label: "Overview", tabs: [{ id: "overview", label: "Overview" }] },
+    {
+      id: "work", label: "Work", tabs: [
+        { id: "jobs", label: "Jobs & bids", count: jobs.length },
+        { id: "completed", label: "Completion review", count: completionsNeedingReview },
+        { id: "overdue", label: "Overdue", count: unreviewedOverdueCount },
+        { id: "cancellations", label: "Cancellations", count: pendingCancellationCount },
+        { id: "stalled", label: "Stalled jobs", count: stalledJobs.length },
+        { id: "docs", label: "Hauler docs", count: pendingDocCount },
+      ],
+    },
+    {
+      id: "people", label: "People & growth", tabs: [
+        { id: "customers", label: "Customers", count: customers.length },
+        { id: "haulers", label: "Haulers", count: haulers.length },
+        { id: "admins", label: "Admins", count: admins.length },
+        { id: "leads", label: "Leads", count: customerStalls.items.length + recruitingLeads.length },
+        { id: "profileChanges", label: "Profile changes", count: pendingProfileChangeCount },
+        { id: "accountDeletions", label: "Account deletions", count: accountDeletionQueue.length },
+      ],
+    },
+    {
+      id: "money", label: "Money & settings", tabs: [
+        { id: "revenue", label: "Revenue" },
+        { id: "autoExport", label: "Auto export" },
+        { id: "platformFees", label: "Money policy" },
+      ],
+    },
+    {
+      id: "support", label: "Safety & support", tabs: [
+        { id: "flags", label: "Flagged messages", count: unreviewedFlagCount },
+        { id: "chatSupport", label: "Job chat support", count: openChatSupportCount },
+        { id: "support", label: "Chat tickets", count: openSupportChats.length },
+      ],
+    },
+  ];
+  const activeNavigationGroup = navigationGroups.find(group => group.tabs.some(item => item.id === tab)) || navigationGroups[0];
+
+  const attentionItems = [
+    { id: "flags", label: "Flagged messages", description: "Trust & Safety items waiting for review", count: unreviewedFlagCount, priority: "urgent" },
+    { id: "overdue", label: "Overdue completions", description: "Jobs past the completion window", count: unreviewedOverdueCount, priority: "urgent" },
+    { id: "cancellations", label: "Cancellation requests", description: "Pending customer or hauler requests", count: pendingCancellationCount, priority: "warning" },
+    { id: "stalled", label: "Stalled jobs", description: "Service dates still need coordination", count: stalledJobs.length, priority: "warning" },
+    { id: "docs", label: "Hauler documents", description: "License or insurance submissions to check", count: pendingDocCount },
+    { id: "completed", label: "Completion reviews", description: "Completed jobs awaiting admin review", count: completionsNeedingReview },
+    { id: "chatSupport", label: "Job chat support", description: "Active job conversations asking for help", count: openChatSupportCount },
+    { id: "support", label: "Open chat tickets", description: "General support conversations to pick up", count: openSupportChats.length },
+    { id: "profileChanges", label: "Profile changes", description: "Vetting details awaiting approval", count: pendingProfileChangeCount },
+    { id: "accountDeletions", label: "Account deletions", description: "Accounts in the deletion workflow", count: accountDeletionQueue.length },
+  ].filter(item => item.count > 0);
+  const attentionTotal = attentionItems.reduce((sum, item) => sum + item.count, 0);
+
+  return (
+    <div className="admin-dashboard">
+      <header className="admin-page-header">
+        <div>
+          <h1 className="admin-page-title">
+            <span className="admin-page-title__mark" aria-hidden="true">
+              <svg width="17" height="19" viewBox="0 0 17 19" fill="none">
+                <path d="M8.5 1.25 15 3.7v5.18c0 4.12-2.74 7.28-6.5 8.87C4.74 16.16 2 13 2 8.88V3.7l6.5-2.45Z" fill="currentColor" />
+                <path d="m5.6 9.35 1.8 1.8 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            Admin dashboard
+          </h1>
+          <p className="admin-page-subtitle">Monitor platform health and clear the work that needs attention.</p>
+        </div>
+        {readOnly && <div className="admin-access-note">View-only access</div>}
+      </header>
+
+      <nav className="admin-navigation" aria-label="Admin dashboard sections">
+        <div className="admin-primary-nav">
+          {navigationGroups.map(group => (
+            <button
+              type="button"
+              key={group.id}
+              className={`admin-primary-nav__item${activeNavigationGroup.id === group.id ? " is-active" : ""}`}
+              onClick={() => goToTab(group.tabs[0].id)}
+            >
+              {group.label}
+            </button>
+          ))}
+        </div>
+        {activeNavigationGroup.id !== "overview" && (
+          <div className="admin-secondary-nav">
+            {activeNavigationGroup.tabs.map(item => (
+              <button
+                type="button"
+                key={item.id}
+                className={`admin-secondary-nav__item${tab === item.id ? " is-active" : ""}`}
+                onClick={() => goToTab(item.id)}
+              >
+                {item.label}
+                {item.count !== undefined && <span className="admin-nav-count">{item.count}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </nav>
+
+      {tab === "overview" && (
+        <div className="admin-kpi-grid">
+          <Stat
+            label="GMV this month"
+            value={`$${thisMonth.gmv.toFixed(2)}`}
+            hint={`$${thisMonth.haulerDirect.toFixed(2)} paid directly to haulers`}
+            mono
+            onClick={() => goToTab("revenue")}
+          />
+          <Stat
+            label="Platform revenue"
+            value={`$${thisMonth.deposit.toFixed(2)}`}
+            hint="10% deposits collected this month"
+            mono
+            accent
+            onClick={() => goToTab("revenue")}
+          />
+          <Stat
+            label="Booked jobs"
+            value={bookedJobs.length}
+            hint={`${recentJobCount} jobs created in the last 60 days`}
+            onClick={() => goToTab("jobs")}
+          />
+          <Stat
+            label="Funds held"
+            value={`$${(fullPaymentSummary?.fundsHeld ?? 0).toFixed(2)}`}
+            hint="Full-payment jobs awaiting release"
+            mono
+            onClick={() => goToTab("revenue")}
+          />
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 24 }}>
-        <Stat label="Customers" value={customers.length} />
-        <Stat label="Haulers" value={haulers.length} />
-        <Stat label="Total jobs — last 60 days" value={recentJobCount} onClick={() => setTab("jobs")} />
-        <Stat label="Booked jobs" value={bookedJobs.length} />
-        <Stat label="GMV (booked, deposit-mode) — this month" value={`$${thisMonth.gmv.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
-        <Stat label="Deposit revenue (10%) — this month" value={`$${thisMonth.deposit.toFixed(2)}`} mono accent onClick={() => setTab("revenue")} />
-        <Stat label="Paid hauler-direct (90%) — this month" value={`$${thisMonth.haulerDirect.toFixed(2)}`} mono onClick={() => setTab("revenue")} />
-        <Stat label="Funds held (full-payment)" value={`$${(fullPaymentSummary?.fundsHeld ?? 0).toFixed(2)}`} mono onClick={() => setTab("revenue")} />
-        <Stat label="Overdue completions" value={overdue.length} accent={overdue.length > 0} onClick={() => setTab("overdue")} />
-        <Stat label="Completed — awaiting review" value={completionsNeedingReview} accent={completionsNeedingReview > 0} onClick={() => setTab("completed")} />
-        <Stat label="Cancellation requests" value={pendingCancellationCount} accent={pendingCancellationCount > 0} onClick={() => setTab("cancellations")} />
-        <Stat label="Stalled jobs" value={stalledJobs.length} accent={stalledJobs.length > 0} onClick={() => setTab("stalled")} />
-        <Stat label="Leads — customer stalls" value={customerStalls.items.length} accent={customerStalls.items.length > 0} onClick={() => { setTab("leads"); setLeadsSubTab("stalls"); }} />
-        <Stat label="Leads — hauler recruiting" value={recruitingLeads.length} onClick={() => { setTab("leads"); setLeadsSubTab("recruiting"); }} />
-        <Stat label="Job chat support open" value={openChatSupportCount} accent={openChatSupportCount > 0} onClick={() => setTab("chatSupport")} />
-        <Stat label="Account deletions pending" value={accountDeletionQueue.length} accent={accountDeletionQueue.length > 0} onClick={() => setTab("accountDeletions")} />
-        <Stat label="Profile change requests" value={pendingProfileChangeCount} accent={pendingProfileChangeCount > 0} onClick={() => setTab("profileChanges")} />
-        <Stat label="Haulers by tier" value={Object.keys(MEMBERSHIP_TIERS).map(t => `${tierName(t)} ${tierCounts[t]}`).join(" · ")} onClick={() => setTab("haulers")} />
-      </div>
-
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
-        {[
-          { id: "overview", label: "Overview" },
-          { id: "customers", label: `Customers (${customers.length})` },
-          { id: "haulers", label: `Haulers (${haulers.length})` },
-          { id: "admins", label: `Admins (${admins.length})` },
-          { id: "jobs", label: `Jobs & bids (${jobs.length})` },
-          { id: "revenue", label: "Revenue" },
-          { id: "autoExport", label: "Auto export" },
-          { id: "platformFees", label: "Money Policy" },
-          { id: "flags", label: `Flagged messages (${unreviewedFlagCount}/${flags.length})` },
-          { id: "overdue", label: `Overdue completions (${unreviewedOverdueCount}/${overdue.length})` },
-          { id: "docs", label: `Hauler docs (${pendingDocCount}/${haulerDocs.length})` },
-          { id: "completed", label: `Completed jobs (${completionsNeedingReview}/${completedJobs.length})` },
-          { id: "cancellations", label: `Cancellation requests (${pendingCancellationCount}/${cancellationRequests.length})` },
-          { id: "stalled", label: `Stalled jobs (${stalledJobs.length})` },
-          { id: "leads", label: `Leads (${customerStalls.items.length + recruitingLeads.length})` },
-          { id: "chatSupport", label: `Job chat support (${openChatSupportCount}/${chatSupportQueue.length})` },
-          { id: "accountDeletions", label: `Account deletions (${accountDeletionQueue.length})` },
-          { id: "profileChanges", label: `Profile change requests (${pendingProfileChangeCount}/${profileChangeRequests.length})` },
-          { id: "support", label: `Open chat tickets (${openSupportChats.length})` },
-        ].map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "support") setSupportSubTab("open"); }} style={{
-            background: tab === t.id ? C.pine : C.paper, color: tab === t.id ? C.paper : C.ink,
-            border: `1px solid ${tab === t.id ? C.pine : C.line}`, borderRadius: RADIUS.sm, padding: "8px 14px",
-            fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}>{t.label}</button>
-        ))}
-      </div>
-
       {tab === "overview" && (
-        <div style={{ display: "grid", gap: 16 }}>
-          <Panel title="Recent jobs">
-            {jobs.slice(0, 5).map(j => <JobRow key={j.id} job={j} />)}
-            {jobs.length === 0 && <CenteredNote>No jobs yet.</CenteredNote>}
+        <div className="admin-overview">
+          <Panel
+            title="Needs attention"
+            subtitle="Only queues with open items are shown."
+            action={attentionItems.length > 0 ? <span className="admin-open-total">{attentionTotal} open</span> : null}
+          >
+            {attentionItems.length > 0 ? (
+              <div className="admin-attention-grid">
+                {attentionItems.map(item => <AttentionItem key={item.id} item={item} onOpen={goToTab} />)}
+              </div>
+            ) : (
+              <div className="admin-all-clear">
+                <span className="admin-all-clear__mark" aria-hidden="true">✓</span>
+                <span><strong style={{ color: C.pineDeep }}>You're all caught up.</strong> There are no open admin queues right now.</span>
+              </div>
+            )}
           </Panel>
-          {overdue.length > 0 && (
-            <Panel title={`⚠ Overdue completions (${overdue.length})`}>
-              {sortedOverdue.map(j => <OverdueJobRow key={j.id} job={j} onChanged={loadAll} readOnly={readOnly} />)}
+
+          <div className="admin-overview-columns">
+            <Panel
+              title="Recent jobs"
+              subtitle="The five most recently created jobs."
+              action={<button type="button" className="admin-text-link" onClick={() => goToTab("jobs")}>View all →</button>}
+            >
+              {jobs.slice(0, 5).map(j => <JobRow key={j.id} job={j} />)}
+              {jobs.length === 0 && <CenteredNote>No jobs yet.</CenteredNote>}
             </Panel>
-          )}
-          <Panel title="Recent flags">
-            {sortedFlags.slice(0, 5).map(f => <FlagRow key={f.id} flag={f} onChanged={loadAll} readOnly={readOnly} />)}
-            {flags.length === 0 && <CenteredNote>No flagged messages yet.</CenteredNote>}
-          </Panel>
+
+            <Panel title="Platform snapshot" subtitle="Accounts and activity at a glance.">
+              <div className="admin-snapshot-list">
+                <SnapshotRow label="Customers" value={customers.length} onClick={() => goToTab("customers")} />
+                <SnapshotRow label="Haulers" value={haulers.length} onClick={() => goToTab("haulers")} />
+                <SnapshotRow label="Jobs (last 60 days)" value={recentJobCount} onClick={() => goToTab("jobs")} />
+                <SnapshotRow label="Active leads" value={customerStalls.items.length + recruitingLeads.length} onClick={() => goToTab("leads")} />
+              </div>
+              <div className="admin-tier-summary">
+                <div className="admin-tier-summary__label">Hauler plans</div>
+                <div className="admin-tier-summary__values">
+                  {Object.keys(MEMBERSHIP_TIERS).map(t => `${tierName(t)} ${tierCounts[t]}`).join("  ·  ")}
+                </div>
+              </div>
+            </Panel>
+          </div>
         </div>
       )}
 
@@ -495,34 +624,37 @@ export function AdminDashboard({ session, setToast }) {
         )
       )}
 
-      <div style={{
-        background: changeOrdersEnabled ? C.tealLight : C.grayLight, border: `1px solid ${changeOrdersEnabled ? C.teal + "44" : C.line}`, borderRadius: RADIUS.md,
-        marginTop: 24,
-      }}>
-        <div
-          onClick={() => setBidRevisionsExpanded(v => !v)}
-          style={{ padding: "12px 14px", display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }}
-        >
-          <span style={{ fontSize: 18 }}>📝</span>
-          <div style={{ fontSize: 12.5, color: C.pineDeep, fontWeight: 700, flex: 1 }}>
-            Bid revisions (change orders): {changeOrdersEnabled ? "Live" : "Off"}
-          </div>
-          <span style={{ fontSize: 13, color: C.gray, transform: bidRevisionsExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>▸</span>
+      {activeNavigationGroup.id === "money" && (
+        <div style={{
+          background: changeOrdersEnabled ? C.tealLight : C.grayLight, border: `1px solid ${changeOrdersEnabled ? C.teal + "44" : C.line}`, borderRadius: RADIUS.md,
+          marginTop: 18,
+        }}>
+          <button
+            type="button"
+            onClick={() => setBidRevisionsExpanded(v => !v)}
+            aria-expanded={bidRevisionsExpanded}
+            style={{ width: "100%", padding: "12px 14px", display: "flex", gap: 10, alignItems: "center", cursor: "pointer", background: "transparent", border: 0, textAlign: "left" }}
+          >
+            <div style={{ fontSize: 12.5, color: C.pineDeep, fontWeight: 700, flex: 1 }}>
+              Bid revisions (change orders): {changeOrdersEnabled ? "Live" : "Off"}
+            </div>
+            <span style={{ fontSize: 13, color: C.gray, transform: bidRevisionsExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>▸</span>
+          </button>
+          {bidRevisionsExpanded && (
+            <div style={{ padding: "0 14px 14px 14px", fontSize: 12.5, color: C.gray, lineHeight: 1.55 }}>
+              Lets a hauler propose a new price on a booked-but-not-completed job, requiring the customer's
+              explicit approval before it takes effect — append-only, nothing is ever overwritten.
+              {session.superAdmin && (
+                <div style={{ marginTop: 10 }}>
+                  <Btn size="sm" full={false} variant="ghost" disabled={togglingChangeOrders} onClick={toggleChangeOrders}>
+                    {togglingChangeOrders ? "Switching…" : changeOrdersEnabled ? "Turn off" : "Turn on"}
+                  </Btn>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-        {bidRevisionsExpanded && (
-          <div style={{ padding: "0 14px 14px 14px", fontSize: 12.5, color: C.gray, lineHeight: 1.55 }}>
-            Lets a hauler propose a new price on a booked-but-not-completed job, requiring the customer's
-            explicit approval before it takes effect — append-only, nothing is ever overwritten.
-            {session.superAdmin && (
-              <div style={{ marginTop: 10 }}>
-                <Btn size="sm" full={false} variant="ghost" disabled={togglingChangeOrders} onClick={toggleChangeOrders}>
-                  {togglingChangeOrders ? "Switching…" : changeOrdersEnabled ? "Turn off" : "Turn on"}
-                </Btn>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       {editingUser && (
         <EditUserModal
