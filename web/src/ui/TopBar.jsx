@@ -23,7 +23,7 @@ export function TopBar({ session, onLogout, onNav, page, setToast }) {
   return (
     <>
       <div style={{ background: C.paper, borderBottom: `1px solid ${C.line}`, boxShadow: SHADOW_SM, padding: "12px 18px", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 880, margin: "0 auto", display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ maxWidth: session?.role === "admin" ? 1180 : 880, margin: "0 auto", display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <Wordmark size={17} />
           </div>
