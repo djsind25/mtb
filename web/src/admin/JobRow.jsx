@@ -123,7 +123,7 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
           <JobQuestions jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
           {job.status === "booked" && job.chatId && (
             <div style={{ marginBottom: 10 }}>
-              <Btn size="sm" full={false} variant="teal" onClick={() => setViewingChat(true)}>💬 View conversation</Btn>
+              <Btn size="sm" full={false} variant="teal" onClick={() => setViewingChat(true)}>{readOnly ? "💬 View conversation" : "💬 Join job conversation"}</Btn>
             </div>
           )}
           {job.status === "booked" && job.scheduling && schedulingState(job.scheduling) && (
@@ -150,7 +150,15 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
           ))}
         </div>
       )}
-      {viewingChat && <AdminChatViewer chatId={job.chatId} onClose={() => setViewingChat(false)} />}
+      {viewingChat && (
+        <AdminChatViewer
+          chatId={job.chatId}
+          viewerId={session?.id}
+          readOnly={readOnly}
+          setToast={setToast}
+          onClose={() => setViewingChat(false)}
+        />
+      )}
       {messagingChatId && (
         <div style={{
           position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
