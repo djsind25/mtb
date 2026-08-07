@@ -24,37 +24,59 @@ function schedulingState(s) {
   return { label: "Coordinating", color: C.gray, bg: C.grayLight };
 }
 
-export function JobRow({ job }) {
+export function JobRow({ job, onClick }) {
   const timeline = timelineMeta(job.timeline);
+  const Tag = onClick ? "button" : "div";
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, fontSize: 13 }}>
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0",
+        border: "none", borderBottom: `1px solid ${C.line}`, fontSize: 13, width: "100%",
+        background: "none", textAlign: "left", fontFamily: "inherit", cursor: onClick ? "pointer" : "default",
+      }}
+    >
       <span style={{ color: C.ink, fontWeight: 600 }}>{job.title}</span>
       <div style={{ display: "flex", gap: 6 }}>
         {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge>}
         <Badge color={job.status === "booked" ? C.teal : C.ember} bg={job.status === "booked" ? C.tealLight : C.emberLight}>{job.status}</Badge>
       </div>
-    </div>
+    </Tag>
   );
 }
 
-export function JobRowExpanded({ job }) {
+export function JobRowExpanded({ job, onViewCustomer }) {
   const [open, setOpen] = useState(false);
   const [viewingChat, setViewingChat] = useState(false);
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline);
   return (
     <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, overflow: "hidden" }}>
-      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", background: "none", border: "none", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontFamily: "inherit" }}>
+      <div
+        role="button" tabIndex={0} onClick={() => setOpen(o => !o)}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } }}
+        style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+      >
         <div style={{ textAlign: "left" }}>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>{job.title}</div>
-          <div style={{ fontSize: 11, color: C.gray }}>by {job.customerName || "—"} · ZIP {job.zip} · {(job.bids || []).length} bids</div>
+          <div style={{ fontSize: 11, color: C.gray }}>
+            by {onViewCustomer ? (
+              <button
+                onClick={e => { e.stopPropagation(); onViewCustomer(job); }}
+                style={{ background: "none", border: "none", padding: 0, font: "inherit", color: C.teal, textDecoration: "underline", cursor: "pointer" }}
+              >
+                {job.customerName || "—"}
+              </button>
+            ) : (job.customerName || "—")} · ZIP {job.zip} · {(job.bids || []).length} bids
+          </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
           {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge>}
           {job.status === "open" && <Badge color={jobExpired ? C.red : C.gray} bg={jobExpired ? C.redLight : C.grayLight}>{expiryLabel(job.expires_at)}</Badge>}
           <Badge color={job.status === "booked" ? C.teal : C.ember} bg={job.status === "booked" ? C.tealLight : C.emberLight}>{job.status}</Badge>
         </div>
-      </button>
+      </div>
       {open && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 14px" }}>
           <JobUpdates jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
