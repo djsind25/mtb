@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { C, sans, expiryLabel, isExpired, timelineMeta, RADIUS, SHADOW_SM } from "../theme";
+import { C, sans, expiryLabel, isExpired, timelineMeta, RADIUS, SHADOW_SM, SHADOW_MD } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
 import { JobQuestions } from "../jobs/JobQuestions";
 import { JobUpdates } from "../jobs/JobUpdates";
 import { JobPhotos } from "../jobs/JobPhotos";
 import { CompletionPhotos } from "../jobs/CompletionPhotos";
+import { getOrCreateMySupportChat } from "../support/data";
+import { SupportChatThread } from "../support/SupportChatThread";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -48,11 +50,28 @@ export function JobRow({ job, onClick }) {
   );
 }
 
-export function JobRowExpanded({ job, onViewCustomer }) {
+export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnly }) {
   const [open, setOpen] = useState(false);
   const [viewingChat, setViewingChat] = useState(false);
+  const [messagingChatId, setMessagingChatId] = useState(null);
+  const [messagingLabel, setMessagingLabel] = useState("");
+  const [startingMessage, setStartingMessage] = useState(null); // null | "customer" | "hauler"
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline);
+  const acceptedBid = (job.bids || []).find(b => b.id === job.accepted_bid_id);
+
+  async function startMessage(userId, label, which) {
+    setStartingMessage(which);
+    try {
+      const chat = await getOrCreateMySupportChat(userId);
+      setMessagingChatId(chat.id);
+      setMessagingLabel(label);
+    } catch (e) {
+      setToast?.(e.message || "Could not start a conversation.");
+    }
+    setStartingMessage(null);
+  }
+
   return (
     <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, overflow: "hidden" }}>
       <div
@@ -81,6 +100,23 @@ export function JobRowExpanded({ job, onViewCustomer }) {
       </div>
       {open && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 14px" }}>
+          <p style={{ fontSize: 13, color: C.gray, marginTop: 0, marginBottom: 12, lineHeight: 1.5 }}>
+            {job.description || "No description provided."}
+          </p>
+          {session && !readOnly && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <Btn size="sm" full={false} variant="ghost" disabled={startingMessage === "customer"}
+                onClick={() => startMessage(job.customer_id, job.customerName || "Customer", "customer")}>
+                {startingMessage === "customer" ? "Opening…" : "💬 Message customer"}
+              </Btn>
+              {acceptedBid && (
+                <Btn size="sm" full={false} variant="ghost" disabled={startingMessage === "hauler"}
+                  onClick={() => startMessage(acceptedBid.hauler_id, acceptedBid.businessName || "Hauler", "hauler")}>
+                  {startingMessage === "hauler" ? "Opening…" : "💬 Message hauler"}
+                </Btn>
+              )}
+            </div>
+          )}
           <JobPhotos jobId={job.id} />
           {job.status === "booked" && <CompletionPhotos jobId={job.id} />}
           <JobUpdates jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
@@ -115,6 +151,23 @@ export function JobRowExpanded({ job, onViewCustomer }) {
         </div>
       )}
       {viewingChat && <AdminChatViewer chatId={job.chatId} onClose={() => setViewingChat(false)} />}
+      {messagingChatId && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        }}>
+          <div style={{ background: C.paper, borderRadius: RADIUS.lg, boxShadow: SHADOW_MD, width: "100%", maxWidth: 480, border: `1px solid ${C.line}`, padding: "16px 16px 0" }}>
+            <SupportChatThread
+              supportChatId={messagingChatId}
+              viewerRole="admin"
+              viewerId={session?.id}
+              title={`Message to ${messagingLabel}`}
+              onClose={() => setMessagingChatId(null)}
+              setToast={setToast}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
