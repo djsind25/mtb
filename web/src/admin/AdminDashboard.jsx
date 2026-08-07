@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { C, RADIUS } from "../theme";
+import { C, RADIUS, SHADOW_MD } from "../theme";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog, loadCustomerStalls, loadRecruitingLeads } from "./data";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
@@ -14,6 +14,7 @@ import { FlagRow } from "./FlagRow";
 import { OverdueJobRow } from "./OverdueJobRow";
 import { EditUserModal } from "./EditUserModal";
 import { UserRow, userDisplayName } from "./UserRow";
+import { UserReviewPanel } from "./UserReviewPanel";
 import { SupportChatRow } from "./SupportChatRow";
 import { HaulerDocRow } from "./HaulerDocRow";
 import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
@@ -80,6 +81,8 @@ export function AdminDashboard({ session, setToast }) {
   const [bidRevisionsExpanded, setBidRevisionsExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
+  const [viewingJob, setViewingJob] = useState(null);
+  const [reviewingUser, setReviewingUser] = useState(null);
   const [userSearch, setUserSearch] = useState("");
   const [userSort, setUserSort] = useState("newest");
   const [hideReviewedFlags, setHideReviewedFlags] = useState(false);
@@ -337,7 +340,7 @@ export function AdminDashboard({ session, setToast }) {
               subtitle="The five most recently created jobs."
               action={<button type="button" className="admin-text-link" onClick={() => goToTab("jobs")}>View all →</button>}
             >
-              {jobs.slice(0, 5).map(j => <JobRow key={j.id} job={j} />)}
+              {jobs.slice(0, 5).map(j => <JobRow key={j.id} job={j} onClick={() => setViewingJob(j)} />)}
               {jobs.length === 0 && <CenteredNote>No jobs yet.</CenteredNote>}
             </Panel>
 
@@ -663,6 +666,37 @@ export function AdminDashboard({ session, setToast }) {
           onSaved={() => { setEditingUser(null); loadAll(); }}
           setToast={setToast}
           readOnly={readOnly}
+        />
+      )}
+
+      {viewingJob && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        }}>
+          <div style={{ background: C.paper, borderRadius: RADIUS.lg, boxShadow: SHADOW_MD, width: "100%", maxWidth: 560, maxHeight: "88vh", overflowY: "auto", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <button onClick={() => setViewingJob(null)} style={{ background: "none", border: "none", color: C.gray, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <JobRowExpanded
+              job={viewingJob}
+              onViewCustomer={j => {
+                const u = users.find(u => u.id === j.customer_id);
+                if (u) { setReviewingUser(u); setViewingJob(null); }
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {reviewingUser && (
+        <UserReviewPanel
+          user={reviewingUser}
+          onClose={() => setReviewingUser(null)}
+          onFlagsChanged={loadAll}
+          setToast={setToast}
+          readOnly={readOnly}
+          session={session}
         />
       )}
     </div>
