@@ -5,8 +5,12 @@ import { userDisplayName } from "./UserRow";
 import {
   loadUserFlags, flagUser, resolveUserFlag, loadUserChats, loadUserCancellationCount,
   loadAccountDeletionBlockers, adminStartDeletion, adminCancelPendingDeletion, adminAnonymizeNow,
+  loadUserJobs, loadUserPaymentSummary,
 } from "./data";
 import { AdminChatViewer } from "./AdminChatViewer";
+import { JobRowExpanded } from "./JobRow";
+import { getOrCreateMySupportChat } from "../support/data";
+import { SupportChatThread } from "../support/SupportChatThread";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
 
@@ -25,15 +29,19 @@ function timeAgo(iso) {
 // content as it's posted) and every chat thread they've been part of, so an admin investigating a
 // pattern (repeat circumvention attempts, bids that keep falling through) doesn't have to jump
 // between separate screens to build the picture.
-export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readOnly }) {
+export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readOnly, session }) {
   const [flags, setFlags] = useState(null);
   const [chats, setChats] = useState(null);
+  const [jobs, setJobs] = useState(null);
+  const [paymentSummary, setPaymentSummary] = useState(null);
   const [cancellationCount, setCancellationCount] = useState(null);
   const [reasonType, setReasonType] = useState("circumvention");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [resolvingId, setResolvingId] = useState(null);
   const [openChatId, setOpenChatId] = useState(null);
+  const [openSupportChatId, setOpenSupportChatId] = useState(null);
+  const [startingMessage, setStartingMessage] = useState(false);
 
   const [blockers, setBlockers] = useState(null);
   const [lifecycleReason, setLifecycleReason] = useState("");
@@ -45,19 +53,24 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
   const displayName = userDisplayName(user);
 
   async function reload() {
-    const [f, c, cc, b] = await Promise.all([
-      loadUserFlags(user.id), loadUserChats(user.id), loadUserCancellationCount(user.id),
+    const [f, c, j, ps, cc, b] = await Promise.all([
+      loadUserFlags(user.id), loadUserChats(user.id),
+      user.role === "admin" ? Promise.resolve([]) : loadUserJobs(user.id, user.role),
+      user.role === "admin" ? Promise.resolve(null) : loadUserPaymentSummary(user.id, user.role),
+      loadUserCancellationCount(user.id),
       user.role === "admin" ? Promise.resolve([]) : loadAccountDeletionBlockers(user.id),
     ]);
     setFlags(f);
     setChats(c);
+    setJobs(j);
+    setPaymentSummary(ps);
     setCancellationCount(cc);
     setBlockers(b);
   }
 
   useEffect(() => {
     let cancelled = false;
-    reload().catch(() => { if (!cancelled) { setFlags([]); setChats([]); setBlockers([]); } });
+    reload().catch(() => { if (!cancelled) { setFlags([]); setChats([]); setJobs([]); setBlockers([]); } });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
@@ -132,7 +145,23 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
     setLifecycleWorking(false);
   }
 
+  async function startMessage() {
+    setStartingMessage(true);
+    try {
+      const chat = await getOrCreateMySupportChat(user.id);
+      setOpenSupportChatId(chat.id);
+    } catch (e) {
+      setToast(e.message || "Could not start a conversation with this user.");
+    }
+    setStartingMessage(false);
+  }
+
   const hasBlockers = blockers && blockers.length > 0;
+  const jobStats = jobs && jobs.length > 0
+    ? user.role === "hauler"
+      ? `${jobs.length} bid${jobs.length === 1 ? "" : "s"} placed · ${jobs.filter(j => j.bids?.find(b => b.hauler_id === user.id)?.id === j.accepted_bid_id).length} won`
+      : `${jobs.length} job${jobs.length === 1 ? "" : "s"} posted · ${jobs.filter(j => j.status === "booked").length} booked · ${jobs.filter(j => j.status === "cancelled").length} cancelled`
+    : null;
 
   return (
     <div style={{
@@ -147,7 +176,14 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
               {user.email} · {user.role}{cancellationCount != null && ` · ${cancellationCount} cancellation${cancellationCount === 1 ? "" : "s"} caused`}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: C.gray, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            {!readOnly && (
+              <Btn size="sm" full={false} variant="teal" disabled={startingMessage} onClick={startMessage}>
+                {startingMessage ? "Opening…" : "💬 Send message"}
+              </Btn>
+            )}
+            <button onClick={onClose} style={{ background: "none", border: "none", color: C.gray, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+          </div>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
@@ -250,6 +286,35 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
             </div>
           )}
 
+          {user.role !== "admin" && (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>Jobs</div>
+              {jobStats && <div style={{ fontSize: 11, color: C.gray, marginBottom: 2 }}>{jobStats}</div>}
+              {paymentSummary && (
+                <div style={{ fontSize: 11, color: C.gray, marginBottom: 8 }}>
+                  {user.role === "hauler" ? (
+                    <>
+                      <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${paymentSummary.totalEarned.toFixed(2)}</span> earned (net of commission)
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${paymentSummary.totalSpent.toFixed(2)}</span> spent lifetime · {paymentSummary.paymentCount} payment{paymentSummary.paymentCount === 1 ? "" : "s"}
+                    </>
+                  )}
+                </div>
+              )}
+              {jobs === null && <CenteredNote>Loading…</CenteredNote>}
+              {jobs?.length === 0 && <div style={{ fontSize: 12.5, color: C.gray }}>
+                {user.role === "hauler" ? "No bids placed yet." : "No jobs posted yet."}
+              </div>}
+              {jobs && jobs.length > 0 && (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {jobs.map(j => <JobRowExpanded key={j.id} job={j} />)}
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ fontSize: 12.5, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Chat history</div>
           {chats === null && <CenteredNote>Loading…</CenteredNote>}
           {chats?.length === 0 && <div style={{ fontSize: 12.5, color: C.gray }}>No chats yet.</div>}
@@ -277,6 +342,25 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
       </div>
 
       {openChatId && <AdminChatViewer chatId={openChatId} onClose={() => setOpenChatId(null)} />}
+
+      {openSupportChatId && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        }}>
+          <div style={{ background: C.paper, borderRadius: RADIUS.lg, boxShadow: SHADOW_MD, width: "100%", maxWidth: 480, border: `1px solid ${C.line}`, padding: "16px 16px 0" }}>
+            <SupportChatThread
+              supportChatId={openSupportChatId}
+              viewerRole="admin"
+              viewerId={session?.id}
+              title={`Message to ${displayName}`}
+              onClose={() => setOpenSupportChatId(null)}
+              setToast={setToast}
+              readOnly={readOnly}
+            />
+          </div>
+        </div>
+      )}
 
       {lifecycleStepUp && (
         <StepUpChallenge

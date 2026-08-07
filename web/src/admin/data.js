@@ -221,9 +221,47 @@ export async function loadUserChats(userId) {
   });
 }
 
-export async function loadJobsWithBids() {
-  const { data: jobs, error } = await supabase.from("jobs").select("*").order("created_at", { ascending: false });
+// Lifetime money summary for the review panel. Deliberately NOT a reuse of dashboard/data.js's
+// loadCustomerStats/loadHaulerStats — those lean on RLS auto-scoping (payments_select has no
+// customer_id filter, relying on auth.uid() to narrow it to the caller's own row), which only
+// works when the caller IS that user. An admin's is_admin() bypasses that same RLS, so calling
+// those as-is here would silently sum every user's payments/earnings, not just this one's.
+// Explicitly scoped by customer_id/hauler_id instead. Hauler math mirrors loadFullPaymentSummary's
+// effectiveCommission (prefers the chat's stamped commission_rate, frozen at accept time) rather
+// than loadHaulerStats' hardcoded 0.10, since a stamped rate is the more correct source of truth.
+export async function loadUserPaymentSummary(userId, role) {
+  if (role === "hauler") {
+    const { data: chats, error } = await supabase
+      .from("chats")
+      .select("bid_amount, commission, commission_status, commission_rate, locked_final_price")
+      .eq("hauler_id", userId)
+      .is("superseded_at", null);
+    if (error) throw error;
+    const earned = chats.filter(c => c.commission_status === "earned");
+    const totalEarned = earned.reduce((sum, c) => {
+      const amount = c.locked_final_price != null ? Number(c.locked_final_price) : Number(c.bid_amount);
+      const commission = c.locked_final_price != null
+        ? Math.round(amount * (c.commission_rate ?? 0.10) * 100) / 100
+        : Number(c.commission);
+      return sum + (amount - commission);
+    }, 0);
+    return { role: "hauler", totalEarned, jobsCompleted: earned.length };
+  }
+
+  const { data: jobs, error: jobsError } = await supabase.from("jobs").select("id").eq("customer_id", userId);
+  if (jobsError) throw jobsError;
+  const jobIds = jobs.map(j => j.id);
+  if (jobIds.length === 0) return { role: "customer", totalSpent: 0, paymentCount: 0 };
+
+  const { data: payments, error } = await supabase.from("payments").select("amount, kind").eq("status", "succeeded").in("job_id", jobIds);
   if (error) throw error;
+  const totalSpent = payments.reduce((sum, p) => sum + (p.kind === "refund" ? -Number(p.amount) : Number(p.amount)), 0);
+  return { role: "customer", totalSpent, paymentCount: payments.length };
+}
+
+// Shared by loadJobsWithBids (every job) and loadUserJobs (one user's jobs) — hydrates a bare
+// jobs array with bids, participant names, and booked-job scheduling state, same shape either way.
+async function attachBidsAndScheduling(jobs) {
   const jobIds = jobs.map(j => j.id);
   let bids = [];
   if (jobIds.length) {
@@ -281,6 +319,33 @@ export async function loadJobsWithBids() {
       bids: bids.filter(b => b.job_id === j.id).map(b => ({ ...b, businessName: nameById[b.hauler_id] })),
     };
   });
+}
+
+export async function loadJobsWithBids() {
+  const { data: jobs, error } = await supabase.from("jobs").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  return attachBidsAndScheduling(jobs);
+}
+
+// Every job this user has ever touched, across every status — for a customer, every job they
+// posted (open/booked/cancelled/expired-unbooked alike); for a hauler, every job they've placed a
+// bid on, win or lose. Unlike loadUserChats (which only covers jobs that reached `booked`, via the
+// chats table), this is the full history, reusing the same JobRowExpanded shape the Jobs tab
+// already renders so bids/scheduling/chat-link all show up identically here.
+export async function loadUserJobs(userId, role) {
+  let jobs, error;
+  if (role === "hauler") {
+    const { data: myBids, error: myBidsError } = await supabase.from("bids").select("job_id").eq("hauler_id", userId);
+    if (myBidsError) throw myBidsError;
+    const jobIds = [...new Set(myBids.map(b => b.job_id))];
+    if (jobIds.length === 0) return [];
+    ({ data: jobs, error } = await supabase.from("jobs").select("*").in("id", jobIds).order("created_at", { ascending: false }));
+  } else {
+    ({ data: jobs, error } = await supabase.from("jobs").select("*").eq("customer_id", userId).order("created_at", { ascending: false }));
+  }
+  if (error) throw error;
+  if (jobs.length === 0) return [];
+  return attachBidsAndScheduling(jobs);
 }
 
 export async function loadFlaggedMessages() {

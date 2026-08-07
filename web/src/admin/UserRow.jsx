@@ -14,7 +14,7 @@ export function userDisplayName(u) {
   return u.role === "customer" ? u.name : (u.business_name || u.name);
 }
 
-export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
+export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, session }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingAdminRole, setConfirmingAdminRole] = useState(false);
@@ -272,7 +272,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly }) {
         />
       )}
       {showReview && (
-        <UserReviewPanel user={u} onClose={() => setShowReview(false)} onFlagsChanged={onChanged} setToast={setToast} readOnly={readOnly} />
+        <UserReviewPanel user={u} onClose={() => setShowReview(false)} onFlagsChanged={onChanged} setToast={setToast} readOnly={readOnly} session={session} />
       )}
     </div>
   );

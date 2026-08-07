@@ -247,7 +247,7 @@ export function AdminDashboard({ session, setToast }) {
             {customers.length === 0 && <CenteredNote>No customer accounts yet.</CenteredNote>}
             {customers.length > 0 && filteredCustomers.length === 0 && <CenteredNote>No customers match "{userSearch}".</CenteredNote>}
             {filteredCustomers.map(u => (
-              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} />
             ))}
           </div>
         </Panel>
@@ -270,7 +270,7 @@ export function AdminDashboard({ session, setToast }) {
             {haulers.length === 0 && <CenteredNote>No hauler accounts yet.</CenteredNote>}
             {haulers.length > 0 && filteredHaulers.length === 0 && <CenteredNote>No haulers match "{userSearch}".</CenteredNote>}
             {filteredHaulers.map(u => (
-              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} />
             ))}
           </div>
         </Panel>
@@ -299,7 +299,7 @@ export function AdminDashboard({ session, setToast }) {
           <div style={{ display: "grid", gap: 8 }}>
             {admins.length === 0 && <CenteredNote>No admin accounts.</CenteredNote>}
             {admins.map(u => (
-              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} />
             ))}
           </div>
         </Panel>
