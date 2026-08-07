@@ -3,8 +3,9 @@ import { C, sans, nowStr, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "../jobs/CompletionPhotos";
 import { reviewCompletion } from "./data";
+import { UserLink } from "./UserLink";
 
-function Row({ chat, onChanged, setToast, readOnly }) {
+function Row({ chat, onChanged, setToast, readOnly, onViewUser }) {
   const [reviewing, setReviewing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const owed = (Number(chat.bid_amount) * 0.9).toFixed(2);
@@ -27,7 +28,8 @@ function Row({ chat, onChanged, setToast, readOnly }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{chat.jobTitle || "Job"}</div>
           <div style={{ fontSize: 11.5, color: C.gray, marginTop: 2 }}>
-            {chat.customerName} → {chat.haulerName} · ZIP {chat.zip || "—"}
+            <UserLink id={chat.customer_id} name={chat.customerName} onViewUser={onViewUser} /> →{" "}
+            <UserLink id={chat.hauler_id} name={chat.haulerName} onViewUser={onViewUser} /> · ZIP {chat.zip || "—"}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -64,7 +66,7 @@ function Row({ chat, onChanged, setToast, readOnly }) {
   );
 }
 
-export function CompletionReview({ completedJobs, onChanged, setToast, readOnly }) {
+export function CompletionReview({ completedJobs, onChanged, setToast, readOnly, onViewUser }) {
   const needsReview = completedJobs.filter(c => !c.admin_reviewed_at);
   const reviewed = completedJobs.filter(c => c.admin_reviewed_at);
   return (
@@ -72,11 +74,11 @@ export function CompletionReview({ completedJobs, onChanged, setToast, readOnly 
       {completedJobs.length === 0 && (
         <div style={{ fontSize: 13, color: C.gray, textAlign: "center", padding: 24 }}>No completed jobs yet.</div>
       )}
-      {needsReview.map(c => <Row key={c.id} chat={c} onChanged={onChanged} setToast={setToast} readOnly={readOnly} />)}
+      {needsReview.map(c => <Row key={c.id} chat={c} onChanged={onChanged} setToast={setToast} readOnly={readOnly} onViewUser={onViewUser} />)}
       {reviewed.length > 0 && needsReview.length > 0 && (
         <div style={{ fontSize: 12, fontWeight: 700, color: C.gray, marginTop: 6 }}>Reviewed</div>
       )}
-      {reviewed.map(c => <Row key={c.id} chat={c} onChanged={onChanged} setToast={setToast} readOnly={readOnly} />)}
+      {reviewed.map(c => <Row key={c.id} chat={c} onChanged={onChanged} setToast={setToast} readOnly={readOnly} onViewUser={onViewUser} />)}
     </div>
   );
 }

@@ -708,6 +708,8 @@ export async function loadCancellationRequests() {
       ...r,
       jobTitle: jobById[r.job_id]?.title,
       zip: jobById[r.job_id]?.zip,
+      customerId: chat?.customer_id,
+      haulerId: chat?.hauler_id,
       customerName: chat ? nameById[chat.customer_id] : undefined,
       haulerName: chat ? nameById[chat.hauler_id] : undefined,
       requestedByName: nameById[r.requested_by],

@@ -4,8 +4,9 @@ import { Badge, Btn, Field, ErrorMsg } from "../ui/Primitives";
 import { processCancellationRefund } from "./data";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
+import { UserLink } from "./UserLink";
 
-function Row({ request, onChanged, setToast, readOnly }) {
+function Row({ request, onChanged, setToast, readOnly, onViewUser }) {
   const [refundInput, setRefundInput] = useState(String(request.heldAmount ?? 0));
   const [confirming, setConfirming] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -35,10 +36,11 @@ function Row({ request, onChanged, setToast, readOnly }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{request.jobTitle || "Job"}</div>
           <div style={{ fontSize: 11.5, color: C.gray, marginTop: 2 }}>
-            {request.customerName} ↔ {request.haulerName} · ZIP {request.zip || "—"}
+            <UserLink id={request.customerId} name={request.customerName} onViewUser={onViewUser} /> ↔{" "}
+            <UserLink id={request.haulerId} name={request.haulerName} onViewUser={onViewUser} /> · ZIP {request.zip || "—"}
           </div>
           <div style={{ fontSize: 11.5, color: C.gray, marginTop: 2 }}>
-            Requested by {request.requestedByName || "someone"} ({request.requested_role}) · {nowStr(request.created_at)}
+            Requested by <UserLink id={request.requested_by} name={request.requestedByName || "someone"} onViewUser={onViewUser} /> ({request.requested_role}) · {nowStr(request.created_at)}
           </div>
           {request.reason && (
             <div style={{ fontSize: 12, color: C.ink, marginTop: 4, fontStyle: "italic" }}>"{request.reason}"</div>
@@ -87,17 +89,17 @@ function Row({ request, onChanged, setToast, readOnly }) {
   );
 }
 
-export function CancellationRequestsTab({ requests, onChanged, setToast, readOnly }) {
+export function CancellationRequestsTab({ requests, onChanged, setToast, readOnly, onViewUser }) {
   const pending = requests.filter(r => r.status === "pending");
   const resolved = requests.filter(r => r.status === "resolved");
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {requests.length === 0 && <div style={{ fontSize: 13, color: C.gray, textAlign: "center", padding: 24 }}>No cancellation requests yet.</div>}
-      {pending.map(r => <Row key={r.id} request={r} onChanged={onChanged} setToast={setToast} readOnly={readOnly} />)}
+      {pending.map(r => <Row key={r.id} request={r} onChanged={onChanged} setToast={setToast} readOnly={readOnly} onViewUser={onViewUser} />)}
       {resolved.length > 0 && pending.length > 0 && (
         <div style={{ fontSize: 12, fontWeight: 700, color: C.gray, marginTop: 6 }}>Resolved</div>
       )}
-      {resolved.map(r => <Row key={r.id} request={r} onChanged={onChanged} setToast={setToast} readOnly={readOnly} />)}
+      {resolved.map(r => <Row key={r.id} request={r} onChanged={onChanged} setToast={setToast} readOnly={readOnly} onViewUser={onViewUser} />)}
     </div>
   );
 }

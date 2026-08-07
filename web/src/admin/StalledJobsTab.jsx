@@ -2,8 +2,9 @@ import { useState } from "react";
 import { C, sans, nowStr, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
+import { UserLink } from "./UserLink";
 
-function Row({ chat }) {
+function Row({ chat, onViewUser }) {
   const [viewingChat, setViewingChat] = useState(false);
   return (
     <div style={{ background: C.paper, border: `1px solid ${C.red}55`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: 14 }}>
@@ -11,7 +12,8 @@ function Row({ chat }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: C.pineDeep }}>{chat.jobTitle || "Job"}</div>
           <div style={{ fontSize: 11.5, color: C.gray, marginTop: 2 }}>
-            {chat.customerName} ↔ {chat.haulerName} · ZIP {chat.zip || "—"}
+            <UserLink id={chat.customer_id} name={chat.customerName} onViewUser={onViewUser} /> ↔{" "}
+            <UserLink id={chat.hauler_id} name={chat.haulerName} onViewUser={onViewUser} /> · ZIP {chat.zip || "—"}
           </div>
           <div style={{ fontSize: 11.5, color: C.gray, marginTop: 2 }}>Stalled since {nowStr(chat.stalled_at)}</div>
         </div>
@@ -29,11 +31,11 @@ function Row({ chat }) {
   );
 }
 
-export function StalledJobsTab({ chats }) {
+export function StalledJobsTab({ chats, onViewUser }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {chats.length === 0 && <div style={{ fontSize: 13, color: C.gray, textAlign: "center", padding: 24 }}>No stalled jobs right now.</div>}
-      {chats.map(c => <Row key={c.id} chat={c} />)}
+      {chats.map(c => <Row key={c.id} chat={c} onViewUser={onViewUser} />)}
     </div>
   );
 }

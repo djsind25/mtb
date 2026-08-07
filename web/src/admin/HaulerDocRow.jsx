@@ -2,6 +2,7 @@ import { useState } from "react";
 import { C, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { reviewHaulerDocument } from "./data";
+import { UserLink } from "./UserLink";
 
 const DOC_LABELS = { license: "Business license", insurance: "Insurance" };
 const STATUS_STYLE = {
@@ -11,7 +12,7 @@ const STATUS_STYLE = {
   expired: { color: C.red, bg: C.redLight },
 };
 
-export function HaulerDocRow({ doc, onChanged, setToast, readOnly }) {
+export function HaulerDocRow({ doc, onChanged, setToast, readOnly, onViewUser }) {
   const [working, setWorking] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState("");
@@ -51,7 +52,7 @@ export function HaulerDocRow({ doc, onChanged, setToast, readOnly }) {
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep }}>
-          {doc.haulerName || "Unknown hauler"} · {DOC_LABELS[doc.doc_type] || doc.doc_type}
+          <UserLink id={doc.hauler_id} name={doc.haulerName} fallback="Unknown hauler" onViewUser={onViewUser} /> · {DOC_LABELS[doc.doc_type] || doc.doc_type}
         </span>
         <Badge color={status.color} bg={status.bg}>{doc.status}</Badge>
       </div>
