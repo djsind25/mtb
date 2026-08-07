@@ -4,6 +4,8 @@ import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
 import { JobQuestions } from "../jobs/JobQuestions";
 import { JobUpdates } from "../jobs/JobUpdates";
+import { JobPhotos } from "../jobs/JobPhotos";
+import { CompletionPhotos } from "../jobs/CompletionPhotos";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -79,6 +81,8 @@ export function JobRowExpanded({ job, onViewCustomer }) {
       </div>
       {open && (
         <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 14px" }}>
+          <JobPhotos jobId={job.id} />
+          {job.status === "booked" && <CompletionPhotos jobId={job.id} />}
           <JobUpdates jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
           <JobQuestions jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
           {job.status === "booked" && job.chatId && (
