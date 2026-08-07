@@ -446,7 +446,7 @@ export function AdminDashboard({ session, setToast }) {
         <Panel title="All jobs & bids">
           <div style={{ display: "grid", gap: 10 }}>
             {jobs.length === 0 && <CenteredNote>No jobs yet.</CenteredNote>}
-            {jobs.map(j => <JobRowExpanded key={j.id} job={j} onViewCustomer={j2 => viewUser(j2.customer_id)} />)}
+            {jobs.map(j => <JobRowExpanded key={j.id} job={j} onViewCustomer={j2 => viewUser(j2.customer_id)} session={session} setToast={setToast} readOnly={readOnly} />)}
           </div>
         </Panel>
       )}
@@ -689,6 +689,9 @@ export function AdminDashboard({ session, setToast }) {
                 const u = users.find(u => u.id === j.customer_id);
                 if (u) { setReviewingUser(u); setViewingJob(null); }
               }}
+              session={session}
+              setToast={setToast}
+              readOnly={readOnly}
             />
           </div>
         </div>

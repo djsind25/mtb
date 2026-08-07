@@ -309,7 +309,7 @@ export function UserReviewPanel({ user, onClose, onFlagsChanged, setToast, readO
               </div>}
               {jobs && jobs.length > 0 && (
                 <div style={{ display: "grid", gap: 8 }}>
-                  {jobs.map(j => <JobRowExpanded key={j.id} job={j} />)}
+                  {jobs.map(j => <JobRowExpanded key={j.id} job={j} session={session} setToast={setToast} readOnly={readOnly} />)}
                 </div>
               )}
             </div>
