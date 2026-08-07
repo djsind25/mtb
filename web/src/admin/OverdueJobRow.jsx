@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { C, RADIUS, SHADOW_SM } from "../theme";
 import { setOverdueReviewed } from "./data";
+import { UserLink } from "./UserLink";
 
-export function OverdueJobRow({ job, expanded, onChanged, readOnly }) {
+export function OverdueJobRow({ job, expanded, onChanged, readOnly, onViewUser }) {
   const [working, setWorking] = useState(false);
   const reviewed = !!job.overdue_reviewed;
   const daysSince = job.accepted_at ? Math.floor((Date.now() - new Date(job.accepted_at).getTime()) / (24 * 60 * 60 * 1000)) : null;
@@ -29,7 +30,9 @@ export function OverdueJobRow({ job, expanded, onChanged, readOnly }) {
         <span style={{ fontSize: 10.5, color: C.gray, whiteSpace: "nowrap" }}>{daysSince} days since booked</span>
       </div>
       <div style={{ fontSize: 11.5, color: C.gray }}>
-        Customer: {job.customerName || "—"} · Hauler: {job.bid?.businessName || "—"} · Bid: ${job.bid?.amount ?? "—"}
+        Customer: <UserLink id={job.customer_id} name={job.customerName} onViewUser={onViewUser} /> ·
+        {" "}Hauler: <UserLink id={job.bid?.hauler_id} name={job.bid?.businessName} onViewUser={onViewUser} /> ·
+        {" "}Bid: ${job.bid?.amount ?? "—"}
       </div>
       {expanded && (
         <div style={{ fontSize: 11.5, color: "#8B3A30", marginTop: 6, lineHeight: 1.5 }}>

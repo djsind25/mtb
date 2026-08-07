@@ -181,6 +181,11 @@ export function AdminDashboard({ session, setToast }) {
     if (nextTab === "support") setSupportSubTab("open");
   }
 
+  function viewUser(userId) {
+    const u = users.find(u => u.id === userId);
+    if (u) setReviewingUser(u);
+  }
+
   const navigationGroups = [
     { id: "overview", label: "Overview", tabs: [{ id: "overview", label: "Overview" }] },
     {
@@ -441,7 +446,7 @@ export function AdminDashboard({ session, setToast }) {
         <Panel title="All jobs & bids">
           <div style={{ display: "grid", gap: 10 }}>
             {jobs.length === 0 && <CenteredNote>No jobs yet.</CenteredNote>}
-            {jobs.map(j => <JobRowExpanded key={j.id} job={j} />)}
+            {jobs.map(j => <JobRowExpanded key={j.id} job={j} onViewCustomer={j2 => viewUser(j2.customer_id)} />)}
           </div>
         </Panel>
       )}
@@ -487,7 +492,7 @@ export function AdminDashboard({ session, setToast }) {
           <div style={{ display: "grid", gap: 8 }}>
             {overdue.length === 0 && <CenteredNote>Nothing overdue right now.</CenteredNote>}
             {overdue.length > 0 && visibleOverdue.length === 0 && <CenteredNote>All overdue jobs reviewed. 🎉</CenteredNote>}
-            {visibleOverdue.map(j => <OverdueJobRow key={j.id} job={j} expanded onChanged={loadAll} readOnly={readOnly} />)}
+            {visibleOverdue.map(j => <OverdueJobRow key={j.id} job={j} expanded onChanged={loadAll} readOnly={readOnly} onViewUser={viewUser} />)}
           </div>
         </Panel>
       )}
@@ -496,26 +501,26 @@ export function AdminDashboard({ session, setToast }) {
         <Panel title="Hauler license & insurance review">
           <div style={{ display: "grid", gap: 8 }}>
             {haulerDocs.length === 0 && <CenteredNote>No documents submitted yet.</CenteredNote>}
-            {sortedHaulerDocs.map(d => <HaulerDocRow key={d.id} doc={d} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />)}
+            {sortedHaulerDocs.map(d => <HaulerDocRow key={d.id} doc={d} onChanged={loadAll} setToast={setToast} readOnly={readOnly} onViewUser={viewUser} />)}
           </div>
         </Panel>
       )}
 
       {tab === "completed" && (
         <Panel title="Completed jobs — before/after photos & confirmations">
-          <CompletionReview completedJobs={completedJobs} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+          <CompletionReview completedJobs={completedJobs} onChanged={loadAll} setToast={setToast} readOnly={readOnly} onViewUser={viewUser} />
         </Panel>
       )}
 
       {tab === "cancellations" && (
         <Panel title="Cancellation requests">
-          <CancellationRequestsTab requests={cancellationRequests} onChanged={loadAll} setToast={setToast} readOnly={readOnly} />
+          <CancellationRequestsTab requests={cancellationRequests} onChanged={loadAll} setToast={setToast} readOnly={readOnly} onViewUser={viewUser} />
         </Panel>
       )}
 
       {tab === "stalled" && (
         <Panel title="Stalled jobs — no service date locked within ~96 hours">
-          <StalledJobsTab chats={stalledJobs} />
+          <StalledJobsTab chats={stalledJobs} onViewUser={viewUser} />
         </Panel>
       )}
 
