@@ -9,6 +9,7 @@ import { RequestCancellationControl } from "./RequestCancellationControl";
 import { ProposeBidRevisionControl } from "./ProposeBidRevisionControl";
 import { ScheduleProposal } from "./ScheduleProposal";
 import { ReviewPanel } from "../chat/ReviewPanel";
+import { JobProgressGauge, stageForJob } from "./JobProgressGauge";
 
 export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, onRevisionProposed, onScheduleChanged, setToast, highlighted = false }) {
   const myBid = job.myBid;
@@ -21,6 +22,15 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
   const completionOverdue = won && !job.completed && !job.haulerDoneAt && isExpired(job.complete_by);
   const completionDaysLeft = won && !job.completed && !job.haulerDoneAt ? daysLeft(job.complete_by) : null;
   const isFull = job.payment_mode === "full";
+
+  // Same gauge the customer sees on their side of this job, so the hauler has visibility into
+  // where things stand before (and after) they hit "Mark work complete" — not just their own
+  // half of the picture. The "haulerDone" stage's shared label ("Awaiting Your OK") is written
+  // from the customer's point of view, so it's overridden here to read correctly for the hauler.
+  const jobStage = won ? (() => {
+    const stage = stageForJob({ status: job.status, completed: job.completed, haulerDoneAt: job.haulerDoneAt });
+    return stage.id === "haulerDone" ? { ...stage, label: "Marked Complete — Awaiting Customer's OK" } : stage;
+  })() : null;
 
   const [counts, setCounts] = useState({ before: 0, after: 0 });
   const [marking, setMarking] = useState(false);
@@ -117,6 +127,12 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
         <Btn size="sm" variant="dark" onClick={() => onRenewBid(myBid.id)}>Renew bid — 14 more days</Btn>
       )}
 
+      {jobStage && (
+        <div style={{ background: C.sand, borderRadius: RADIUS.md, padding: "12px 14px", marginBottom: 10 }}>
+          <JobProgressGauge compact stage={jobStage} />
+        </div>
+      )}
+
       {won && !job.completed && (
         <ScheduleProposal job={job} viewerRole="hauler" viewerId={session.id} defaultPrice={myBid?.amount} onChanged={onScheduleChanged} setToast={setToast} />
       )}
@@ -134,7 +150,8 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
           {!job.completed && job.haulerDoneAt && (
             <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 6, paddingTop: 12, marginBottom: 4 }}>
               <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 8 }}>
-                You marked this complete. Waiting on the customer to acknowledge — it auto-confirms after 7 days if they don't respond.
+                You marked this complete on {new Date(job.haulerDoneAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
+                {" "}Waiting on the customer to acknowledge — it auto-confirms after 7 days if they don't respond.
               </div>
               <CompletionPhotos jobId={job.id} />
             </div>

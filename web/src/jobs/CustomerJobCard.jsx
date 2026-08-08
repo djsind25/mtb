@@ -88,12 +88,13 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.pineDeep, marginBottom: 4 }}>{job.title}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               <Badge
-                color={job.status === "open" ? C.ember : job.status === "pending_verification" ? C.amber : job.status === "cancelled" ? C.gray : C.teal}
-                bg={job.status === "open" ? C.emberLight : job.status === "pending_verification" ? C.amber + "22" : job.status === "cancelled" ? C.grayLight : C.tealLight}
+                color={job.status === "open" ? C.ember : job.status === "pending_verification" ? C.amber : job.status === "cancelled" ? C.gray : job.haulerDoneAt && !job.completed ? C.amber : C.teal}
+                bg={job.status === "open" ? C.emberLight : job.status === "pending_verification" ? C.amber + "22" : job.status === "cancelled" ? C.grayLight : job.haulerDoneAt && !job.completed ? C.amberLight : C.tealLight}
               >
                 {job.status === "open" ? `${bids.length} bid${bids.length !== 1 ? "s" : ""}`
                   : job.status === "pending_verification" ? "Verify email to activate"
                   : job.status === "cancelled" ? "Cancelled"
+                  : job.haulerDoneAt && !job.completed ? "Open to Acknowledge Completion"
                   : "Booked"}
               </Badge>
               {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡ " : ""}{timeline.label}</Badge>}
