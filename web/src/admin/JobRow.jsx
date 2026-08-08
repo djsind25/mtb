@@ -29,7 +29,7 @@ function schedulingState(s) {
 }
 
 export function JobRow({ job, onClick }) {
-  const timeline = timelineMeta(job.timeline);
+  const timeline = timelineMeta(job.timeline, job.timeline_date);
   const Tag = onClick ? "button" : "div";
   return (
     <Tag
@@ -57,7 +57,7 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
   const [messagingLabel, setMessagingLabel] = useState("");
   const [startingMessage, setStartingMessage] = useState(null); // null | "customer" | "hauler"
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
-  const timeline = timelineMeta(job.timeline);
+  const timeline = timelineMeta(job.timeline, job.timeline_date);
   const acceptedBid = (job.bids || []).find(b => b.id === job.accepted_bid_id);
 
   async function startMessage(userId, label, which) {

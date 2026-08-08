@@ -48,18 +48,19 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
   const [acknowledging, setAcknowledging] = useState(false);
   const [editingTimeline, setEditingTimeline] = useState(false);
   const [pendingTimeline, setPendingTimeline] = useState(job.timeline);
+  const [pendingTimelineDate, setPendingTimelineDate] = useState(job.timeline_date);
   const [savingTimeline, setSavingTimeline] = useState(false);
   const [switching, setSwitching] = useState(false);
   const bids = job.bids || [];
   const canSwitchHauler = job.status === "booked" && !job.completed && !job.haulerDoneAt && !job.pendingCancellation
     && job.payment_mode === "full" && bids.some(b => b.id !== job.accepted_bid_id);
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
-  const timeline = timelineMeta(job.timeline);
+  const timeline = timelineMeta(job.timeline, job.timeline_date);
 
   async function saveTimeline() {
     setSavingTimeline(true);
     try {
-      await onUpdateTimeline(job.id, pendingTimeline);
+      await onUpdateTimeline(job.id, pendingTimeline, pendingTimelineDate);
       setEditingTimeline(false);
       setToast("Timeline updated.");
     } catch (e) {
@@ -129,7 +130,7 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
             <span style={{ fontSize: 12, color: C.gray, fontWeight: 600 }}>Timeline:</span>
             {timeline ? <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge> : <span style={{ fontSize: 12, color: C.gray }}>Not set</span>}
             {job.status !== "booked" && !editingTimeline && (
-              <button onClick={() => { setPendingTimeline(job.timeline); setEditingTimeline(true); }}
+              <button onClick={() => { setPendingTimeline(job.timeline); setPendingTimelineDate(job.timeline_date); setEditingTimeline(true); }}
                 style={{ background: "none", border: "none", color: C.teal, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
                 Change
               </button>
@@ -137,10 +138,10 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
           </div>
           {editingTimeline && (
             <div style={{ marginBottom: 14 }}>
-              <TimelinePicker value={pendingTimeline} onChange={setPendingTimeline} />
+              <TimelinePicker value={pendingTimeline} onChange={setPendingTimeline} dateValue={pendingTimelineDate} onDateChange={setPendingTimelineDate} />
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <Btn size="sm" full={false} variant="ghost" onClick={() => setEditingTimeline(false)}>Cancel</Btn>
-                <Btn size="sm" full={false} disabled={!pendingTimeline || savingTimeline} onClick={saveTimeline}>{savingTimeline ? "Saving…" : "Save"}</Btn>
+                <Btn size="sm" full={false} disabled={!pendingTimeline || (pendingTimeline === "specific_date" && !pendingTimelineDate) || savingTimeline} onClick={saveTimeline}>{savingTimeline ? "Saving…" : "Save"}</Btn>
               </div>
             </div>
           )}

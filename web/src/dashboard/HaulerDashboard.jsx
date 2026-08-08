@@ -230,7 +230,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   const filteredOpenJobs = useMemo(() => {
     let jobs = baseJobs;
     if (distanceBand) jobs = jobs.filter(j => j.distance_mi == null || j.distance_mi <= distanceBand);
-    if (timelines.length > 0) jobs = jobs.filter(j => timelines.includes(j.timeline || "flexible"));
+    if (timelines.length > 0) jobs = jobs.filter(j => j.timeline && timelines.includes(j.timeline));
     if (jobTypes.length > 0) jobs = jobs.filter(j => jobTypes.includes(jobCategoryOf(j)));
 
     const sorted = [...jobs];
