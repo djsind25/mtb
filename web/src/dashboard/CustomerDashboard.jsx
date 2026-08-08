@@ -133,7 +133,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
       await postJob({
         customerId: session.id, title: form.title, description: form.description, zip: form.zip, photos: form.photos,
         serviceType: form.serviceType, dumpsterType: form.dumpsterType, rentalStartDate: form.rentalStartDate, rentalEndDate: form.rentalEndDate,
-        timeline: form.timeline,
+        timeline: form.timeline, timelineDate: form.timelineDate,
       });
       setShowPost(false);
       const days = form.serviceType === "rental" ? 30 : 14;
@@ -177,8 +177,8 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
     loadAll();
   }
 
-  async function handleUpdateTimeline(jobId, timeline) {
-    await updateJobTimeline(jobId, timeline);
+  async function handleUpdateTimeline(jobId, timeline, timelineDate) {
+    await updateJobTimeline(jobId, timeline, timelineDate);
     await loadAll();
   }
 

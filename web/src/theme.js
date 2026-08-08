@@ -28,19 +28,27 @@ export const TIMELINE_OPTIONS = [
   { id: "this_week", label: "This week" },
   { id: "next_2_weeks", label: "Next 2 weeks" },
   { id: "this_month", label: "This month" },
-  { id: "flexible", label: "Flexible / no rush" },
+  { id: "specific_date", label: "Specific date" },
 ];
 
 // Legacy jobs from before this field existed have timeline = null — treated as "no badge"
 // rather than guessing, so old test/demo data never renders "undefined" or a misleading label.
-export function timelineMeta(timeline) {
+// `timelineDate` is only meaningful (and only ever set) for timeline === "specific_date" — when
+// present, the badge shows the actual date instead of the generic "Specific date" label.
+export function timelineMeta(timeline, timelineDate) {
   const opt = TIMELINE_OPTIONS.find(o => o.id === timeline);
   if (!opt) return null;
-  return { label: opt.label, urgent: timeline === "asap", color: timeline === "asap" ? C.red : C.gray, bg: timeline === "asap" ? C.redLight : C.grayLight };
+  const label = timeline === "specific_date" && timelineDate
+    ? new Date(timelineDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    : opt.label;
+  return { label, urgent: timeline === "asap", color: timeline === "asap" ? C.red : C.gray, bg: timeline === "asap" ? C.redLight : C.grayLight };
 }
 
 // "Soonest timeline" sort orders by this index — legacy jobs with no timeline sort as if
-// "flexible" (last), matching the grouping HaulerDashboard already used for the timeline filter.
+// "specific_date" (last), matching the grouping HaulerDashboard already used for the timeline
+// filter. A specific date isn't actually always "least urgent" (it could be tomorrow), but
+// ranking it by array position rather than the real date keeps this in line with the other
+// buckets, which are themselves just coarse categories, not precise deadlines.
 export function timelineSortIndex(timeline) {
   const idx = TIMELINE_OPTIONS.findIndex(o => o.id === timeline);
   return idx === -1 ? TIMELINE_OPTIONS.length - 1 : idx;

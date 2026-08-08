@@ -21,7 +21,7 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
   const [savingBid, setSavingBid] = useState(false);
   const alreadyBid = !!myBid;
   const isRental = job.service_type === "rental";
-  const timeline = timelineMeta(job.timeline);
+  const timeline = timelineMeta(job.timeline, job.timeline_date);
 
   async function submit() {
     setSubmitting(true);

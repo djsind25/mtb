@@ -30,6 +30,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
   const [rentalStartDate, setRentalStartDate] = useState("");
   const [rentalEndDate, setRentalEndDate] = useState("");
   const [timeline, setTimeline] = useState(null);
+  const [timelineDate, setTimelineDate] = useState(null);
   const [convertingPhotos, setConvertingPhotos] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const fileInputRef = useRef(null);
@@ -58,7 +59,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
   }
 
   const isRental = serviceType === "rental";
-  const canSubmit = !submitting && zip && timeline && (
+  const canSubmit = !submitting && zip && timeline && (timeline !== "specific_date" || timelineDate) && (
     isRental ? (dumpsterType && rentalStartDate && rentalEndDate)
       : (title && photos.length > 0)
   );
@@ -67,12 +68,12 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
     if (isRental) {
       const label = dumpsterType === "trailer" ? "Trailer" : "Roll-off dumpster";
       onSubmit({
-        serviceType: "rental", zip, dumpsterType, rentalStartDate, rentalEndDate, timeline,
+        serviceType: "rental", zip, dumpsterType, rentalStartDate, rentalEndDate, timeline, timelineDate,
         title: `${label} rental, ${rentalStartDate} to ${rentalEndDate}`,
         description: null, photos: photos.map(p => p.file),
       });
     } else {
-      onSubmit({ serviceType: "removal", title, description, zip, timeline, photos: photos.map(p => p.file) });
+      onSubmit({ serviceType: "removal", title, description, zip, timeline, timelineDate, photos: photos.map(p => p.file) });
     }
   }
 
@@ -157,7 +158,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
         <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 7 }}>
           How soon do you need this done? <span style={{ color: C.red }}>*</span>
         </label>
-        <TimelinePicker value={timeline} onChange={setTimeline} />
+        <TimelinePicker value={timeline} onChange={setTimeline} dateValue={timelineDate} onDateChange={setTimelineDate} />
       </div>
 
       <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />

@@ -303,8 +303,8 @@ export async function postJobUpdate({ jobId, text }) {
   if (error) throw error;
 }
 
-export async function postJob({ customerId, title, description, zip, photos, serviceType, dumpsterType, rentalStartDate, rentalEndDate, timeline }) {
-  const row = { customer_id: customerId, title, description, zip, timeline };
+export async function postJob({ customerId, title, description, zip, photos, serviceType, dumpsterType, rentalStartDate, rentalEndDate, timeline, timelineDate }) {
+  const row = { customer_id: customerId, title, description, zip, timeline, timeline_date: timeline === "specific_date" ? timelineDate : null };
   if (serviceType === "rental") {
     row.service_type = "rental";
     row.dumpster_type = dumpsterType;
@@ -373,8 +373,8 @@ export async function resolveBidRevision({ revisionId, approved }) {
   if (error) throw error;
 }
 
-export async function updateJobTimeline(jobId, timeline) {
-  const { error } = await supabase.from("jobs").update({ timeline }).eq("id", jobId);
+export async function updateJobTimeline(jobId, timeline, timelineDate) {
+  const { error } = await supabase.from("jobs").update({ timeline, timeline_date: timeline === "specific_date" ? timelineDate : null }).eq("id", jobId);
   if (error) throw error;
 }
 
