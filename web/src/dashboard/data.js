@@ -63,7 +63,10 @@ export async function loadCustomerSpendingByJob(customerId) {
 export async function loadHaulerStats(haulerId) {
   const [openJobs, { data: myBids, error: bidsError }, { data: chats, error: chatsError }] = await Promise.all([
     loadOpenJobsForHauler(),
-    supabase.from("bids").select("job_id, expires_at").eq("hauler_id", haulerId),
+    // The !bids_job_id_fkey hint disambiguates the embed — bids and jobs are connected by two FK
+    // paths (bids.job_id -> jobs.id, and jobs.accepted_bid_id -> bids.id), so PostgREST can't pick
+    // one on its own and returns 300 Multiple Choices without it.
+    supabase.from("bids").select("job_id, expires_at, jobs!bids_job_id_fkey(status, expires_at)").eq("hauler_id", haulerId),
     // superseded_at is null: a hauler switched out of a job keeps their (historical) chat row,
     // but it shouldn't keep contributing to "won"/"completed" once someone else is doing the job.
     supabase.from("chats").select("bid_amount, commission, commission_status, locked_final_price, jobs(completed)").eq("hauler_id", haulerId).is("superseded_at", null),
@@ -71,9 +74,14 @@ export async function loadHaulerStats(haulerId) {
   if (bidsError) throw bidsError;
   if (chatsError) throw chatsError;
 
-  const openJobIds = new Set(openJobs.map(j => j.id));
   const now = new Date().toISOString();
-  const activeBids = myBids.filter(b => openJobIds.has(b.job_id) && b.expires_at > now).length;
+  // A bid is "active" while it hasn't itself expired and the underlying job is still open and
+  // hasn't expired — mirrors job_is_open_for_bid() server-side. This used to intersect with
+  // list_open_jobs_for_hauler()'s result instead, but that RPC deliberately EXCLUDES any job the
+  // hauler has already bid on ("Already-bid jobs belong in My Bids, not Find Jobs" —
+  // 20260801000000_hauler_job_filters.sql), so every bid's job_id was guaranteed to be absent
+  // from that set and this always computed to 0 regardless of how many real active bids existed.
+  const activeBids = myBids.filter(b => b.jobs?.status === "open" && b.jobs?.expires_at > now && b.expires_at > now).length;
   const won = chats.length;
   const completed = chats.filter(c => c.jobs?.completed).length;
   // Net of the platform's cut, not the raw bid amount — matches how ChatThread.jsx and
