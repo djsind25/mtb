@@ -73,7 +73,7 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
             {SHOW_MEMBER_SINCE && memberSinceLabel(bid.haulerSince) && <span>{memberSinceLabel(bid.haulerSince)}</span>}
           </div>
         </div>
-        <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.teal }}>${bid.amount}</span>
+        <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.teal }}>${Number(bid.amount).toFixed(2)}</span>
       </div>
       {bid.note && <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 8 }}>"{bid.note}"</div>}
       <div style={{ marginBottom: 10 }}>

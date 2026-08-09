@@ -42,7 +42,7 @@ export function Field({ label, value, onChange, type = "text", placeholder, requ
           <button
             type="button"
             onClick={() => setRevealed(r => !r)}
-            aria-label={revealed ? "Hide password" : "Show password"}
+            aria-label={revealed ? "Hide passcode" : "Show passcode"}
             style={{
               position: "absolute", right: 6, top: 0, bottom: 0, margin: "auto 0", height: 28,
               background: "none", border: "none", cursor: "pointer", padding: "0 6px", fontSize: 15, color: C.gray, lineHeight: 1,

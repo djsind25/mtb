@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { C, sans, nowStr, RADIUS, SHADOW_SM } from "../theme";
-import { Badge, Btn } from "../ui/Primitives";
+import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { CompletionPhotos } from "../jobs/CompletionPhotos";
 import { reviewCompletion } from "./data";
 import { UserLink } from "./UserLink";
@@ -71,9 +71,7 @@ export function CompletionReview({ completedJobs, onChanged, setToast, readOnly,
   const reviewed = completedJobs.filter(c => c.admin_reviewed_at);
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {completedJobs.length === 0 && (
-        <div style={{ fontSize: 13, color: C.gray, textAlign: "center", padding: 24 }}>No completed jobs yet.</div>
-      )}
+      {completedJobs.length === 0 && <CenteredNote>No completed jobs yet.</CenteredNote>}
       {needsReview.map(c => <Row key={c.id} chat={c} onChanged={onChanged} setToast={setToast} readOnly={readOnly} onViewUser={onViewUser} />)}
       {reviewed.length > 0 && needsReview.length > 0 && (
         <div style={{ fontSize: 12, fontWeight: 700, color: C.gray, marginTop: 6 }}>Reviewed</div>

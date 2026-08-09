@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
-import { C, sans } from "../theme";
+import { C, sans, shortDateLabel } from "../theme";
 import { Btn } from "../ui/Primitives";
 import { loadJobUpdates, postJobUpdate } from "./data";
 
 const UPDATE_CAP = 300;
-
-function timeAgo(iso) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 // Append-only, customer-authored detail log — no edit/delete, so a correction is a new entry
 // rather than rewriting history. Same moderation (mask_contact_info + is_flaggable) as
@@ -53,7 +49,7 @@ export function JobUpdates({ jobId, viewerRole, jobOpen, setToast }) {
             {updates.map(u => (
               <div key={u.id} style={{ background: C.sand, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 12px" }}>
                 <div style={{ fontSize: 13, color: C.ink, marginBottom: 3 }}>{u.text}</div>
-                <div style={{ fontSize: 10.5, color: C.gray }}>{timeAgo(u.created_at)}</div>
+                <div style={{ fontSize: 10.5, color: C.gray }}>{shortDateLabel(u.created_at)}</div>
               </div>
             ))}
           </div>

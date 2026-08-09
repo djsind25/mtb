@@ -134,7 +134,7 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
               </div>
               {job.scheduling.lockedServiceDate && (
                 <div style={{ color: C.gray }}>
-                  {formatDate(job.scheduling.lockedServiceDate)} · ${job.scheduling.lockedFinalPrice}
+                  {formatDate(job.scheduling.lockedServiceDate)} · ${Number(job.scheduling.lockedFinalPrice).toFixed(2)}
                   {job.scheduling.proposedByRole && ` — proposed by the ${job.scheduling.proposedByRole}`}
                   {job.scheduling.confirmedByName && `, confirmed by ${job.scheduling.confirmedByName}`}
                 </div>
@@ -145,7 +145,7 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
           {(job.bids || []).map(b => (
             <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, padding: "6px 0", borderBottom: `1px solid ${C.line}` }}>
               <span>{b.businessName} {b.id === job.accepted_bid_id && <Badge color={C.teal} bg={C.tealLight}>Won</Badge>} {job.status === "open" && <Badge color={isExpired(b.expires_at) ? C.red : C.gray} bg={isExpired(b.expires_at) ? C.redLight : C.grayLight}>{expiryLabel(b.expires_at)}</Badge>}</span>
-              <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>${b.amount} <span style={{ color: C.gray, fontWeight: 400 }}>(${(b.amount * 0.1).toFixed(2)} deposit)</span></span>
+              <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>${Number(b.amount).toFixed(2)} <span style={{ color: C.gray, fontWeight: 400 }}>(${(b.amount * 0.1).toFixed(2)} deposit)</span></span>
             </div>
           ))}
         </div>

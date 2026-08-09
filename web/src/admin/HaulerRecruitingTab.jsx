@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, sans, RADIUS, SHADOW_SM } from "../theme";
+import { C, sans, RADIUS, SHADOW_SM, fullDateLabel } from "../theme";
 import { Badge, Btn, Field, CenteredNote } from "../ui/Primitives";
 import {
   createRecruitingLead, updateRecruitingLead, loadRecruitingLeadActivity, addRecruitingLeadNote,
@@ -222,7 +222,7 @@ function LeadDetail({ lead, onChanged, setToast, readOnly }) {
           <div style={{ display: "grid", gap: 4 }}>
             {activity.map(a => (
               <div key={a.id} style={{ fontSize: 11.5, color: C.ink }}>
-                <span style={{ color: C.gray }}>{new Date(a.created_at).toLocaleDateString()}</span> — {a.note}
+                <span style={{ color: C.gray }}>{fullDateLabel(a.created_at)}</span> — {a.note}
               </div>
             ))}
           </div>
@@ -252,7 +252,7 @@ function LeadRow({ lead, onChanged, setToast, readOnly }) {
           <Badge color={STAGE_COLORS[lead.stage]} bg={C.grayLight}>{STAGE_LABELS[lead.stage]}</Badge>
           {lead.next_followup_at && (
             <Badge color={overdue ? C.red : C.gray} bg={overdue ? C.redLight : C.grayLight}>
-              {overdue ? "⚠ Follow up " : "Follow up "}{new Date(lead.next_followup_at).toLocaleDateString()}
+              {overdue ? "⚠ Follow up " : "Follow up "}{fullDateLabel(lead.next_followup_at)}
             </Badge>
           )}
           {lead.linked_hauler_id && <Badge color={C.pine} bg={C.tealLight}>Linked to account</Badge>}

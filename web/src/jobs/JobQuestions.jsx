@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, sans } from "../theme";
+import { C, sans, shortDateLabel } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { supabase } from "../lib/supabaseClient";
 import { loadJobQuestions, askJobQuestion, answerJobQuestion, countMyOpenQuestions } from "./data";
@@ -34,10 +34,6 @@ async function attachRealAskerNames(questions) {
   const { data } = await supabase.from("public_profiles").select("id, business_name, name").in("id", haulerIds);
   const byId = Object.fromEntries((data || []).map(p => [p.id, p.business_name || p.name]));
   return questions.map(q => ({ ...q, askerName: q.hauler_id ? byId[q.hauler_id] : undefined }));
-}
-
-function timeAgo(iso) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, eligible = true, setToast }) {
@@ -147,7 +143,7 @@ export function JobQuestions({ jobId, viewerRole, haulerId, jobOpen, eligible = 
                         {q.flag_type === "warned-repeat" ? "🚩 repeat flag" : "🛡️ flagged"}
                       </Badge>
                     )}
-                    <span style={{ fontSize: 10.5, color: C.gray, whiteSpace: "nowrap" }}>{timeAgo(q.created_at)}</span>
+                    <span style={{ fontSize: 10.5, color: C.gray, whiteSpace: "nowrap" }}>{shortDateLabel(q.created_at)}</span>
                   </span>
                 </div>
                 <div style={{ fontSize: 13, color: C.ink, marginBottom: q.answer || (viewerRole === "customer" && jobOpen) ? 6 : 0 }}>{q.question}</div>

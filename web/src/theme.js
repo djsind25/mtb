@@ -101,3 +101,13 @@ export function shortDateLabel(iso) {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+// For audit/lifecycle-style dates (suspension, deletion, document expiry, invite creation) where
+// the year genuinely matters — unlike shortDateLabel's recent-activity feeds, these can reference
+// events far enough in the past or future that omitting the year would be ambiguous. Also pins the
+// format explicitly instead of relying on the browser's locale default, so it renders the same
+// everywhere rather than drifting between callers that used bare `.toLocaleDateString()`.
+export function fullDateLabel(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}

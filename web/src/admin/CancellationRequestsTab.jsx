@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { C, sans, nowStr, RADIUS, SHADOW_SM } from "../theme";
-import { Badge, Btn, Field, ErrorMsg } from "../ui/Primitives";
+import { Badge, Btn, Field, ErrorMsg, CenteredNote } from "../ui/Primitives";
 import { processCancellationRefund } from "./data";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
@@ -94,7 +94,7 @@ export function CancellationRequestsTab({ requests, onChanged, setToast, readOnl
   const resolved = requests.filter(r => r.status === "resolved");
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      {requests.length === 0 && <div style={{ fontSize: 13, color: C.gray, textAlign: "center", padding: 24 }}>No cancellation requests yet.</div>}
+      {requests.length === 0 && <CenteredNote>No cancellation requests yet.</CenteredNote>}
       {pending.map(r => <Row key={r.id} request={r} onChanged={onChanged} setToast={setToast} readOnly={readOnly} onViewUser={onViewUser} />)}
       {resolved.length > 0 && pending.length > 0 && (
         <div style={{ fontSize: 12, fontWeight: 700, color: C.gray, marginTop: 6 }}>Resolved</div>

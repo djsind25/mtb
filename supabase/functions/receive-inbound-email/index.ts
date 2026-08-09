@@ -16,12 +16,13 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
+import { timingSafeEqualString } from "../_shared/timingSafeEqual.ts";
 
 const sharedSecret = Deno.env.get("LAMBDA_INBOUND_KEY") ?? "";
 
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
-    if (req.headers.get("apikey") !== sharedSecret || !sharedSecret) {
+    if (!sharedSecret || !timingSafeEqualString(req.headers.get("apikey") ?? "", sharedSecret)) {
       return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 

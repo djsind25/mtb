@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, RADIUS, SHADOW_SM } from "../theme";
+import { C, RADIUS, SHADOW_SM, fullDateLabel } from "../theme";
 import { Btn, Field, Badge } from "../ui/Primitives";
 import { createAdminInvite, cancelAdminInvite } from "./data";
 
@@ -44,6 +44,7 @@ export function InviteAdminForm({ onChanged, setToast }) {
 
 export function AdminInviteRow({ invite, onChanged, setToast, canCancel }) {
   const [working, setWorking] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const expired = new Date(invite.expires_at) <= new Date();
 
   async function cancel() {
@@ -56,6 +57,7 @@ export function AdminInviteRow({ invite, onChanged, setToast, canCancel }) {
       setToast(e.message || "Could not cancel invite.");
     }
     setWorking(false);
+    setConfirming(false);
   }
 
   return (
@@ -63,13 +65,23 @@ export function AdminInviteRow({ invite, onChanged, setToast, canCancel }) {
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.pineDeep }}>{invite.email}</div>
         <div style={{ fontSize: 11, color: C.gray }}>
-          Invited by {invite.invitedByName || "—"} · {expired ? "expired" : `expires ${new Date(invite.expires_at).toLocaleDateString()}`}
+          Invited by {invite.invitedByName || "—"} · {expired ? "expired" : `expires ${fullDateLabel(invite.expires_at)}`}
         </div>
       </div>
       <Badge color={invite.admin_read_only ? C.amber : C.teal} bg={invite.admin_read_only ? C.amberLight : C.tealLight}>
         {invite.admin_read_only ? "view-only" : "full admin"}
       </Badge>
-      {canCancel && <Btn size="sm" full={false} variant="danger" disabled={working} onClick={cancel}>Cancel</Btn>}
+      {canCancel && (
+        confirming ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: 11.5, color: C.gray }}>Cancel this invite?</span>
+            <Btn size="sm" full={false} variant="danger" disabled={working} onClick={cancel}>Yes</Btn>
+            <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirming(false)}>No</Btn>
+          </div>
+        ) : (
+          <Btn size="sm" full={false} variant="danger" onClick={() => setConfirming(true)}>Cancel</Btn>
+        )
+      )}
     </div>
   );
 }

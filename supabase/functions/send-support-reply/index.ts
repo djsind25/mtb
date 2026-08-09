@@ -12,6 +12,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import { Resend } from "resend";
+import { timingSafeEqualString } from "../_shared/timingSafeEqual.ts";
 
 const internalKey = Deno.env.get("INTERNAL_DISPATCH_KEY") ?? "";
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -25,7 +26,7 @@ function escapeHtml(s: string): string {
 
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
-    if (req.headers.get("apikey") !== internalKey || !internalKey) {
+    if (!internalKey || !timingSafeEqualString(req.headers.get("apikey") ?? "", internalKey)) {
       return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 

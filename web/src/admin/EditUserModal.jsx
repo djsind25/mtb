@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, sans, RADIUS, SHADOW_MD } from "../theme";
+import { C, sans, RADIUS, SHADOW_MD, fullDateLabel } from "../theme";
 import { Btn, Field, ErrorMsg, Badge } from "../ui/Primitives";
 import { updateUserProfile, loadZipHistory, adminSetHaulerVerificationFlag, loadAccountLifecycleAuditLog } from "./data";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
@@ -120,7 +120,7 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly, haul
         {user.role === "customer" && (
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 14 }}>
             <input type="checkbox" checked={!!user.email_verified_at} disabled />
-            Email verified{user.email_verified_at && ` (${new Date(user.email_verified_at).toLocaleDateString()})`}
+            Email verified{user.email_verified_at && ` (${fullDateLabel(user.email_verified_at)})`}
           </label>
         )}
 
@@ -128,17 +128,17 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly, haul
           <div style={{ fontSize: 12, color: C.gray, marginBottom: 14, background: C.sand, border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "8px 10px" }}>
             <div style={{ fontWeight: 700, color: C.pineDeep, marginBottom: 2 }}>Account status: {user.status}</div>
             {user.status === "suspended" && user.suspended_at && (
-              <div>Suspended {new Date(user.suspended_at).toLocaleDateString()}{user.suspension_reason && ` — "${user.suspension_reason}"`}</div>
+              <div>Suspended {fullDateLabel(user.suspended_at)}{user.suspension_reason && ` — "${user.suspension_reason}"`}</div>
             )}
             {user.status === "deletion_requested" && (
               <div>
-                Requested {user.deletion_requested_at ? new Date(user.deletion_requested_at).toLocaleDateString() : "—"},
-                {" "}scheduled {user.deletion_scheduled_for ? new Date(user.deletion_scheduled_for).toLocaleDateString() : "—"}
+                Requested {user.deletion_requested_at ? fullDateLabel(user.deletion_requested_at) : "—"},
+                {" "}scheduled {user.deletion_scheduled_for ? fullDateLabel(user.deletion_scheduled_for) : "—"}
                 {user.deletion_reason && ` — "${user.deletion_reason}"`}
               </div>
             )}
-            {user.status === "anonymized" && user.anonymized_at && <div>Anonymized {new Date(user.anonymized_at).toLocaleDateString()}</div>}
-            {user.status === "deleted" && user.deleted_at && <div>Marked deleted {new Date(user.deleted_at).toLocaleDateString()}</div>}
+            {user.status === "anonymized" && user.anonymized_at && <div>Anonymized {fullDateLabel(user.anonymized_at)}</div>}
+            {user.status === "deleted" && user.deleted_at && <div>Marked deleted {fullDateLabel(user.deleted_at)}</div>}
           </div>
         )}
 
@@ -188,10 +188,10 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly, haul
                             {doc.original_name || "View uploaded file"}
                           </a>
                         ) : (doc.original_name || "Uploaded file")}
-                        {" "}· uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
-                        {" "}· expires {new Date(doc.expires_at + "T00:00:00").toLocaleDateString()}
+                        {" "}· uploaded {fullDateLabel(doc.uploaded_at)}
+                        {" "}· expires {fullDateLabel(doc.expires_at + "T00:00:00")}
                         {doc.reviewed_by && (
-                          <div>Reviewed by {doc.reviewerName || "an admin"} on {new Date(doc.reviewed_at).toLocaleDateString()}</div>
+                          <div>Reviewed by {doc.reviewerName || "an admin"} on {fullDateLabel(doc.reviewed_at)}</div>
                         )}
                       </div>
                     )}
@@ -201,7 +201,7 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly, haul
                     {lastOverride && (
                       <div style={{ fontSize: 11, color: C.gray, marginTop: 4 }}>
                         Manually set to {lastOverride.blockers_present?.new_value ? "Yes" : "No"} by {lastOverride.actorName || "an admin"} on{" "}
-                        {new Date(lastOverride.created_at).toLocaleDateString()}
+                        {fullDateLabel(lastOverride.created_at)}
                         {lastOverride.reason && ` — "${lastOverride.reason}"`}
                       </div>
                     )}

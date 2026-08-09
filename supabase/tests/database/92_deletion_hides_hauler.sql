@@ -40,7 +40,7 @@ select isnt_empty(
   'the hauler still sees their own bid regardless of status'
 );
 select throws_ok(
-  $$ insert into bids (job_id, hauler_id, amount) values ('66666666-6666-6666-6666-666666666666', '22222222-2222-2222-2222-222222222222', 15) $$,
+  $$ insert into bids (job_id, hauler_id, amount) values ('66666666-6666-6666-6666-666666666666', '22222222-2222-2222-2222-222222222222', 60) $$,
   '42501', 'new row violates row-level security policy for table "bids"',
   'the deletion_requested hauler cannot place a new bid'
 );

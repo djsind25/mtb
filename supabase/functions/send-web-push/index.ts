@@ -14,6 +14,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import webpush from "web-push";
+import { timingSafeEqualString } from "../_shared/timingSafeEqual.ts";
 
 const internalKey = Deno.env.get("INTERNAL_DISPATCH_KEY") ?? "";
 const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
@@ -27,7 +28,7 @@ if (vapidPublicKey && vapidPrivateKey) {
 
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
-    if (req.headers.get("apikey") !== internalKey || !internalKey) {
+    if (!internalKey || !timingSafeEqualString(req.headers.get("apikey") ?? "", internalKey)) {
       return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 

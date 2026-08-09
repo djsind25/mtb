@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, RADIUS, SHADOW_SM } from "../theme";
+import { C, RADIUS, SHADOW_SM, fullDateLabel } from "../theme";
 import { Badge, Avatar, Btn } from "../ui/Primitives";
 import {
   updateUserProfile, setUserActive, sendPasswordReset, deleteUser,
@@ -36,9 +36,9 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, sessio
     setSendingReset(true);
     try {
       await sendPasswordReset(u.email);
-      setToast(`Password reset email sent to ${displayName}.`);
+      setToast(`Passcode reset email sent to ${displayName}.`);
     } catch (e) {
-      setToast(e.message || "Could not send password reset email.");
+      setToast(e.message || "Could not send passcode reset email.");
     }
     setSendingReset(false);
   }
@@ -135,7 +135,7 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, sessio
           {displayName}
           {u.role === "hauler" && u.verified && <span title="Verified hauler" style={{ marginLeft: 6 }}>✓</span>}
         </div>
-        <div style={{ fontSize: 11.5, color: C.gray }}>{u.email} · ZIP {u.zip || "—"} · joined {new Date(u.created_at).toLocaleDateString()}</div>
+        <div style={{ fontSize: 11.5, color: C.gray }}>{u.email} · ZIP {u.zip || "—"} · joined {fullDateLabel(u.created_at)}</div>
       </div>
       {!u.active && <Badge color={C.red} bg={C.redLight}>deactivated</Badge>}
       {u.status === "suspended" && <Badge color={C.amber} bg={C.amberLight}>suspended</Badge>}

@@ -290,14 +290,14 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "overview" && (
         <div className="admin-kpi-grid">
           <Stat
-            label="GMV this month"
+            label="Deposit-mode GMV this month"
             value={`$${thisMonth.gmv.toFixed(2)}`}
             hint={`$${thisMonth.haulerDirect.toFixed(2)} paid directly to haulers`}
             mono
             onClick={() => goToTab("revenue")}
           />
           <Stat
-            label="Platform revenue"
+            label="Deposit revenue this month"
             value={`$${thisMonth.deposit.toFixed(2)}`}
             hint="10% deposits collected this month"
             mono
@@ -315,6 +315,14 @@ export function AdminDashboard({ session, setToast }) {
             value={`$${(fullPaymentSummary?.fundsHeld ?? 0).toFixed(2)}`}
             hint="Full-payment jobs awaiting release"
             mono
+            onClick={() => goToTab("revenue")}
+          />
+          <Stat
+            label="Platform earned (full-pay)"
+            value={`$${(fullPaymentSummary?.platformEarned ?? 0).toFixed(2)}`}
+            hint="Commission on completed full-payment jobs, all time"
+            mono
+            accent
             onClick={() => goToTab("revenue")}
           />
         </div>

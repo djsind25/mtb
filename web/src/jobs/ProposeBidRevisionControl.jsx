@@ -16,7 +16,7 @@ export function ProposeBidRevisionControl({ job, onProposed, setToast }) {
   if (job.pendingRevision) {
     return (
       <div style={{ fontSize: 11.5, color: "#8A6604", background: C.amberLight, borderRadius: 8, padding: "6px 10px", marginTop: 8 }}>
-        ⏳ Price revision proposed — ${job.pendingRevision.old_amount} → ${job.pendingRevision.new_amount}, awaiting customer response.
+        ⏳ Price revision proposed — ${Number(job.pendingRevision.old_amount).toFixed(2)} → ${Number(job.pendingRevision.new_amount).toFixed(2)}, awaiting customer response.
       </div>
     );
   }

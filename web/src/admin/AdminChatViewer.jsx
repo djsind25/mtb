@@ -96,7 +96,7 @@ export function AdminChatViewer({ chatId, onClose, viewerId, readOnly = true, se
             <div style={{ fontFamily: sans, fontSize: 17, fontWeight: 700, color: C.pineDeep }}>{chat?.jobTitle || "Conversation"}</div>
             {chat && (
               <div style={{ fontSize: 12, color: C.gray, marginTop: 2 }}>
-                {chat.customerName} ↔ {chat.businessName} · <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums" }}>${chat.bid_amount}</span>
+                {chat.customerName} ↔ {chat.businessName} · <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums" }}>${Number(chat.bid_amount).toFixed(2)}</span>
               </div>
             )}
           </div>

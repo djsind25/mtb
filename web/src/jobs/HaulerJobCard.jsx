@@ -149,7 +149,7 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
               </div>
             ) : (
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <Badge color={C.teal} bg={C.tealLight}>✓ You already bid ${myBid.amount} on this job</Badge>
+                <Badge color={C.teal} bg={C.tealLight}>✓ You already bid ${Number(myBid.amount).toFixed(2)} on this job</Badge>
                 <button onClick={startEditBid} style={{ background: "none", border: "none", color: C.teal, fontSize: 12, fontWeight: 700, cursor: "pointer", padding: 0 }}>
                   Edit bid
                 </button>

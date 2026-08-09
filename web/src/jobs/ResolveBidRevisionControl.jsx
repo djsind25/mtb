@@ -28,7 +28,7 @@ export function ResolveBidRevisionControl({ job, onResolved, setToast }) {
   return (
     <div style={{ border: `1px solid ${C.amber}66`, background: C.amberLight, borderRadius: 10, padding: "10px 12px", marginTop: 8 }}>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6604", marginBottom: 4 }}>
-        💰 Your hauler proposed a new price: ${revision.old_amount} → ${revision.new_amount}
+        💰 Your hauler proposed a new price: ${Number(revision.old_amount).toFixed(2)} → ${Number(revision.new_amount).toFixed(2)}
       </div>
       {revision.reason && <div style={{ fontSize: 11.5, color: "#6B5103", marginBottom: 8 }}>Reason: {revision.reason}</div>}
       <div style={{ fontSize: 11, color: "#6B5103", marginBottom: 8 }}>
