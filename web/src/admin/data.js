@@ -523,14 +523,14 @@ export async function loadHaulerDocuments() {
   if (error) throw error;
   if (docs.length === 0) return [];
 
-  const haulerIds = [...new Set(docs.map(d => d.hauler_id))];
-  const { data: people, error: peopleError } = await supabase.from("public_profiles").select("id, name, business_name").in("id", haulerIds);
+  const peopleIds = [...new Set([...docs.map(d => d.hauler_id), ...docs.map(d => d.reviewed_by).filter(Boolean)])];
+  const { data: people, error: peopleError } = await supabase.from("public_profiles").select("id, name, business_name").in("id", peopleIds);
   if (peopleError) throw peopleError;
   const nameById = Object.fromEntries(people.map(p => [p.id, p.business_name || p.name]));
 
   return Promise.all(docs.map(async d => {
     const { data: signed } = await supabase.storage.from("hauler-documents").createSignedUrl(d.storage_path, 3600);
-    return { ...d, haulerName: nameById[d.hauler_id], url: signed?.signedUrl };
+    return { ...d, haulerName: nameById[d.hauler_id], reviewerName: d.reviewed_by ? nameById[d.reviewed_by] : null, url: signed?.signedUrl };
   }));
 }
 

@@ -671,6 +671,7 @@ export function AdminDashboard({ session, setToast }) {
           onSaved={() => { setEditingUser(null); loadAll(); }}
           setToast={setToast}
           readOnly={readOnly}
+          haulerDocs={haulerDocs}
         />
       )}
 

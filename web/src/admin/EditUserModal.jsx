@@ -1,18 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { C, sans, RADIUS, SHADOW_MD } from "../theme";
 import { Btn, Field, ErrorMsg, Badge } from "../ui/Primitives";
-import { updateUserProfile, loadZipHistory, adminSetHaulerVerificationFlag } from "./data";
+import { updateUserProfile, loadZipHistory, adminSetHaulerVerificationFlag, loadAccountLifecycleAuditLog } from "./data";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
 
 const VERIFICATION_FIELDS = [
-  { key: "verified", label: "Verified hauler" },
-  { key: "license_active", label: "Verified business license" },
-  { key: "insurance_active", label: "Verified insurance" },
+  { key: "verified", label: "Verified hauler", docType: null },
+  { key: "license_active", label: "Verified business license", docType: "license" },
+  { key: "insurance_active", label: "Verified insurance", docType: "insurance" },
 ];
 
-export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
+export function EditUserModal({ user, onClose, onSaved, setToast, readOnly, haulerDocs = [] }) {
   const [name, setName] = useState(user.name || "");
   const [businessName, setBusinessName] = useState(user.business_name || "");
   const [zip, setZip] = useState(user.zip || "");
@@ -28,6 +28,28 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
   const [verificationReason, setVerificationReason] = useState("");
   const [verificationStepUp, setVerificationStepUp] = useState(false);
   const [savingVerification, setSavingVerification] = useState(false);
+
+  // Who verified each field and when: a document-backed field (license/insurance) may have been
+  // set by reviewing an upload (hauler_documents.reviewed_by/reviewed_at) or by a manual override
+  // here in this modal (account_lifecycle_audit_log) — "verified" has no document, so only the
+  // manual-override trail applies to it.
+  const [verificationAudit, setVerificationAudit] = useState([]);
+  useEffect(() => {
+    if (user.role !== "hauler") return;
+    let cancelled = false;
+    loadAccountLifecycleAuditLog(user.id)
+      .then(rows => { if (!cancelled) setVerificationAudit(rows.filter(r => r.action === "hauler_verification_flag_set")); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id, user.role]);
+
+  function docFor(f) {
+    return f.docType ? haulerDocs.find(d => d.hauler_id === user.id && d.doc_type === f.docType) : null;
+  }
+  function lastOverrideFor(f) {
+    return verificationAudit.find(r => r.blockers_present?.field === f.key);
+  }
 
   async function doSetVerificationFlag() {
     setSavingVerification(true);
@@ -151,12 +173,41 @@ export function EditUserModal({ user, onClose, onSaved, setToast, readOnly }) {
               {VERIFICATION_FIELDS.map(f => {
                 const value = !!user[f.key];
                 const isConfirming = confirmingField === f.key;
+                const doc = docFor(f);
+                const lastOverride = lastOverrideFor(f);
                 return (
                   <div key={f.key} style={{ border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "8px 10px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                       <div style={{ fontSize: 13, color: C.ink }}>{f.label}</div>
                       <Badge color={value ? C.teal : C.gray} bg={value ? C.tealLight : C.grayLight}>{value ? "✓ Yes" : "No"}</Badge>
                     </div>
+                    {doc && (
+                      <div style={{ fontSize: 11, color: C.gray, marginTop: 6, lineHeight: 1.5 }}>
+                        {doc.url ? (
+                          <a href={doc.url} target="_blank" rel="noreferrer" style={{ color: C.teal, fontWeight: 600 }}>
+                            {doc.original_name || "View uploaded file"}
+                          </a>
+                        ) : (doc.original_name || "Uploaded file")}
+                        {" "}· uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
+                        {" "}· expires {new Date(doc.expires_at + "T00:00:00").toLocaleDateString()}
+                        {doc.reviewed_by && (
+                          <div>Reviewed by {doc.reviewerName || "an admin"} on {new Date(doc.reviewed_at).toLocaleDateString()}</div>
+                        )}
+                      </div>
+                    )}
+                    {!doc && f.docType && (
+                      <div style={{ fontSize: 11, color: C.gray, marginTop: 6 }}>No document on file.</div>
+                    )}
+                    {lastOverride && (
+                      <div style={{ fontSize: 11, color: C.gray, marginTop: 4 }}>
+                        Manually set to {lastOverride.blockers_present?.new_value ? "Yes" : "No"} by {lastOverride.actorName || "an admin"} on{" "}
+                        {new Date(lastOverride.created_at).toLocaleDateString()}
+                        {lastOverride.reason && ` — "${lastOverride.reason}"`}
+                      </div>
+                    )}
+                    {!doc && !f.docType && !lastOverride && (
+                      <div style={{ fontSize: 11, color: C.gray, marginTop: 6 }}>No verification record on file.</div>
+                    )}
                     {!readOnly && !isConfirming && (
                       <button onClick={() => { setConfirmingField(f.key); setVerificationReason(""); }} style={{
                         background: "none", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0, marginTop: 6,
