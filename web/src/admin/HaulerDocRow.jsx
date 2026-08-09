@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, RADIUS, SHADOW_SM } from "../theme";
+import { C, RADIUS, SHADOW_SM, fullDateLabel } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { reviewHaulerDocument } from "./data";
 import { UserLink } from "./UserLink";
@@ -58,8 +58,8 @@ export function HaulerDocRow({ doc, onChanged, setToast, readOnly, onViewUser })
       </div>
       <div style={{ fontSize: 11.5, color: C.gray }}>
         {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" style={{ color: C.teal }}>{doc.original_name || "View file"}</a>}
-        {" · "}Expires {new Date(doc.expires_at + "T00:00:00").toLocaleDateString()}
-        {" · "}Submitted {new Date(doc.uploaded_at).toLocaleDateString()}
+        {" · "}Expires {fullDateLabel(doc.expires_at + "T00:00:00")}
+        {" · "}Submitted {fullDateLabel(doc.uploaded_at)}
       </div>
       {doc.status === "rejected" && doc.reviewer_note && (
         <div style={{ fontSize: 11.5, color: C.red }}>Note: {doc.reviewer_note}</div>
@@ -70,7 +70,7 @@ export function HaulerDocRow({ doc, onChanged, setToast, readOnly, onViewUser })
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <input value={note} onChange={e => setNote(e.target.value)} placeholder="Reason (optional)"
               style={{ flex: 1, minWidth: 140, border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "6px 10px", fontSize: 12 }} />
-            <Btn size="sm" full={false} variant="danger" disabled={working} onClick={reject}>Confirm reject</Btn>
+            <Btn size="sm" full={false} variant="danger" disabled={working} onClick={reject}>Yes, reject</Btn>
             <Btn size="sm" full={false} variant="ghost" onClick={() => setRejecting(false)}>Cancel</Btn>
           </div>
         ) : (

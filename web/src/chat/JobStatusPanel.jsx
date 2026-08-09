@@ -96,7 +96,7 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
         <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Job details</div>
         <Row label="Status" value={STATUS_LABEL[moneyState]} />
         {isFull && <Row label="Scheduled date" value={formatDate(scheduledDate)} />}
-        {isFull && <Row label={pendingSchedule ? "Latest price (pending)" : "Final price"} value={`$${Number(latestPrice).toFixed(0)}`} />}
+        {isFull && <Row label={pendingSchedule ? "Latest price (pending)" : "Final price"} value={`$${Number(latestPrice).toFixed(2)}`} />}
         <div style={{ padding: "7px 0", fontSize: 12.5, display: "flex", justifyContent: "space-between" }}>
           <span style={{ color: C.gray }}>Payment</span>
           <span style={{ fontWeight: 600, color: C.pineDeep }}>{paymentLabel}</span>
@@ -105,7 +105,7 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
 
       <div style={cardStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <span style={{ fontSize: 19, fontWeight: 700, color: C.pineDeep, fontVariantNumeric: "tabular-nums" }}>${effectiveAmount} total</span>
+          <span style={{ fontSize: 19, fontWeight: 700, color: C.pineDeep, fontVariantNumeric: "tabular-nums" }}>${Number(effectiveAmount).toFixed(2)} total</span>
           {moneyState === "legacyHeld" && <Badge color={C.teal} bg={C.tealLight}>Held by MyTrashBid</Badge>}
           {moneyState === "coordinating" && <Badge color={C.gray} bg={C.grayLight}>No charge yet</Badge>}
           {moneyState === "scheduled" && <Badge color={C.gray} bg={C.grayLight}>Scheduled</Badge>}
@@ -144,12 +144,12 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
 
             {pendingSchedule && !isMineProposal && (
               <div style={{ marginTop: 8, fontSize: 12, color: C.gray }}>
-                The {pendingSchedule.proposed_role} proposed {formatDate(pendingSchedule.service_date)} · ${pendingSchedule.final_price} — waiting for you to confirm.
+                The {pendingSchedule.proposed_role} proposed {formatDate(pendingSchedule.service_date)} · ${Number(pendingSchedule.final_price).toFixed(2)} — waiting for you to confirm.
               </div>
             )}
             {pendingSchedule && isMineProposal && (
               <div style={{ marginTop: 8, fontSize: 12, color: C.gray }}>
-                You proposed {formatDate(pendingSchedule.service_date)} · ${pendingSchedule.final_price} — waiting for the {otherRole} to confirm.
+                You proposed {formatDate(pendingSchedule.service_date)} · ${Number(pendingSchedule.final_price).toFixed(2)} — waiting for the {otherRole} to confirm.
               </div>
             )}
 
@@ -195,7 +195,7 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
                     border: `2px solid ${row.status === "confirmed" ? C.teal : row.status === "pending" ? C.ember : C.grayLight}`,
                   }} />
                   <span style={{ color: C.pineDeep, fontWeight: 600, flexShrink: 0 }}>{formatDate(row.service_date)}</span>
-                  <span style={{ color: C.gray, fontVariantNumeric: "tabular-nums" }}>${row.final_price}</span>
+                  <span style={{ color: C.gray, fontVariantNumeric: "tabular-nums" }}>${Number(row.final_price).toFixed(2)}</span>
                   <Badge color={pill.color} bg={pill.bg}>{pill.label}</Badge>
                 </div>
               );

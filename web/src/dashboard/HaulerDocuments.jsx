@@ -1,9 +1,18 @@
 import { useRef, useState } from "react";
-import { C, sans } from "../theme";
+import { C, sans, fullDateLabel } from "../theme";
 import { Btn, Badge } from "../ui/Primitives";
 import { submitHaulerDocument, deleteHaulerDocument } from "./data";
 
 const DOC_LABELS = { license: "Business license", insurance: "Insurance" };
+
+// Defense-in-depth only — the `accept` attribute on the file input isn't enforced by browsers, and
+// there's no server-side size/type limit on the hauler-documents bucket today, so this is the only
+// gate a bad-faith upload would hit before reaching storage.
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_TYPES = ["application/pdf"];
+function isAllowedFile(file) {
+  return file.type.startsWith("image/") || ALLOWED_TYPES.includes(file.type);
+}
 
 const STATUS_STYLE = {
   pending: { color: C.amber, bg: C.amberLight, label: "Pending review" },
@@ -24,6 +33,8 @@ function DocCard({ docType, doc, haulerId, onSubmitted, setToast }) {
 
   async function submit() {
     if (!file) { setToast("Choose a file first."); return; }
+    if (!isAllowedFile(file)) { setToast("Only images or PDFs are accepted."); return; }
+    if (file.size > MAX_FILE_BYTES) { setToast("File is too large — 10 MB max."); return; }
     if (!expiresAt) { setToast("Set an expiration date."); return; }
     setSubmitting(true);
     try {
@@ -64,7 +75,7 @@ function DocCard({ docType, doc, haulerId, onSubmitted, setToast }) {
         <div style={{ fontSize: 11.5, color: C.gray }}>
           {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" style={{ color: C.teal }}>{doc.original_name || "View file"}</a>}
           {doc.original_name && doc.url ? " · " : ""}
-          Expires {new Date(doc.expires_at + "T00:00:00").toLocaleDateString()}
+          Expires {fullDateLabel(doc.expires_at + "T00:00:00")}
         </div>
       )}
       {doc?.status === "rejected" && doc.reviewer_note && (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { C, sans, nowStr, RADIUS, SHADOW_SM } from "../theme";
-import { Badge, Btn } from "../ui/Primitives";
+import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { dismissLead } from "./data";
 
 const CATEGORY_META = {
@@ -91,7 +91,7 @@ export function CustomerStallsTab({ stalls, onChanged, setToast, readOnly }) {
         ))}
       </div>
       <div style={{ display: "grid", gap: 10 }}>
-        {visible.length === 0 && <div style={{ fontSize: 13, color: C.gray, textAlign: "center", padding: 24 }}>Nothing here right now.</div>}
+        {visible.length === 0 && <CenteredNote>No stalls to review yet.</CenteredNote>}
         {visible.map(item => (
           <Row key={`${item.category}:${item.refId}`} item={item} onChanged={onChanged} setToast={setToast} readOnly={readOnly} />
         ))}

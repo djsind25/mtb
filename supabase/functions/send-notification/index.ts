@@ -12,6 +12,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import { Resend } from "resend";
+import { timingSafeEqualString } from "../_shared/timingSafeEqual.ts";
 
 const internalKey = Deno.env.get("INTERNAL_DISPATCH_KEY") ?? "";
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -52,7 +53,7 @@ const EVENT_SUBJECTS: Record<string, string> = {
 
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
-    if (req.headers.get("apikey") !== internalKey || !internalKey) {
+    if (!internalKey || !timingSafeEqualString(req.headers.get("apikey") ?? "", internalKey)) {
       return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -94,7 +95,13 @@ export default {
     }
 
     const link = notification.job_id ? `${appUrl}/jobs/${notification.job_id}` : appUrl;
-    const subject = EVENT_SUBJECTS[notification.event_type] ?? notification.title;
+    // Every event type in current use has a fixed entry in EVENT_SUBJECTS, but the fallback still
+    // needs some sanitization — a future event type without an EVENT_SUBJECTS entry would
+    // otherwise put raw notification.title (user-influenced job/chat content) straight into the
+    // subject line. Subject isn't HTML (escapeHtml would just show literal "&lt;" etc. in an
+    // inbox), so strip newlines/carriage-returns instead — the one thing that would actually
+    // matter for a subject line, closing off header injection if this ever moves off Resend's API.
+    const subject = EVENT_SUBJECTS[notification.event_type] ?? notification.title.replace(/[\r\n]+/g, " ");
 
     try {
       const resend = new Resend(resendApiKey);

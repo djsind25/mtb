@@ -32,7 +32,7 @@ export function OverdueJobRow({ job, expanded, onChanged, readOnly, onViewUser }
       <div style={{ fontSize: 11.5, color: C.gray }}>
         Customer: <UserLink id={job.customer_id} name={job.customerName} onViewUser={onViewUser} /> ·
         {" "}Hauler: <UserLink id={job.bid?.hauler_id} name={job.bid?.businessName} onViewUser={onViewUser} /> ·
-        {" "}Bid: ${job.bid?.amount ?? "—"}
+        {" "}Bid: ${job.bid?.amount != null ? Number(job.bid.amount).toFixed(2) : "—"}
       </div>
       {expanded && (
         <div style={{ fontSize: 11.5, color: "#8B3A30", marginTop: 6, lineHeight: 1.5 }}>

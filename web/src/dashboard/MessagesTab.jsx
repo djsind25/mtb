@@ -61,7 +61,7 @@ export function MessagesTab({ session, setToast, initialChatId, onConsumedInitia
                   </div>
                 )}
               </div>
-              <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 13, fontWeight: 700, color: C.teal, flexShrink: 0 }}>${c.bid_amount}</span>
+              <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontSize: 13, fontWeight: 700, color: C.teal, flexShrink: 0 }}>${Number(c.bid_amount).toFixed(2)}</span>
             </button>
           );
         })}

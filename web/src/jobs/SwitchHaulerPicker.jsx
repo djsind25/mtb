@@ -113,7 +113,7 @@ export function SwitchHaulerPicker({ job, onSwitched, setToast, onClose }) {
                     background: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
                   }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep }}>{bid.businessName}</span>
-                    <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.teal }}>${bid.amount}</span>
+                    <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.teal }}>${Number(bid.amount).toFixed(2)}</span>
                   </button>
                 ))}
               </div>
@@ -135,7 +135,7 @@ export function SwitchHaulerPicker({ job, onSwitched, setToast, onClose }) {
         ) : preview ? (
           <>
             <div style={{ fontSize: 13, color: C.ink, marginBottom: 6 }}>
-              Switch to <strong>{selected.businessName}</strong> — ${preview.new_bid_amount}
+              Switch to <strong>{selected.businessName}</strong> — ${Number(preview.new_bid_amount).toFixed(2)}
             </div>
             <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>
               {preview.delta > 0

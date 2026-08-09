@@ -72,7 +72,7 @@ export function ScheduleProposal({ job, viewerRole, viewerId, defaultPrice, onCh
   if (job.capturedAt) {
     return (
       <div style={{ marginTop: 8 }}>
-        <Badge color={C.teal} bg={C.tealLight}>✓ ${job.lockedFinalPrice} captured — released per the 90/10 split</Badge>
+        <Badge color={C.teal} bg={C.tealLight}>✓ ${Number(job.lockedFinalPrice).toFixed(2)} captured — released per the 90/10 split</Badge>
       </div>
     );
   }
@@ -81,7 +81,7 @@ export function ScheduleProposal({ job, viewerRole, viewerId, defaultPrice, onCh
   if (job.authorizedAt) {
     return (
       <div style={{ marginTop: 8 }}>
-        <Badge color={C.teal} bg={C.tealLight}>💳 ${job.lockedFinalPrice} authorized and held for {formatDate(job.lockedServiceDate)}</Badge>
+        <Badge color={C.teal} bg={C.tealLight}>💳 ${Number(job.lockedFinalPrice).toFixed(2)} authorized and held for {formatDate(job.lockedServiceDate)}</Badge>
       </div>
     );
   }
@@ -90,10 +90,10 @@ export function ScheduleProposal({ job, viewerRole, viewerId, defaultPrice, onCh
   if (job.lockedServiceDate) {
     return (
       <div style={{ marginTop: 8, background: C.tealLight, borderRadius: 8, padding: "9px 12px", fontSize: 12, color: C.pineDeep }}>
-        <div style={{ fontWeight: 700, marginBottom: 3 }}>📅 Service date: {formatDate(job.lockedServiceDate)} · Final price: ${job.lockedFinalPrice}</div>
+        <div style={{ fontWeight: 700, marginBottom: 3 }}>📅 Service date: {formatDate(job.lockedServiceDate)} · Final price: ${Number(job.lockedFinalPrice).toFixed(2)}</div>
         <div style={{ color: C.gray }}>
           {viewerRole === "customer"
-            ? `Your card will be authorized for $${job.lockedFinalPrice} 48 hours before your ${formatDate(job.lockedServiceDate)} service. You're only charged once the job is confirmed complete.`
+            ? `Your card will be authorized for $${Number(job.lockedFinalPrice).toFixed(2)} 48 hours before your ${formatDate(job.lockedServiceDate)} service. You're only charged once the job is confirmed complete.`
             : `The customer's card will be authorized 48 hours before the ${formatDate(job.lockedServiceDate)} service date, and captured once you both confirm the job complete.`}
         </div>
       </div>
@@ -118,11 +118,11 @@ export function ScheduleProposal({ job, viewerRole, viewerId, defaultPrice, onCh
         {stallBanner}
         <div style={{ marginTop: 8, background: C.sand, borderRadius: 8, padding: "9px 12px", fontSize: 12 }}>
           {isMine ? (
-            <div style={{ color: C.gray }}>⏳ You proposed {formatDate(pending.service_date)} · ${pending.final_price} — waiting for the {otherRole} to confirm.</div>
+            <div style={{ color: C.gray }}>⏳ You proposed {formatDate(pending.service_date)} · ${Number(pending.final_price).toFixed(2)} — waiting for the {otherRole} to confirm.</div>
           ) : (
             <>
               <div style={{ fontWeight: 700, color: C.pineDeep, marginBottom: 6 }}>
-                📅 The {pending.proposed_role} proposed {formatDate(pending.service_date)} · ${pending.final_price}
+                📅 The {pending.proposed_role} proposed {formatDate(pending.service_date)} · ${Number(pending.final_price).toFixed(2)}
               </div>
               <Btn size="sm" full={false} disabled={confirming} onClick={doConfirm}>{confirming ? "Confirming…" : "Confirm"}</Btn>
             </>

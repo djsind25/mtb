@@ -22,6 +22,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 import { PublishCommand, SNSClient } from "@aws-sdk/client-sns";
+import { timingSafeEqualString } from "../_shared/timingSafeEqual.ts";
 
 const internalKey = Deno.env.get("INTERNAL_DISPATCH_KEY") ?? "";
 const snsAccessKeyId = Deno.env.get("AWS_SNS_ACCESS_KEY_ID");
@@ -99,7 +100,7 @@ async function sendSms(to: string, body: string): Promise<boolean> {
 
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
-    if (req.headers.get("apikey") !== internalKey || !internalKey) {
+    if (!internalKey || !timingSafeEqualString(req.headers.get("apikey") ?? "", internalKey)) {
       return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 
