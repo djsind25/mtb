@@ -8,9 +8,9 @@ import {
   requestProfileChange, loadMyProfileChangeRequests,
   loadAccountDeletionBlockers, requestOwnAccountDeletion, cancelOwnPendingDeletion,
 } from "./data";
+import { loadChangeOrdersEnabled } from "../jobs/data";
 import { HaulerDocuments } from "./HaulerDocuments";
 import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
-import { SmsAgreement } from "../auth/SmsAgreement";
 import { isPushSupported, pushPermission, getCurrentPushSubscription, subscribeToPush, unsubscribeFromPush } from "../lib/push";
 import { entitlementsFor, tierName } from "../membership";
 import { LockedField } from "./LockedField";
@@ -39,32 +39,71 @@ const EVENT_LABELS = {
   paymentAuthorized: "Your payment method was authorized",
 };
 
-// Only the specific text-message categories asked for per role — adminMessage (a support reply)
-// still texts both roles once they've opted into SMS overall, it just doesn't get its own toggle
-// here to keep this list to what was actually requested.
-const SMS_EVENT_LABELS = {
-  hauler: {
-    newJobNearby: "New jobs near you (hourly summary, not one text per job)",
-    bidAccepted: "You won a job",
-    newMessage: "New message from a customer",
-    questionAnswered: "Your question was answered",
-    bidRevisionResolved: "A price revision you proposed was resolved",
-    scheduleProposed: "A service date was proposed",
-    scheduleConfirmed: "A service date you proposed was confirmed",
-    coordinationNudge: "Reminder to lock in a service date",
-  },
-  customer: {
-    jobBooked: "Your job is booked",
-    newMessage: "New message from a hauler",
-    adminMessage: "New message from support",
-    jobQuestionAsked: "New question on your job",
-    bidRevisionProposed: "Your hauler proposed a new price",
-    scheduleProposed: "A service date was proposed",
-    scheduleConfirmed: "A service date you proposed was confirmed",
-    coordinationNudge: "Reminder to lock in a service date",
-    paymentAuthorized: "Your payment method was authorized",
-  },
-};
+// Groups EVENT_LABELS for the collapsible category UI below — every key in EVENT_LABELS must
+// appear in exactly one category here. documentExpiring/documentExpired and bidRevisionProposed/
+// bidRevisionResolved get filtered out per-role/per-feature-flag at render time, not here.
+const NOTIFICATION_CATEGORIES = [
+  { id: "bidsJobs", label: "Bids & jobs", events: ["bidReceived", "bidAccepted", "jobBooked"] },
+  { id: "messages", label: "Messages & questions", events: ["newMessage", "jobQuestionAsked", "questionAnswered"] },
+  { id: "scheduling", label: "Scheduling & payment", events: ["scheduleProposed", "scheduleConfirmed", "coordinationNudge", "bidRevisionProposed", "bidRevisionResolved", "paymentAuthorized"] },
+  { id: "completion", label: "Completion", events: ["jobCompleted", "reminderOverdue"] },
+  { id: "account", label: "Account & verification", events: ["documentExpiring", "documentExpired"] },
+];
+
+// Essential transactional notifications — shown with a "Recommended" badge so they read as
+// different from purely optional ones, per the notification-settings redesign.
+const RECOMMENDED_EVENTS = new Set(["paymentAuthorized", "bidAccepted", "jobBooked"]);
+
+function visibleCategoryEvents(events, session, changeOrdersEnabled) {
+  return events.filter(key => {
+    if ((key === "documentExpiring" || key === "documentExpired") && session.role !== "hauler") return false;
+    if ((key === "bidRevisionProposed" || key === "bidRevisionResolved") && !changeOrdersEnabled) return false;
+    return true;
+  });
+}
+
+// One collapsible category: a header row with a "select all in this category" checkbox (shows
+// indeterminate when only some events are on) plus a chevron to reveal individual events —
+// collapsed by default so the 16-ish events read as 5 scannable rows, not a wall of checkboxes.
+function NotificationCategory({ label, eventKeys, prefs, setPrefs, masterEnabled }) {
+  const [expanded, setExpanded] = useState(false);
+  const allOn = eventKeys.every(k => prefs.events?.[k] ?? true);
+  const anyOn = eventKeys.some(k => prefs.events?.[k] ?? true);
+
+  function setAll(value) {
+    const nextEvents = { ...prefs.events };
+    eventKeys.forEach(k => { nextEvents[k] = value; });
+    setPrefs({ ...prefs, events: nextEvents });
+  }
+
+  return (
+    <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, opacity: masterEnabled ? 1 : 0.5 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+        <input type="checkbox" checked={allOn} disabled={!masterEnabled}
+          ref={el => { if (el) el.indeterminate = anyOn && !allOn; }}
+          onChange={() => setAll(!allOn)} />
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: C.ink, cursor: "pointer" }} onClick={() => setExpanded(x => !x)}>
+          {label}
+        </span>
+        <span onClick={() => setExpanded(x => !x)} style={{ fontSize: 12, color: C.gray, cursor: "pointer", transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
+          ▸
+        </span>
+      </div>
+      {expanded && (
+        <div style={{ padding: "0 12px 10px 34px", display: "grid", gap: 7 }}>
+          {eventKeys.map(key => (
+            <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: C.ink, cursor: masterEnabled ? "pointer" : "default" }}>
+              <input type="checkbox" checked={prefs.events?.[key] ?? true} disabled={!masterEnabled}
+                onChange={e => setPrefs({ ...prefs, events: { ...prefs.events, [key]: e.target.checked } })} />
+              {EVENT_LABELS[key]}
+              {RECOMMENDED_EVENTS.has(key) && <Badge color={C.teal} bg={C.tealLight}>Recommended</Badge>}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Scoped to exactly what's wired server-side so far (see 20260821000000_web_push.sql) — new bid,
 // bid accepted/booked, new message. Same shape as EVENT_LABELS, just a smaller set.
@@ -96,6 +135,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
   const [prefs, setPrefs] = useState(null);
   const [smsConsent, setSmsConsent] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
+  const [changeOrdersEnabled, setChangeOrdersEnabled] = useState(false);
 
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [togglingPush, setTogglingPush] = useState(false);
@@ -152,15 +192,17 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
       setLoading(true);
       // Haulers' own earnings history lives entirely in the Earnings History tab (TotalEarnedTab) —
       // this section now just links there instead of duplicating the data fetch.
-      const [{ data: p }, hist, legal] = await Promise.all([
+      const [{ data: p }, hist, legal, coEnabled] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", session.id).single(),
         session.role === "customer" ? loadCustomerPayments(session.id) : Promise.resolve([]),
         loadMyLegalAcceptances(supabase).catch(() => ({})),
+        loadChangeOrdersEnabled().catch(() => false),
       ]);
       if (session.role === "hauler") { await loadDocuments(); await loadPendingRequests(); }
       await loadMfaStatus();
       if (cancelled) return;
       setLegalAcceptances(legal);
+      setChangeOrdersEnabled(coEnabled);
       setProfile(p);
       setName(p.name || "");
       setEmail(p.email || "");
@@ -477,29 +519,17 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
           <input type="checkbox" checked={prefs.email} onChange={e => setPrefs({ ...prefs, email: e.target.checked })} />
           Email notifications (master toggle)
         </label>
-        {Object.entries(EVENT_LABELS).map(([key, label]) => (
-          <label key={key} style={{ ...checkboxRow, opacity: prefs.email ? 1 : 0.5, marginLeft: 20 }}>
-            <input type="checkbox" checked={prefs.events?.[key] ?? true} disabled={!prefs.email}
-              onChange={e => setPrefs({ ...prefs, events: { ...prefs.events, [key]: e.target.checked } })} />
-            {label}
-          </label>
-        ))}
 
-        <div style={{ height: 1, background: C.line, margin: "16px 0" }} />
-
-        <SmsAgreement checked={smsConsent} onChange={setSmsConsent} />
-        {smsConsent && !phone.trim() && (
-          <div style={{ fontSize: 11.5, color: C.red, marginBottom: 8, marginLeft: 20 }}>
-            Add a phone number above, then save, to actually receive texts.
-          </div>
-        )}
-        {(SMS_EVENT_LABELS[session.role] ? Object.entries(SMS_EVENT_LABELS[session.role]) : []).map(([key, label]) => (
-          <label key={key} style={{ ...checkboxRow, opacity: smsConsent ? 1 : 0.5, marginLeft: 20 }}>
-            <input type="checkbox" checked={prefs.smsEvents?.[key] ?? true} disabled={!smsConsent}
-              onChange={e => setPrefs({ ...prefs, smsEvents: { ...prefs.smsEvents, [key]: e.target.checked } })} />
-            {label}
-          </label>
-        ))}
+        <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+          {NOTIFICATION_CATEGORIES.map(cat => {
+            const events = visibleCategoryEvents(cat.events, session, changeOrdersEnabled);
+            if (events.length === 0) return null;
+            return (
+              <NotificationCategory key={cat.id} label={cat.label} eventKeys={events}
+                prefs={prefs} setPrefs={setPrefs} masterEnabled={prefs.email} />
+            );
+          })}
+        </div>
 
         <div style={{ height: 1, background: C.line, margin: "16px 0" }} />
 
@@ -549,7 +579,9 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
                 <div key={h.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px" }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 13, color: C.pineDeep }}>{h.jobTitle}</div>
-                    <div style={{ fontSize: 11.5, color: C.gray }}>{h.otherParty || "—"} · {new Date(h.createdAt).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 11.5, color: C.gray }}>
+                      {h.otherParty || "—"} · {h.kind === "refund" ? "Refund processed" : "Payment processed"} on {new Date(h.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: h.kind === "refund" ? C.red : C.pineDeep, marginBottom: 3 }}>

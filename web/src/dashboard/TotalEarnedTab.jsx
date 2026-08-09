@@ -101,7 +101,7 @@ export function TotalEarnedTab({ haulerId, onOpenJob, setToast }) {
           }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep }}>{r.jobTitle}</div>
-              <div style={{ fontSize: 11, color: C.gray }}>{shortDateLabel(r.earnedAt)}</div>
+              <div style={{ fontSize: 11, color: C.gray }}>Payment processed on {shortDateLabel(r.earnedAt)}</div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${r.net.toFixed(2)} <span style={{ color: C.gray, fontWeight: 400, fontSize: 11 }}>net</span></div>

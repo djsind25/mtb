@@ -3,7 +3,6 @@ import { C, sans } from "../theme";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
-import { SmsAgreement } from "./SmsAgreement";
 import { mapProfileToSession } from "../lib/session";
 import { recordLegalAcceptance } from "../lib/legal";
 
@@ -15,7 +14,6 @@ export function CompleteOAuthProfile({ supabase, profile, roleHint, onDone, onBa
   const [businessName, setBusinessName] = useState("");
   const [zip, setZip] = useState("");
   const [phone, setPhone] = useState("");
-  const [smsOptIn, setSmsOptIn] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToMonitoring, setAgreedToMonitoring] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -47,7 +45,7 @@ export function CompleteOAuthProfile({ supabase, profile, roleHint, onDone, onBa
       p_business_name: role === "hauler" ? businessName.trim() : "",
       p_zip: zip.trim(),
       p_phone: phone.trim(),
-      p_sms_consent: smsOptIn,
+      p_sms_consent: false,
     });
     setLoading(false);
     if (rpcError) { setError(rpcError.message); return; }
@@ -70,7 +68,6 @@ export function CompleteOAuthProfile({ supabase, profile, roleHint, onDone, onBa
         label="Phone" value={phone} onChange={setPhone} type="tel"
         placeholder={role === "hauler" ? "(555) 867-5309" : "(optional)"} required={role === "hauler"}
       />
-      <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
       <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
       {error && <ErrorMsg>{error}</ErrorMsg>}
       <Btn onClick={handleSubmit} disabled={loading} size="lg">{loading ? "Saving…" : "Finish setting up"}</Btn>

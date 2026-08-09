@@ -6,7 +6,6 @@ import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
-import { SmsAgreement } from "./SmsAgreement";
 import { SocialAuthButtons } from "./SocialAuthButtons";
 import { recordLegalAcceptance } from "../lib/legal";
 
@@ -39,7 +38,6 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
   const [adminPass, setAdminPass] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToMonitoring, setAgreedToMonitoring] = useState(false);
-  const [smsOptIn, setSmsOptIn] = useState(false);
 
   async function handleAdminLogin() {
     setError("");
@@ -124,8 +122,8 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
     // email confirmation delays the session, so it can't be skipped by that timing the way a
     // client-side insert right here would be.
     const metadata = role === "customer"
-      ? { role, name: name.trim(), zip: zip.trim(), phone: phone.trim(), sms_consent: smsOptIn }
-      : { role, name: contactName.trim(), business_name: businessName.trim(), zip: serviceZip.trim(), phone: haulerPhone.trim(), sms_consent: smsOptIn };
+      ? { role, name: name.trim(), zip: zip.trim(), phone: phone.trim(), sms_consent: false }
+      : { role, name: contactName.trim(), business_name: businessName.trim(), zip: serviceZip.trim(), phone: haulerPhone.trim(), sms_consent: false };
     const { data, error: authError } = await supabase.auth.signUp({
       email: email.trim(), password: passcode.trim(), options: { data: metadata },
     });
@@ -268,7 +266,6 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />
           <Field label="Phone" value={phone} onChange={setPhone} type="tel" placeholder="(optional)" />
           <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
-          <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Create account"}</Btn>
@@ -283,7 +280,6 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Primary service ZIP" value={serviceZip} onChange={setServiceZip} placeholder="60491" required />
           <Field label="Phone" value={haulerPhone} onChange={setHaulerPhone} type="tel" placeholder="(555) 867-5309" required />
           <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
-          <SmsAgreement checked={smsOptIn} onChange={setSmsOptIn} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Apply as a hauler"}</Btn>
