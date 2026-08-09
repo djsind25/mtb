@@ -101,7 +101,7 @@ export function TotalSpentTab({ customerId, onOpenJob, setToast }) {
           }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep }}>{r.jobTitle}</div>
-              <div style={{ fontSize: 11, color: C.gray }}>{shortDateLabel(r.completedAt)}</div>
+              <div style={{ fontSize: 11, color: C.gray }}>Payment processed on {shortDateLabel(r.completedAt)}</div>
             </div>
             <div style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${r.spent.toFixed(2)}</div>
           </button>
