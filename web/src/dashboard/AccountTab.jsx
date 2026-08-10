@@ -10,6 +10,7 @@ import {
 } from "./data";
 import { loadChangeOrdersEnabled } from "../jobs/data";
 import { HaulerDocuments } from "./HaulerDocuments";
+import { InstallPrompt } from "./InstallPrompt";
 import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { isPushSupported, pushPermission, getCurrentPushSubscription, subscribeToPush, unsubscribeFromPush } from "../lib/push";
 import { entitlementsFor, tierName } from "../membership";
@@ -421,6 +422,8 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
       {session.role === "hauler" && (
         <HaulerDocuments haulerId={session.id} documents={documents} onChanged={loadDocuments} setToast={setToast} />
       )}
+
+      <InstallPrompt session={session} />
 
       {session.role === "hauler" && (
         <section>

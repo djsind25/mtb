@@ -2,6 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+// Side-effect import: attaches the beforeinstallprompt listener at boot so it's never missed
+// (see lib/installPrompt.js) — InstallPrompt.jsx may not mount until minutes later.
+import './lib/installPrompt.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
