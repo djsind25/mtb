@@ -89,6 +89,28 @@ export default {
       return Response.json({ skipped: true, reason: "recipient opted out" });
     }
 
+    // Chat is the biggest bombardment risk (a burst of back-and-forth messages would otherwise
+    // mean one email per message). Instead of emailing every newMessage notification, cap it to
+    // at most one per rolling hour per recipient: if they already got a newMessage email within
+    // the last 60 minutes, skip this one — the one that already landed still points them at the
+    // conversation. Window resets from the most recent actual send, not a fixed clock boundary.
+    if (notification.event_type === "newMessage") {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { data: recentEmail } = await ctx.supabaseAdmin
+        .from("notifications")
+        .select("id")
+        .eq("user_id", notification.user_id)
+        .eq("event_type", "newMessage")
+        .eq("email_dispatched", true)
+        .gt("created_at", oneHourAgo)
+        .neq("id", notification.id)
+        .limit(1);
+      if (recentEmail && recentEmail.length > 0) {
+        await ctx.supabaseAdmin.from("notifications").update({ email_dispatched: true }).eq("id", notificationId);
+        return Response.json({ skipped: true, reason: "throttled - recipient already emailed about new messages this hour" });
+      }
+    }
+
     if (!resendApiKey) {
       console.warn(`send-notification: RESEND_API_KEY not set, skipping email for ${notificationId}`);
       return Response.json({ skipped: true, reason: "RESEND_API_KEY not configured" });

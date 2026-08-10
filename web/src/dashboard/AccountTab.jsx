@@ -50,9 +50,14 @@ const NOTIFICATION_CATEGORIES = [
   { id: "account", label: "Account & verification", events: ["documentExpiring", "documentExpired"] },
 ];
 
-// Essential transactional notifications — shown with a "Recommended" badge so they read as
-// different from purely optional ones, per the notification-settings redesign.
-const RECOMMENDED_EVENTS = new Set(["paymentAuthorized", "bidAccepted", "jobBooked"]);
+// Transactional / action-required notifications — shown with a "Recommended" badge so they read
+// as different from purely informational ones. Matches the events that default to ON server-side
+// (see 20260826000000_notification_defaults.sql) so the UI honestly reflects the real defaults.
+const RECOMMENDED_EVENTS = new Set([
+  "bidReceived", "bidAccepted", "jobBooked", "paymentAuthorized",
+  "scheduleProposed", "scheduleConfirmed", "coordinationNudge",
+  "bidRevisionProposed", "bidRevisionResolved", "jobCompleted", "documentExpired",
+]);
 
 function visibleCategoryEvents(events, session, changeOrdersEnabled) {
   return events.filter(key => {
