@@ -114,7 +114,7 @@ export function InstallPrompt({ session }) {
       ) : (
         <>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>
-            📲 Add MyTrashBid to your Home Screen
+            📲 Add MyTrashBid App to Home Screen
           </div>
           <div style={{ fontSize: 12.5, color: C.ink, marginBottom: 12 }}>
             Tap <ShareGlyph /> <strong>Share</strong> in Safari, then <strong>"Add to Home Screen"</strong> — one tap gets you back in from your home screen.
