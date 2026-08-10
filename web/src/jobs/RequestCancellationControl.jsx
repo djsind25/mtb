@@ -34,8 +34,18 @@ export function RequestCancellationControl({ job, onRequested, setToast }) {
     setRequesting(false);
   }
 
+  function openForm() {
+    if (job.haulerDoneAt && !job.completed) {
+      const proceed = window.confirm(
+        "This job shows completed by hauler. Are you sure? Chat will be escalated to admin."
+      );
+      if (!proceed) return;
+    }
+    setShowForm(true);
+  }
+
   if (!showForm) {
-    return <Btn size="sm" full={false} variant="ghost" onClick={() => setShowForm(true)}>Request cancellation</Btn>;
+    return <Btn size="sm" full={false} variant="ghost" onClick={openForm}>Request cancellation</Btn>;
   }
 
   return (

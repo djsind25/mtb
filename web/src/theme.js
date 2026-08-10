@@ -86,8 +86,8 @@ export function daysLeft(iso) {
   const ms = new Date(iso).getTime() - Date.now();
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 }
-export function expiryLabel(iso) {
-  if (isExpired(iso)) return "Expired";
+export function expiryLabel(iso, { renewable = false } = {}) {
+  if (isExpired(iso)) return renewable ? "Expired - open to renew?" : "Expired";
   const d = daysLeft(iso);
   if (d === 0) return "Expires today";
   if (d === 1) return "1 day left";

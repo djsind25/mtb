@@ -94,7 +94,7 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
           {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge>}
-          {job.status === "open" && <Badge color={jobExpired ? C.red : C.gray} bg={jobExpired ? C.redLight : C.grayLight}>{expiryLabel(job.expires_at)}</Badge>}
+          {job.status === "open" && <Badge color={jobExpired ? C.red : C.gray} bg={jobExpired ? C.redLight : C.grayLight}>{expiryLabel(job.expires_at, { renewable: true })}</Badge>}
           <Badge color={job.status === "booked" ? C.teal : C.ember} bg={job.status === "booked" ? C.tealLight : C.emberLight}>{job.status}</Badge>
         </div>
       </div>

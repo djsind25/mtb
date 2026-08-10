@@ -100,7 +100,7 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
               {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.urgent ? "⚡ " : ""}{timeline.label}</Badge>}
               {job.status === "open" && (
                 <Badge color={jobExpired ? C.red : C.gray} bg={jobExpired ? C.redLight : C.grayLight}>
-                  {expiryLabel(job.expires_at)}
+                  {expiryLabel(job.expires_at, { renewable: true })}
                 </Badge>
               )}
             </div>
