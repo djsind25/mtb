@@ -189,10 +189,14 @@ password_requirements = ""
 # enabled = false
 
 # Configure WebAuthn relying party settings (required when passkey is enabled).
-# [auth.webauthn]
-# rp_display_name = "Supabase"
-# rp_id = "localhost"
-# rp_origins = ["http://127.0.0.1:3000"]
+# rp_id must be this environment's bare hostname (no scheme/port) — it has to match site_url
+# above exactly or a real browser will refuse to complete the passkey ceremony. staging's
+# supabase/config.toml overrides this block with its own Amplify hostname, same as it already
+# does for site_url/additional_redirect_urls.
+[auth.webauthn]
+rp_display_name = "MyTrashBid"
+rp_id = "app.mytrashbid.com"
+rp_origins = ["https://app.mytrashbid.com"]
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
@@ -322,10 +326,10 @@ otp_length = 6
 template = "Your code is {{ `{{ .Code }}` }}"
 max_frequency = "5s"
 
-# Configure MFA via WebAuthn
-# [auth.mfa.web_authn]
-# enroll_enabled = true
-# verify_enabled = true
+# Configure MFA via WebAuthn (passkey — Face ID / fingerprint / security key)
+[auth.mfa.web_authn]
+enroll_enabled = true
+verify_enabled = true
 
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
@@ -514,3 +518,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/send-web-push/deno.json"
 entrypoint = "./functions/send-web-push/index.ts"
+
+[functions.send-mfa-email-code]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-mfa-email-code/deno.json"
+entrypoint = "./functions/send-mfa-email-code/index.ts"

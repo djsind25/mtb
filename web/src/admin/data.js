@@ -673,6 +673,20 @@ export async function setMaxJobAmount(amount) {
   if (error) throw rpcError(error);
 }
 
+// Allowed 2FA methods (passkey/totp/email — no SMS) — see 20260829000000_2fa_additional_methods.sql.
+// Read directly off the table (RLS: any admin, view-only included, can select); the mutation is
+// super-admin-only, same posture as the money limits above.
+export async function loadSecurityPolicyConfig() {
+  const { data, error } = await supabase.from("security_policy_config").select("*").eq("id", true).single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setAllowedMfaMethods(methods) {
+  const { error } = await supabase.rpc("set_allowed_mfa_methods", { p_methods: methods });
+  if (error) throw rpcError(error);
+}
+
 export async function loadCancellationRequests() {
   const { data: requests, error } = await supabase.from("cancellation_requests").select("*").order("created_at", { ascending: false });
   if (error) throw error;

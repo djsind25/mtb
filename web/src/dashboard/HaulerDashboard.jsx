@@ -13,7 +13,7 @@ import { AccountTab } from "./AccountTab";
 import { TotalEarnedTab } from "./TotalEarnedTab";
 import { loadHaulerStats } from "./data";
 import { supabase } from "../lib/supabaseClient";
-import { listVerifiedTotpFactors } from "../lib/mfa";
+import { hasVerifiedMfa } from "../lib/mfa";
 import { MfaEnrollment } from "../auth/MfaEnrollment";
 
 const BID_FILTERS = [
@@ -103,11 +103,11 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
   async function handleBid(jobId, amount, note) {
     // Bid-eligible (verified) haulers must have MFA enrolled before their first bid — gate here
     // rather than let the bids_insert RLS policy's own matching check (Phase 3) surface as a raw
-    // insert failure.
+    // insert failure. hasVerifiedMfa() covers all three methods (passkey/totp/email), matching
+    // the same user_has_verified_mfa() the RLS policy itself checks.
     if (session.licenseActive && session.insuranceActive) {
       try {
-        const factors = await listVerifiedTotpFactors(supabase);
-        if (factors.length === 0) {
+        if (!(await hasVerifiedMfa(supabase))) {
           setPendingBid({ jobId, amount, note });
           return;
         }

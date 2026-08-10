@@ -21,6 +21,7 @@ import { InviteAdminForm, AdminInviteRow } from "./InviteAdminForm";
 import { RevenueTab, buildMonthlyRevenue } from "./RevenueTab";
 import { AutoExportTab } from "./AutoExportTab";
 import { MoneyPolicyTab } from "./MoneyPolicyTab";
+import { SecurityPolicyTab } from "./SecurityPolicyTab";
 import { CompletionReview } from "./CompletionReview";
 import { CancellationRequestsTab } from "./CancellationRequestsTab";
 import { StalledJobsTab } from "./StalledJobsTab";
@@ -213,6 +214,7 @@ export function AdminDashboard({ session, setToast }) {
         { id: "revenue", label: "Revenue" },
         { id: "autoExport", label: "Auto export" },
         { id: "platformFees", label: "Money policy" },
+        { id: "security", label: "Security" },
       ],
     },
     {
@@ -474,6 +476,12 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "platformFees" && (
         <Panel title="Money Policy">
           <MoneyPolicyTab session={session} readOnly={readOnly} setToast={setToast} />
+        </Panel>
+      )}
+
+      {tab === "security" && (
+        <Panel title="Security">
+          <SecurityPolicyTab session={session} readOnly={readOnly} setToast={setToast} />
         </Panel>
       )}
 

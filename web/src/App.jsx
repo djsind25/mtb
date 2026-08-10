@@ -11,7 +11,7 @@ import { OAUTH_ROLE_KEY } from "./auth/socialAuth";
 import { AuthShell } from "./auth/AuthShell";
 import { MfaEnrollment } from "./auth/MfaEnrollment";
 import { MfaChallenge } from "./auth/MfaChallenge";
-import { listVerifiedTotpFactors, getAAL } from "./lib/mfa";
+import { listVerifiedTotpFactors, listVerifiedWebauthnFactors, getAAL } from "./lib/mfa";
 import { LegalReaccept } from "./auth/LegalReaccept";
 import { DeletionPending } from "./auth/DeletionPending";
 import { needsLegalReaccept } from "./lib/legal";
@@ -177,8 +177,13 @@ export default function App() {
     }
     if (mapped.role === "admin") {
       try {
-        const factors = await listVerifiedTotpFactors(supabase);
-        if (factors.length === 0) {
+        // Admin login-MFA needs a real aal2-capable factor (totp or passkey) — email code can
+        // never produce one, so it's deliberately excluded from admin enrollment entirely (see
+        // MfaEnrollment's excludeEmail prop below) and not checked for here either.
+        const [totpFactors, webauthnFactors] = await Promise.all([
+          listVerifiedTotpFactors(supabase), listVerifiedWebauthnFactors(supabase),
+        ]);
+        if (totpFactors.length === 0 && webauthnFactors.length === 0) {
           setPendingSession(mapped);
           setStage("mfa_enroll");
           return;
@@ -256,6 +261,7 @@ export default function App() {
           <MfaEnrollment
             supabase={supabase}
             mandatory
+            excludeEmail
             description="Admin accounts require two-factor authentication."
             onComplete={() => finishLogin(pendingSession)}
           />

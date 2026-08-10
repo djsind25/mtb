@@ -1,0 +1,12 @@
+-- MyTrashBid — turn passkey off in the allowed 2FA methods for now.
+--
+-- Pushing [auth.mfa.web_authn] config to the hosted project failed with a real error from
+-- Supabase's own management API: "Enabling of MFA with WebAuthn not currently supported." That's
+-- a hosted-project capability gap on Supabase's end, not a bug here — the client-side code (see
+-- lib/mfa.js's enrollPasskey/authenticatePasskey) is genuinely wired to their real WebAuthn MFA
+-- API and will work as-is the moment Supabase turns it on for this project. Until then, leaving
+-- "passkey" in security_policy_config.allowed_mfa_methods would let someone click "Set up" and
+-- hit a dead-end enrollment error, so it's off by default until that's resolved — flip it back on
+-- from Admin → Money & settings → Security (or re-run the equivalent set_allowed_mfa_methods call)
+-- once Supabase confirms WebAuthn MFA is available for this project.
+update security_policy_config set allowed_mfa_methods = array['totp', 'email'] where id = true;

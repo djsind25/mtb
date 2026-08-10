@@ -17,7 +17,7 @@ import { entitlementsFor, tierName } from "../membership";
 import { LockedField } from "./LockedField";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
 import { MfaEnrollment } from "../auth/MfaEnrollment";
-import { listVerifiedTotpFactors } from "../lib/mfa";
+import { hasVerifiedMfa } from "../lib/mfa";
 import { loadMyLegalAcceptances } from "../lib/legal";
 import { TOS_URL, PRIVACY_URL, TOS_VERSION, PRIVACY_VERSION } from "../legal/legalContent";
 
@@ -176,7 +176,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
 
   const loadMfaStatus = async () => {
     try {
-      setMfaEnrolled((await listVerifiedTotpFactors(supabase)).length > 0);
+      setMfaEnrolled(await hasVerifiedMfa(supabase));
     } catch {
       setMfaEnrolled(false);
     }
@@ -500,21 +500,26 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
 
       <section>
         <div style={sectionTitle}>Two-factor authentication</div>
-        {mfaEnrolled === null ? null : mfaEnrolled ? (
-          <Badge color={C.teal} bg={C.tealLight}>✓ Enabled</Badge>
-        ) : showMfaEnroll ? (
+        {mfaEnrolled === null ? null : showMfaEnroll ? (
           <MfaEnrollment
             supabase={supabase}
             mandatory={false}
-            onComplete={() => { setShowMfaEnroll(false); loadMfaStatus(); setToast("Two-factor authentication enabled."); }}
-            onCancel={() => setShowMfaEnroll(false)}
+            onComplete={() => { setShowMfaEnroll(false); loadMfaStatus(); setToast("Two-factor authentication updated."); }}
+            onCancel={() => { setShowMfaEnroll(false); loadMfaStatus(); }}
           />
+        ) : mfaEnrolled ? (
+          <>
+            <Badge color={C.teal} bg={C.tealLight}>✓ Enabled</Badge>
+            <div style={{ marginTop: 10 }}>
+              <Btn full={false} variant="ghost" onClick={() => setShowMfaEnroll(true)}>Manage two-factor authentication</Btn>
+            </div>
+          </>
         ) : (
           <>
             <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 12 }}>
               {session.role === "hauler"
                 ? "Once your account is verified, you'll need this enabled before you can submit a bid — it protects your account and your earnings. Set it up now to get ahead of it."
-                : "Add an extra layer of protection to your account with any authenticator app."}
+                : "Add an extra layer of protection to your account — passkey, authenticator app, or email code."}
             </p>
             <Btn full={false} onClick={() => setShowMfaEnroll(true)}>Set up two-factor authentication</Btn>
           </>
