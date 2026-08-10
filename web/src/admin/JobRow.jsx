@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, sans, expiryLabel, isExpired, timelineMeta, RADIUS, SHADOW_SM, SHADOW_MD } from "../theme";
+import { C, sans, expiryLabel, isExpired, fullDateLabel, timelineMeta, RADIUS, SHADOW_SM, SHADOW_MD } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
 import { JobQuestions } from "../jobs/JobQuestions";
@@ -59,6 +59,9 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline, job.timeline_date);
   const acceptedBid = (job.bids || []).find(b => b.id === job.accepted_bid_id);
+  // first_posted_at is stamped once at creation and never touched by renew_job() — created_at
+  // keeps meaning "last (re)posted", so it only differs from first_posted_at once renewed.
+  const wasRenewed = job.first_posted_at && job.created_at && job.first_posted_at !== job.created_at;
 
   async function startMessage(userId, label, which) {
     setStartingMessage(which);
@@ -91,6 +94,11 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
               </button>
             ) : (job.customerName || "—")} · ZIP {job.zip} · {(job.bids || []).length} bids
           </div>
+          {job.first_posted_at && (
+            <div style={{ fontSize: 10.5, color: C.gray, marginTop: 2 }}>
+              Posted {fullDateLabel(job.first_posted_at)}{wasRenewed ? ` · Renewed ${fullDateLabel(job.created_at)}` : ""}
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
           {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge>}

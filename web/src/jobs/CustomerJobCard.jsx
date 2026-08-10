@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { C, expiryLabel, isExpired, timelineMeta, RADIUS, SHADOW_SM } from "../theme";
+import { C, expiryLabel, isExpired, fullDateLabel, timelineMeta, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
@@ -56,6 +56,9 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
     && job.payment_mode === "full" && bids.some(b => b.id !== job.accepted_bid_id);
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline, job.timeline_date);
+  // first_posted_at is stamped once at creation and never touched by renew_job() — created_at
+  // keeps meaning "last (re)posted", so it only differs from first_posted_at once renewed.
+  const wasRenewed = job.first_posted_at && job.created_at && job.first_posted_at !== job.created_at;
 
   async function saveTimeline() {
     setSavingTimeline(true);
@@ -104,6 +107,11 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
                 </Badge>
               )}
             </div>
+            {job.first_posted_at && (
+              <div style={{ fontSize: 10.5, color: C.gray, marginTop: 4 }}>
+                Posted {fullDateLabel(job.first_posted_at)}{wasRenewed ? ` · Renewed ${fullDateLabel(job.created_at)}` : ""}
+              </div>
+            )}
           </div>
           <span style={{ color: C.gray }}>{expanded ? "▲" : "▼"}</span>
         </div>

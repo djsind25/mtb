@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { C, sans, expiryLabel, isExpired, daysLeft, RADIUS, SHADOW_SM } from "../theme";
+import { C, sans, expiryLabel, isExpired, daysLeft, fullDateLabel, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "./CompletionPhotos";
 import { JobPhotos } from "./JobPhotos";
@@ -22,6 +22,9 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
   const completionOverdue = won && !job.completed && !job.haulerDoneAt && isExpired(job.complete_by);
   const completionDaysLeft = won && !job.completed && !job.haulerDoneAt ? daysLeft(job.complete_by) : null;
   const isFull = job.payment_mode === "full";
+  // first_posted_at is stamped once at creation and never touched by renew_job() — created_at
+  // keeps meaning "last (re)posted", so it only differs from first_posted_at once renewed.
+  const wasRenewed = job.first_posted_at && job.created_at && job.first_posted_at !== job.created_at;
 
   // Same gauge the customer sees on their side of this job, so the hauler has visibility into
   // where things stand before (and after) they hit "Mark work complete" — not just their own
@@ -76,6 +79,11 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
       <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 6 }}>
         📍 ZIP {job.zip}{job.city ? ` · ${job.city}, ${job.state}` : ""} · {job.bid_count} bid{job.bid_count !== 1 ? "s" : ""} on this job
       </div>
+      {job.first_posted_at && (
+        <div style={{ fontSize: 10.5, color: C.gray, marginBottom: 6 }}>
+          Posted {fullDateLabel(job.first_posted_at)}{wasRenewed ? ` · Renewed ${fullDateLabel(job.created_at)}` : ""}
+        </div>
+      )}
       {job.description && <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 10, lineHeight: 1.5 }}>{job.description}</p>}
       {/* Same album the customer can add to from chat mid-conversation — this card never showed
           it before, so anything added post-booking was invisible from "My Bids". */}
