@@ -1,8 +1,13 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { C, sans, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn, Field } from "../ui/Primitives";
-import { proposeSchedule, confirmSchedule } from "../jobs/data";
+import { proposeSchedule, confirmSchedule, customerAcknowledgeCompletion, loadJobPhotos, loadCompletionPhotos } from "../jobs/data";
 import { JobProgressGauge, stageForJob } from "../jobs/JobProgressGauge";
+
+const navBtnStyle = {
+  background: "rgba(255,255,255,0.12)", border: "none", color: "#fff", width: 44, height: 44,
+  borderRadius: "50%", fontSize: 26, cursor: "pointer", flexShrink: 0, lineHeight: 1,
+};
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -43,9 +48,54 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
   const [price, setPrice] = useState(String(effectiveAmount));
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [acknowledging, setAcknowledging] = useState(false);
+  const [photos, setPhotos] = useState(null);
+  const [openPhotoIndex, setOpenPhotoIndex] = useState(null);
 
   const otherRole = viewer === "customer" ? "hauler" : "customer";
   const isMineProposal = pendingSchedule && pendingSchedule.proposed_by === viewerId;
+  const awaitingAcknowledgment = viewer === "customer" && !!chat.hauler_done_at && !chat.customer_ack_at;
+
+  async function doAcknowledge() {
+    setAcknowledging(true);
+    try {
+      await customerAcknowledgeCompletion(chat.job_id);
+      setToast("Thanks! Job confirmed complete — you can leave a review in chat.");
+    } catch (e) {
+      setToast(e.message || "Could not acknowledge completion.");
+    }
+    setAcknowledging(false);
+  }
+
+  // Loaded once, lazily, the first time the viewer opens the gallery — combines the job's original
+  // photos with any before/after completion photos into one browsable set.
+  async function openPhotos() {
+    setOpenPhotoIndex(0);
+    if (photos === null) {
+      const [jobPhotos, completionPhotos] = await Promise.all([
+        loadJobPhotos(chat.job_id).catch(() => []),
+        loadCompletionPhotos(chat.job_id).catch(() => []),
+      ]);
+      setPhotos([
+        ...jobPhotos.map(p => ({ ...p, label: "Job photo" })),
+        ...completionPhotos.map(p => ({ ...p, label: p.phase === "before" ? "Before" : "After" })),
+      ]);
+    }
+  }
+  const closePhotos = useCallback(() => setOpenPhotoIndex(null), []);
+  const prevPhoto = useCallback(() => setOpenPhotoIndex(i => (i - 1 + photos.length) % photos.length), [photos]);
+  const nextPhoto = useCallback(() => setOpenPhotoIndex(i => (i + 1) % photos.length), [photos]);
+
+  useEffect(() => {
+    if (openPhotoIndex === null) return;
+    function onKey(e) {
+      if (e.key === "Escape") closePhotos();
+      if (e.key === "ArrowLeft") prevPhoto();
+      if (e.key === "ArrowRight") nextPhoto();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openPhotoIndex, closePhotos, prevPhoto, nextPhoto]);
 
   async function submitPropose() {
     setSubmitting(true);
@@ -90,6 +140,13 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
       <div style={cardStyle}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep, marginBottom: 10 }}>Job Progress</div>
         <JobProgressGauge stage={progressStage} />
+        {awaitingAcknowledgment && (
+          <div style={{ marginTop: 12 }}>
+            <Btn disabled={acknowledging} onClick={doAcknowledge}>
+              {acknowledging ? "Confirming…" : "✓ Acknowledge job complete"}
+            </Btn>
+          </div>
+        )}
       </div>
 
       <div style={cardStyle}>
@@ -101,6 +158,9 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
           <span style={{ color: C.gray }}>Payment</span>
           <span style={{ fontWeight: 600, color: C.pineDeep }}>{paymentLabel}</span>
         </div>
+        <button onClick={openPhotos} style={{ marginTop: 8, background: "none", border: "none", padding: 0, color: C.teal, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: sans }}>
+          📷 View photos
+        </button>
       </div>
 
       <div style={cardStyle}>
@@ -207,6 +267,47 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
       {isFull && !chat.customer_ack_at && (
         <div style={{ background: C.slateLight, borderRadius: RADIUS.md, padding: "10px 12px", fontSize: 11.5, color: C.slate, lineHeight: 1.5, fontWeight: 600 }}>
           Your job on MyTrashBid is protected. Off-platform deals have no coverage.
+        </div>
+      )}
+
+      {openPhotoIndex !== null && (
+        <div onClick={closePhotos} style={{
+          position: "fixed", inset: 0, background: "rgba(15,23,20,0.92)", zIndex: 2000,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20,
+        }}>
+          <button onClick={closePhotos} aria-label="Close" style={{
+            position: "absolute", top: 18, right: 20, background: "none", border: "none", color: "#fff",
+            fontSize: 30, cursor: "pointer", lineHeight: 1,
+          }}>×</button>
+
+          {photos === null ? (
+            <div style={{ color: "#fff", fontSize: 13 }}>Loading photos…</div>
+          ) : photos.length === 0 ? (
+            <div style={{ color: "#fff", fontSize: 13 }}>No photos for this job yet.</div>
+          ) : (
+            <>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>
+                {photos[openPhotoIndex].label} · {openPhotoIndex + 1} / {photos.length}
+              </div>
+              <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 12, maxWidth: "100%", maxHeight: "78vh" }}>
+                {photos.length > 1 && <button onClick={prevPhoto} aria-label="Previous photo" style={navBtnStyle}>‹</button>}
+                <img src={photos[openPhotoIndex].url} alt={photos[openPhotoIndex].original_name || ""} style={{ maxWidth: "100%", maxHeight: "78vh", objectFit: "contain", borderRadius: 10 }} />
+                {photos.length > 1 && <button onClick={nextPhoto} aria-label="Next photo" style={navBtnStyle}>›</button>}
+              </div>
+              {photos.length > 1 && (
+                <div onClick={e => e.stopPropagation()} style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", justifyContent: "center", maxWidth: "90vw" }}>
+                  {photos.map((p, i) => (
+                    <button key={p.id} onClick={() => setOpenPhotoIndex(i)} style={{
+                      padding: 0, cursor: "pointer", background: "none", borderRadius: 8,
+                      border: i === openPhotoIndex ? `2px solid ${C.teal}` : "2px solid transparent",
+                    }}>
+                      <img src={p.url} alt="" loading="lazy" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 6, opacity: i === openPhotoIndex ? 1 : 0.6, display: "block" }} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
