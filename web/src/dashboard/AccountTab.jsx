@@ -13,7 +13,6 @@ import { HaulerDocuments } from "./HaulerDocuments";
 import { InstallPrompt } from "./InstallPrompt";
 import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { isPushSupported, pushPermission, getCurrentPushSubscription, subscribeToPush, unsubscribeFromPush } from "../lib/push";
-import { entitlementsFor, tierName } from "../membership";
 import { LockedField } from "./LockedField";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
 import { MfaEnrollment } from "../auth/MfaEnrollment";
@@ -164,6 +163,9 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
   // Holds the function to run once StepUpChallenge confirms re-verification — one shared gate for
   // password change, email change, and account deactivation, rather than a separate flag per action.
   const [stepUpAction, setStepUpAction] = useState(null);
+  // Only password change opts into the "email me a code instead" fallback — deactivate/delete's
+  // RPCs need the real passcode value server-side, which an email-code verification can't supply.
+  const [stepUpAllowEmailFallback, setStepUpAllowEmailFallback] = useState(false);
 
   const [resending, setResending] = useState(false);
 
@@ -261,6 +263,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
     if (emailChanged) {
       // Changing the email is the sensitive part of this save — gate just that behind step-up
       // re-auth, but still save the harmless fields (name/phone/zip/bio/avatar) unconditionally.
+      setStepUpAllowEmailFallback(false);
       setStepUpAction(() => () => doSaveProfile(true));
       return;
     }
@@ -317,6 +320,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
   function submitPasswordChange() {
     const pcError = passcodeError(newPassword);
     if (pcError) { setToast(pcError); return; }
+    setStepUpAllowEmailFallback(true);
     setStepUpAction(() => () => doPasswordChange());
   }
 
@@ -333,6 +337,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
   }
 
   function confirmDeactivate() {
+    setStepUpAllowEmailFallback(false);
     setStepUpAction(() => (password) => doDeactivate(password));
   }
 
@@ -360,6 +365,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
   }
 
   function confirmDelete() {
+    setStepUpAllowEmailFallback(false);
     setStepUpAction(() => (password) => doDelete(password));
   }
 
@@ -377,6 +383,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
   }
 
   function confirmCancelDeletion() {
+    setStepUpAllowEmailFallback(false);
     setStepUpAction(() => (password) => doCancelDeletion(password));
   }
 
@@ -425,29 +432,6 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
 
       <InstallPrompt session={session} />
 
-      {session.role === "hauler" && (
-        <section>
-          <div style={sectionTitle}>Membership</div>
-          <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, background: C.sand }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <Badge color={C.teal} bg={C.tealLight}>{tierName(session.membershipTier)} plan</Badge>
-            </div>
-            <div style={{ display: "grid", gap: 6, fontSize: 12.5, color: C.ink, marginBottom: 10 }}>
-              <div>📍 Browse radius: {entitlementsFor(session.membershipTier).maxRadiusMi} miles</div>
-              <div>🧾 Platform commission: {(entitlementsFor(session.membershipTier).commissionRate * 100).toFixed(0)}%</div>
-              <div>📮 Bids per month: {entitlementsFor(session.membershipTier).maxBidsPerMonth ?? "Unlimited"}</div>
-              <div>⏱ Early access to new jobs: {entitlementsFor(session.membershipTier).earlyAccessMinutes > 0 ? `${entitlementsFor(session.membershipTier).earlyAccessMinutes} min` : "None"}</div>
-              <div>⭐ Featured placement: {entitlementsFor(session.membershipTier).featuredPlacement ? "Yes" : "No"}</div>
-            </div>
-            {session.membershipTier === "free" && (
-              <div style={{ fontSize: 12.5, color: C.gray, fontStyle: "italic" }}>
-                You're on our free plan — no cost, no commitment.
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
       <section>
         <div style={sectionTitle}>Profile</div>
         <Field label={session.role === "hauler" ? "Contact name" : "Full name"} value={name} onChange={setName} required />
@@ -485,7 +469,6 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
             <Badge color={profile.verified ? C.teal : C.gray} bg={profile.verified ? C.tealLight : C.grayLight}>
               {profile.verified ? "✓ Verified" : "Not verified"}
             </Badge>
-            <Badge color={C.teal} bg={C.tealLight}>{tierName(session.membershipTier)} plan</Badge>
             {profile.rating_count > 0 ? (
               <Badge color={C.amber} bg={C.amberLight}>⭐ {Number(profile.rating).toFixed(1)} ({profile.rating_count})</Badge>
             ) : (
@@ -701,6 +684,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
       {stepUpAction && (
         <StepUpChallenge
           supabase={supabase}
+          allowEmailFallback={stepUpAllowEmailFallback}
           onVerified={(password) => { const run = stepUpAction; setStepUpAction(null); run(password); }}
           onCancel={() => setStepUpAction(null)}
         />

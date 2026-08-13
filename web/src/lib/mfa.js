@@ -117,6 +117,21 @@ export async function setAllowedMfaMethods(supabase, methods) {
   if (error) throw error;
 }
 
+// ─── Email step-up code — a transient, single-use "email me a code instead" alternative to
+// re-typing your current passcode. Not an MFA enrollment (no recovery codes minted, nothing
+// persists past one use) — see StepUpChallenge.jsx and the migration this shipped in for why it's
+// only offered for password change specifically, not deactivation/deletion.
+export async function startEmailStepupCode(supabase) {
+  const { error } = await supabase.rpc("start_email_stepup_code");
+  if (error) throw error;
+}
+
+export async function verifyEmailStepupCode(supabase, code) {
+  const { data, error } = await supabase.rpc("verify_email_stepup_code", { p_code: code });
+  if (error) throw error;
+  return !!data;
+}
+
 // Redeeming a code does NOT bump the session to aal2 (only a real TOTP verify() does that) — it
 // also strips the user's existing factor(s) server-side, so callers should always follow a
 // successful redemption with mandatory re-enrollment, not treat it as equivalent to a completed
