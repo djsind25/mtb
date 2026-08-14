@@ -1,6 +1,8 @@
 // MyTrashBid brand tokens — ported verbatim from the prototype (junk-bids-platform-full.jsx)
 // so the production app looks identical. Palette pulled from the MyTrashBid logo: vivid grass
 // green + deep charcoal on clean white.
+import { VERTICAL } from "./config/vertical";
+
 export const C = {
   pine: "#41A62E", pineDeep: "#16232D",
   ember: "#41A62E", emberLight: "#E9F6E6",
@@ -20,8 +22,8 @@ export const RADIUS = { sm: 8, md: 12, lg: 16 };
 export const SHADOW_SM = "0 1px 2px rgba(22,35,45,0.06)";
 export const SHADOW_MD = "0 2px 10px rgba(22,35,45,0.08)";
 
-export const MAX_RADIUS_MI = 50;
-export const COMMISSION_RATE = 0.10;
+export const MAX_RADIUS_MI = VERTICAL.businessRules.maxRadiusMi;
+export const COMMISSION_RATE = VERTICAL.businessRules.commissionRate;
 
 export const TIMELINE_OPTIONS = [
   { id: "asap", label: "ASAP", sub: "within 48 hours" },
@@ -56,11 +58,7 @@ export function timelineSortIndex(timeline) {
 
 // The only job-type distinctions that exist in the data model today (service_type +, for
 // rentals, dumpster_type) — mirrors the labels PostJobForm and HaulerJobCard already use.
-export const JOB_CATEGORY_OPTIONS = [
-  { id: "removal", label: "🧹 Junk removal" },
-  { id: "rolloff", label: "🗑️ Roll-off dumpster" },
-  { id: "trailer", label: "🚛 Trailer rental" },
-];
+export const JOB_CATEGORY_OPTIONS = VERTICAL.jobCategories;
 export function jobCategoryOf(job) {
   if (job.service_type !== "rental") return "removal";
   return job.dumpster_type === "trailer" ? "trailer" : "rolloff";

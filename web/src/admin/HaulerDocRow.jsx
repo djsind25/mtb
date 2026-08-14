@@ -3,6 +3,7 @@ import { C, RADIUS, SHADOW_SM, fullDateLabel } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { reviewHaulerDocument } from "./data";
 import { UserLink } from "./UserLink";
+import { VERTICAL } from "../config/vertical";
 
 const DOC_LABELS = { license: "Business license", insurance: "Insurance" };
 const STATUS_STYLE = {
@@ -22,7 +23,7 @@ export function HaulerDocRow({ doc, onChanged, setToast, readOnly, onViewUser })
     setWorking(true);
     try {
       await reviewHaulerDocument(doc.id, true);
-      setToast(`${doc.haulerName || "Hauler"}'s ${DOC_LABELS[doc.doc_type]} approved.`);
+      setToast(`${doc.haulerName || VERTICAL.roles.hauler.label}'s ${DOC_LABELS[doc.doc_type]} approved.`);
       onChanged();
     } catch (e) {
       setToast(e.message || "Could not approve document.");
@@ -34,7 +35,7 @@ export function HaulerDocRow({ doc, onChanged, setToast, readOnly, onViewUser })
     setWorking(true);
     try {
       await reviewHaulerDocument(doc.id, false, note.trim() || null);
-      setToast(`${doc.haulerName || "Hauler"}'s ${DOC_LABELS[doc.doc_type]} rejected.`);
+      setToast(`${doc.haulerName || VERTICAL.roles.hauler.label}'s ${DOC_LABELS[doc.doc_type]} rejected.`);
       onChanged();
     } catch (e) {
       setToast(e.message || "Could not reject document.");

@@ -7,15 +7,19 @@
 // supabase/migrations/20260730000000_membership_and_profile_locking.sql
 // (membership_max_radius_mi / membership_commission_rate / membership_max_bids_per_month). If you
 // change an entitlement here, change it there too.
+import { VERTICAL } from "./config/vertical";
+
+const { maxRadiusMi, commissionRate } = VERTICAL.businessRules;
+
 export const MEMBERSHIP_TIERS = {
   free: {
     name: "Free",
     monthlyPrice: 0,
     entitlements: {
       maxBidsPerMonth: null,
-      maxRadiusMi: 50,
+      maxRadiusMi,
       earlyAccessMinutes: 0,
-      commissionRate: 0.10,
+      commissionRate,
       featuredPlacement: false,
       verifiedBadgeEligible: true,
     },
@@ -25,9 +29,9 @@ export const MEMBERSHIP_TIERS = {
     monthlyPrice: 0,
     entitlements: {
       maxBidsPerMonth: null,
-      maxRadiusMi: 50,
+      maxRadiusMi,
       earlyAccessMinutes: 0,
-      commissionRate: 0.10,
+      commissionRate,
       featuredPlacement: false,
       verifiedBadgeEligible: true,
     },
@@ -37,9 +41,9 @@ export const MEMBERSHIP_TIERS = {
     monthlyPrice: 0,
     entitlements: {
       maxBidsPerMonth: null,
-      maxRadiusMi: 50,
+      maxRadiusMi,
       earlyAccessMinutes: 0,
-      commissionRate: 0.10,
+      commissionRate,
       featuredPlacement: false,
       verifiedBadgeEligible: true,
     },

@@ -8,6 +8,7 @@ import { JobPhotos } from "../jobs/JobPhotos";
 import { CompletionPhotos } from "../jobs/CompletionPhotos";
 import { getOrCreateMySupportChat } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
+import { VERTICAL } from "../config/vertical";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -114,12 +115,12 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
           {session && !readOnly && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               <Btn size="sm" full={false} variant="ghost" disabled={startingMessage === "customer"}
-                onClick={() => startMessage(job.customer_id, job.customerName || "Customer", "customer")}>
+                onClick={() => startMessage(job.customer_id, job.customerName || VERTICAL.roles.customer.label, "customer")}>
                 {startingMessage === "customer" ? "Opening…" : "💬 Message customer"}
               </Btn>
               {acceptedBid && (
                 <Btn size="sm" full={false} variant="ghost" disabled={startingMessage === "hauler"}
-                  onClick={() => startMessage(acceptedBid.hauler_id, acceptedBid.businessName || "Hauler", "hauler")}>
+                  onClick={() => startMessage(acceptedBid.hauler_id, acceptedBid.businessName || VERTICAL.roles.hauler.label, "hauler")}>
                   {startingMessage === "hauler" ? "Opening…" : "💬 Message hauler"}
                 </Btn>
               )}

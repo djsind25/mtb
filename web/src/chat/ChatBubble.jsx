@@ -1,8 +1,9 @@
 import { C } from "../theme";
 import { Avatar } from "../ui/Primitives";
 import { nowStr } from "../theme";
+import { VERTICAL } from "../config/vertical";
 
-const ROLE_LABEL = { customer: "Customer", hauler: "Hauler", admin: "Support" };
+const ROLE_LABEL = { customer: VERTICAL.roles.customer.label, hauler: VERTICAL.roles.hauler.label, admin: "Support" };
 
 // viewer is "customer" | "hauler" | "admin" — which side is looking at this thread. viewerId
 // disambiguates admin-authored messages: with a job chat now allowing more than one admin to

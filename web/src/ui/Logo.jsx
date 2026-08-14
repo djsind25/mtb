@@ -1,8 +1,9 @@
 import { C, sans } from "../theme";
+import { VERTICAL } from "../config/vertical";
 
 export function LogoMark({ size = 26 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }} aria-label="MyTrashBid">
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" style={{ flexShrink: 0 }} aria-label={VERTICAL.brand.name}>
       <circle cx="37" cy="9" r="7.5" fill={C.pine} />
       <path d="M37 16.5 L33.5 12 L40.5 12 Z" fill={C.pine} />
       <text x="37" y="12.5" textAnchor="middle" fontSize="9" fontWeight="800" fill="#fff" fontFamily="Inter, sans-serif">$</text>
@@ -21,7 +22,7 @@ export function Wordmark({ size = 17 }) {
     <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
       <LogoMark size={size + 9} />
       <span style={{ fontFamily: sans, fontWeight: 800, fontSize: size, letterSpacing: "-0.02em" }}>
-        <span style={{ color: C.pineDeep }}>MyTrash</span><span style={{ color: C.pine }}>Bid</span>
+        <span style={{ color: C.pineDeep }}>{VERTICAL.brand.namePart1}</span><span style={{ color: C.pine }}>{VERTICAL.brand.namePart2}</span>
       </span>
     </div>
   );

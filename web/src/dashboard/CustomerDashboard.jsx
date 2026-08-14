@@ -4,6 +4,7 @@ import { Btn, CenteredNote } from "../ui/Primitives";
 import { PostJobForm } from "../jobs/PostJobForm";
 import { CustomerJobCard } from "../jobs/CustomerJobCard";
 import { loadCustomerJobs, postJob, renewJob, updateJobTimeline, customerAcknowledgeCompletion } from "../jobs/data";
+import { VERTICAL } from "../config/vertical";
 import { loadMyChats } from "../chat/data";
 import { SummaryStrip } from "./SummaryStrip";
 import { MessagesTab } from "./MessagesTab";
@@ -136,7 +137,7 @@ export function CustomerDashboard({ session, setToast, initialChatId, onConsumed
         timeline: form.timeline, timelineDate: form.timelineDate,
       });
       setShowPost(false);
-      const days = form.serviceType === "rental" ? 30 : 14;
+      const days = form.serviceType === "rental" ? VERTICAL.businessRules.liveWindowDaysRental : VERTICAL.businessRules.liveWindowDaysRemoval;
       setToast(`Posted! Vetted haulers nearby will start bidding — most jobs get their first bid within 24 hours. This post stays live for ${days} days.`);
       await loadAll();
     } catch (e) {

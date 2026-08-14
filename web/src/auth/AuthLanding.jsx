@@ -1,5 +1,6 @@
 import { C, sans } from "../theme";
 import { LogoMark } from "../ui/Logo";
+import { VERTICAL } from "../config/vertical";
 
 export function AuthLanding({ onPick }) {
   return (
@@ -10,18 +11,18 @@ export function AuthLanding({ onPick }) {
             <LogoMark size={64} />
           </div>
           <div style={{ fontFamily: sans, fontWeight: 800, fontSize: 30, letterSpacing: "-0.02em", marginBottom: 6 }}>
-            <span style={{ color: C.pineDeep }}>MyTrash</span><span style={{ color: C.pine }}>Bid</span>
+            <span style={{ color: C.pineDeep }}>{VERTICAL.brand.namePart1}</span><span style={{ color: C.pine }}>{VERTICAL.brand.namePart2}</span>
           </div>
           <div style={{ fontSize: 15, color: C.pineDeep, fontWeight: 600 }}>Snap. <span style={{ color: C.pine }}>Get Quotes.</span> Done.</div>
         </div>
 
         <div style={{ display: "grid", gap: 12 }}>
           <RoleCard
-            icon="👤" title="I'm a customer" desc="Post a job or rent a dumpster"
+            icon={VERTICAL.roles.customer.pickerIcon} title={VERTICAL.roles.customer.pickerTitle} desc={VERTICAL.roles.customer.pickerDesc}
             onClick={() => onPick("customer")}
           />
           <RoleCard
-            icon="🚛" title="I'm a hauler / dumpster rental business" desc="Bid on jobs, manage your profile"
+            icon={VERTICAL.roles.hauler.pickerIcon} title={VERTICAL.roles.hauler.pickerTitle} desc={VERTICAL.roles.hauler.pickerDesc}
             onClick={() => onPick("hauler")}
           />
         </div>

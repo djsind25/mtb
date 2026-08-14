@@ -2,8 +2,9 @@ import { useRef, useState } from "react";
 import { C, sans, fullDateLabel } from "../theme";
 import { Btn, Badge } from "../ui/Primitives";
 import { submitHaulerDocument, deleteHaulerDocument } from "./data";
+import { VERTICAL } from "../config/vertical";
 
-const DOC_LABELS = { license: "Business license", insurance: "Insurance" };
+const DOC_LABELS = VERTICAL.vetting.docLabels;
 
 // Defense-in-depth only — the `accept` attribute on the file input isn't enforced by browsers, and
 // there's no server-side size/type limit on the hauler-documents bucket today, so this is the only
@@ -124,8 +125,7 @@ export function HaulerDocuments({ haulerId, documents, onChanged, setToast }) {
     <section>
       <div style={{ fontSize: 15, fontWeight: 700, color: C.pineDeep, marginBottom: 6 }}>Verification documents</div>
       <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 12 }}>
-        Both a current license and insurance must be approved before you can bid on jobs. Submitting a
-        new document resets its status to pending until an admin reviews it.
+        {VERTICAL.vetting.intro}
       </p>
       <div style={{ display: "grid", gap: 10 }}>
         <DocCard docType="license" doc={documents.license} haulerId={haulerId} onSubmitted={onChanged} setToast={setToast} />

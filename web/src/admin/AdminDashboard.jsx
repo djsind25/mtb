@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, RADIUS, SHADOW_MD } from "../theme";
+import { VERTICAL } from "../config/vertical";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
 import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog, loadCustomerStalls, loadRecruitingLeads, loadTerritories } from "./data";
 import { TerritoriesPanel } from "./TerritoriesPanel";
@@ -203,8 +204,8 @@ export function AdminDashboard({ session, setToast }) {
     },
     {
       id: "people", label: "People & growth", tabs: [
-        { id: "customers", label: "Customers", count: customers.length },
-        { id: "haulers", label: "Haulers", count: haulers.length },
+        { id: "customers", label: VERTICAL.roles.customer.pluralLabel, count: customers.length },
+        { id: "haulers", label: VERTICAL.roles.hauler.pluralLabel, count: haulers.length },
         { id: "admins", label: "Admins", count: admins.length },
         { id: "leads", label: "Leads", count: customerStalls.items.length + recruitingLeads.length },
         { id: "profileChanges", label: "Profile changes", count: pendingProfileChangeCount },
@@ -363,8 +364,8 @@ export function AdminDashboard({ session, setToast }) {
 
             <Panel title="Platform snapshot" subtitle="Accounts and activity at a glance.">
               <div className="admin-snapshot-list">
-                <SnapshotRow label="Customers" value={customers.length} onClick={() => goToTab("customers")} />
-                <SnapshotRow label="Haulers" value={haulers.length} onClick={() => goToTab("haulers")} />
+                <SnapshotRow label={VERTICAL.roles.customer.pluralLabel} value={customers.length} onClick={() => goToTab("customers")} />
+                <SnapshotRow label={VERTICAL.roles.hauler.pluralLabel} value={haulers.length} onClick={() => goToTab("haulers")} />
                 <SnapshotRow label="Jobs (last 60 days)" value={recentJobCount} onClick={() => goToTab("jobs")} />
                 <SnapshotRow label="Active leads" value={customerStalls.items.length + recruitingLeads.length} onClick={() => goToTab("leads")} />
               </div>
@@ -380,7 +381,7 @@ export function AdminDashboard({ session, setToast }) {
       )}
 
       {tab === "customers" && (
-        <Panel title="Customers">
+        <Panel title={VERTICAL.roles.customer.pluralLabel}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
             <div style={{ flex: 1 }}><Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" /></div>
             <select value={userSort} onChange={e => setUserSort(e.target.value)} style={{
@@ -403,7 +404,7 @@ export function AdminDashboard({ session, setToast }) {
       )}
 
       {tab === "haulers" && (
-        <Panel title="Haulers">
+        <Panel title={VERTICAL.roles.hauler.pluralLabel}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
             <div style={{ flex: 1 }}><Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" /></div>
             <select value={userSort} onChange={e => setUserSort(e.target.value)} style={{

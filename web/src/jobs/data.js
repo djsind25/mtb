@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { parseRpcError } from "../lib/rpcError";
 import { resizeImage } from "../lib/imageResize";
+import { VERTICAL } from "../config/vertical";
 
 // Silent bids: attaches { businessName, rating, ratingCount, revealed, ... } to each bid via
 // job_hauler_display(), which keeps the real business name hidden (replaced with a stable "Hauler
@@ -21,7 +22,7 @@ async function attachHaulerNames(bids) {
     const info = byKey[`${b.job_id}:${b.hauler_id}`];
     return {
       ...b,
-      businessName: info?.revealed ? info.business_name : (info?.label || "Hauler"),
+      businessName: info?.revealed ? info.business_name : (info?.label || VERTICAL.roles.hauler.label),
       revealed: !!info?.revealed,
       rating: info?.rating,
       ratingCount: info?.rating_count,

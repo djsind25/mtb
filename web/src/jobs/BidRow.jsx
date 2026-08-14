@@ -4,6 +4,9 @@ import { Badge, Btn } from "../ui/Primitives";
 import { acceptBid } from "./data";
 import { AcceptBidPayment } from "./AcceptBidPayment";
 import { entitlementsFor } from "../membership";
+import { VERTICAL } from "../config/vertical";
+
+const { howWeVerify } = VERTICAL.vetting;
 
 const SHOW_MEMBER_SINCE = true;
 
@@ -61,9 +64,9 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
             )}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 3, fontSize: 11, color: C.gray, alignItems: "center" }}>
-            {bid.licenseActive && <span>🪪 Licensed</span>}
-            {bid.insuranceActive && <span>🛡️ Insured</span>}
-            {bid.verified && <span>✅ Verified</span>}
+            {bid.licenseActive && <span>{howWeVerify.license.icon} {howWeVerify.license.title}</span>}
+            {bid.insuranceActive && <span>{howWeVerify.insurance.icon} {howWeVerify.insurance.title}</span>}
+            {bid.verified && <span>{howWeVerify.verified.icon} {howWeVerify.verified.title}</span>}
             {(bid.licenseActive || bid.insuranceActive || bid.verified) && (
               <button onClick={() => setShowVerifyInfo(true)} aria-label="How we verify haulers" style={{
                 background: "none", border: `1px solid ${C.line}`, borderRadius: "50%", width: 15, height: 15,
@@ -128,9 +131,9 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
           <div onClick={e => e.stopPropagation()} style={{ background: C.paper, borderRadius: RADIUS.lg, padding: 20, maxWidth: 340, boxShadow: SHADOW_SM }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: C.pineDeep, marginBottom: 10 }}>How we verify haulers</div>
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>
-              <li style={{ marginBottom: 8 }}><strong>🪪 Licensed</strong> — their state/local business license is uploaded and checked by our admin team before it's marked active.</li>
-              <li style={{ marginBottom: 8 }}><strong>🛡️ Insured</strong> — a current Certificate of Insurance (COI) is uploaded and its coverage dates are verified.</li>
-              <li><strong>✅ Verified</strong> — once both are confirmed, the hauler is cleared to bid on jobs. Badges are rechecked as documents near expiration.</li>
+              <li style={{ marginBottom: 8 }}><strong>{howWeVerify.license.icon} {howWeVerify.license.title}</strong> — {howWeVerify.license.desc}</li>
+              <li style={{ marginBottom: 8 }}><strong>{howWeVerify.insurance.icon} {howWeVerify.insurance.title}</strong> — {howWeVerify.insurance.desc}</li>
+              <li><strong>{howWeVerify.verified.icon} {howWeVerify.verified.title}</strong> — {howWeVerify.verified.desc}</li>
             </ul>
             <div style={{ marginTop: 14 }}>
               <Btn size="sm" full={false} variant="ghost" onClick={() => setShowVerifyInfo(false)}>Got it</Btn>

@@ -5,12 +5,9 @@ import { updateUserProfile, loadZipHistory, adminSetHaulerVerificationFlag, load
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
+import { VERTICAL } from "../config/vertical";
 
-const VERIFICATION_FIELDS = [
-  { key: "verified", label: "Verified hauler", docType: null },
-  { key: "license_active", label: "Verified business license", docType: "license" },
-  { key: "insurance_active", label: "Verified insurance", docType: "insurance" },
-];
+const VERIFICATION_FIELDS = VERTICAL.vetting.fields;
 
 export function EditUserModal({ user, onClose, onSaved, setToast, readOnly, haulerDocs = [] }) {
   const [name, setName] = useState(user.name || "");

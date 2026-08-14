@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { parseRpcError } from "../lib/rpcError";
+import { VERTICAL } from "../config/vertical";
 
 function rpcError(error) {
   const { code, message } = parseRpcError(error);
@@ -676,8 +677,8 @@ export async function loadCompletedJobs() {
     ...c,
     jobTitle: jobById[c.job_id]?.title,
     zip: jobById[c.job_id]?.zip,
-    customerName: pById[c.customer_id]?.name || "Customer",
-    haulerName: pById[c.hauler_id]?.business_name || pById[c.hauler_id]?.name || "Hauler",
+    customerName: pById[c.customer_id]?.name || VERTICAL.roles.customer.label,
+    haulerName: pById[c.hauler_id]?.business_name || pById[c.hauler_id]?.name || VERTICAL.roles.hauler.label,
   }));
 }
 

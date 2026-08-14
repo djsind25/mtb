@@ -3,6 +3,7 @@ import { C, RADIUS, SHADOW_SM } from "../theme";
 import { nowStr } from "../theme";
 import { AdminChatViewer } from "./AdminChatViewer";
 import { setFlagReviewed, setJobQuestionFlagReviewed, setJobUpdateFlagReviewed } from "./data";
+import { VERTICAL } from "../config/vertical";
 
 // One merged Trust & Safety queue covers three flaggable sources — a chat message (flag.text,
 // flag.sender_role, flag.chat_id to open the full conversation), a Q&A entry (flag.question +
@@ -35,7 +36,7 @@ export function FlagRow({ flag, expanded, onChanged, readOnly }) {
   const headerLabel = kind === "question"
     ? "Question/answer on a job listing"
     : kind === "update"
-    ? `${flag.senderName || "Customer"} — job update`
+    ? `${flag.senderName || VERTICAL.roles.customer.label} — job update`
     : `${flag.senderName || "Unknown"} (${flag.sender_role})`;
 
   return (

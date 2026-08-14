@@ -5,6 +5,7 @@ import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
 import { mapProfileToSession } from "../lib/session";
 import { recordLegalAcceptance } from "../lib/legal";
+import { VERTICAL } from "../config/vertical";
 
 // Shown once, right after a fresh Google (or later Apple) sign-in, for the fields OAuth
 // providers never give us: role, ZIP, phone, business name. Detected upstream in App.jsx by
@@ -23,8 +24,8 @@ export function CompleteOAuthProfile({ supabase, profile, roleHint, onDone, onBa
     return (
       <AuthShell title="One more step" subtitle="Which best describes you?" onBack={onBack}>
         <div style={{ display: "grid", gap: 12 }}>
-          <RolePick icon="👤" title="I'm a customer" desc="Post a job or rent a dumpster" onClick={() => setRole("customer")} />
-          <RolePick icon="🚛" title="I'm a hauler / dumpster rental business" desc="Bid on jobs, manage your profile" onClick={() => setRole("hauler")} />
+          <RolePick icon={VERTICAL.roles.customer.pickerIcon} title={VERTICAL.roles.customer.pickerTitle} desc={VERTICAL.roles.customer.pickerDesc} onClick={() => setRole("customer")} />
+          <RolePick icon={VERTICAL.roles.hauler.pickerIcon} title={VERTICAL.roles.hauler.pickerTitle} desc={VERTICAL.roles.hauler.pickerDesc} onClick={() => setRole("hauler")} />
         </div>
       </AuthShell>
     );

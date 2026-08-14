@@ -3,6 +3,9 @@ import { C, sans } from "../theme";
 import { Field, Btn } from "../ui/Primitives";
 import { TimelinePicker } from "./TimelinePicker";
 import { resizeImage } from "../lib/imageResize";
+import { VERTICAL } from "../config/vertical";
+
+const { postForm } = VERTICAL;
 
 // iPhones default to HEIC/HEIF, which browsers can't render in an <img> tag — the customer's
 // own upload would show as a broken thumbnail. Detect by MIME type (Safari) or extension (iOS
@@ -86,7 +89,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
         <span>✕</span> Close
       </button>
       <div style={{ display: "flex", gap: 6, marginBottom: 16, background: C.sandWarm, borderRadius: 9, padding: 3 }}>
-        {[{ id: "removal", label: "Junk removal" }, { id: "rental", label: "Dumpster / trailer rental" }].map(t => (
+        {postForm.serviceTypeOptions.map(t => (
           <button key={t.id} onClick={() => setServiceType(t.id)} style={{
             flex: 1, padding: "8px", borderRadius: 6, border: "none", cursor: "pointer",
             background: serviceType === t.id ? C.paper : "transparent", fontWeight: 700, fontSize: 13,
@@ -98,9 +101,9 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
       {isRental ? (
         <>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 7 }}>What do you need? <span style={{ color: C.red }}>*</span></label>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 7 }}>{postForm.whatDoYouNeedLabel} <span style={{ color: C.red }}>*</span></label>
             <div style={{ display: "flex", gap: 8 }}>
-              {[{ id: "rolloff", label: "🗑️ Roll-off dumpster" }, { id: "trailer", label: "🚛 Trailer" }].map(o => (
+              {postForm.dumpsterTypeOptions.map(o => (
                 <button key={o.id} onClick={() => setDumpsterType(o.id)} type="button" style={{
                   flex: 1, border: `1.5px solid ${dumpsterType === o.id ? C.pine : C.line}`, borderRadius: 10,
                   background: dumpsterType === o.id ? C.tealLight : C.paper, padding: "12px 10px",
@@ -116,14 +119,14 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
         </>
       ) : (
         <>
-          <Field label="Job title" value={title} onChange={setTitle} placeholder="Old couch + mattresses" required />
+          <Field label={postForm.titleLabel} value={title} onChange={setTitle} placeholder={postForm.titlePlaceholder} required />
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="What needs to go, roughly how much, any access notes…"
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>{postForm.descriptionLabel}</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={postForm.descriptionPlaceholder}
               style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "10px 13px", fontSize: 14, fontFamily: sans, outline: "none", minHeight: 80, resize: "vertical" }} />
             <div style={{ fontSize: 11.5, color: C.teal, marginTop: 5, display: "flex", gap: 5 }}>
               <span>📏</span>
-              <span>Tip: approximate measurements and weight (e.g. "couch, ~150 lbs, about 7ft long") help haulers bid accurately.</span>
+              <span>{postForm.descriptionTip}</span>
             </div>
           </div>
         </>
@@ -161,11 +164,11 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
         <TimelinePicker value={timeline} onChange={setTimeline} dateValue={timelineDate} onDateChange={setTimelineDate} />
       </div>
 
-      <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />
+      <Field label="ZIP code" value={zip} onChange={setZip} placeholder={postForm.zipPlaceholder} required />
       <div style={{ display: "flex", gap: 8 }}>
         <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
         <Btn disabled={!canSubmit} onClick={submit}>
-          {submitting ? "Posting…" : isRental ? "Post rental request" : "Post job"}
+          {submitting ? "Posting…" : isRental ? postForm.submitLabelRental : postForm.submitLabelRemoval}
         </Btn>
       </div>
     </div>
