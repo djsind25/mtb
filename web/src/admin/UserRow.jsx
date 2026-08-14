@@ -4,6 +4,8 @@ import { Badge, Avatar, Btn } from "../ui/Primitives";
 import {
   updateUserProfile, setUserActive, sendPasswordReset, deleteUser,
   adminSuspendUser, adminRestoreUser, adminSetBiddingRestricted, adminSetPostingRestricted,
+  adminBlockAdmin, adminUnblockAdmin, adminDeleteAdminAccount, adminAssignAdminToTerritory,
+  loadTerritoryAdminOpenItems,
 } from "./data";
 import { tierName } from "../membership";
 import { supabase } from "../lib/supabaseClient";
@@ -14,13 +16,13 @@ export function userDisplayName(u) {
   return u.role === "customer" ? u.name : (u.business_name || u.name);
 }
 
-export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, session }) {
+export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, session, territories = [] }) {
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingAdminRole, setConfirmingAdminRole] = useState(false);
   const [working, setWorking] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [stepUpAction, setStepUpAction] = useState(null); // null | "deactivate" | "delete" | "suspend" | "restrict"
+  const [stepUpAction, setStepUpAction] = useState(null); // null | "deactivate" | "delete" | "suspend" | "restrict" | "blockAdmin" | "unblockAdmin" | "deleteAdmin"
   const [sendingReset, setSendingReset] = useState(false);
   const [showReview, setShowReview] = useState(false);
 
@@ -31,6 +33,14 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, sessio
   const [restrictReason, setRestrictReason] = useState("");
   const [togglingRestrict, setTogglingRestrict] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const [blockReason, setBlockReason] = useState("");
+  const [blockingAdmin, setBlockingAdmin] = useState(false);
+  const [confirmingDeleteAdmin, setConfirmingDeleteAdmin] = useState(false);
+  const [deletingAdmin, setDeletingAdmin] = useState(false);
+  const [openItems, setOpenItems] = useState(null);
+  const [checkingOpenItems, setCheckingOpenItems] = useState(false);
+  const [assigningTerritory, setAssigningTerritory] = useState(false);
 
   async function handleSendPasswordReset() {
     setSendingReset(true);
@@ -121,7 +131,66 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, sessio
     setConfirmingAdminRole(false);
   }
 
+  async function doBlockAdmin() {
+    setBlockingAdmin(true);
+    try {
+      if (u.status === "suspended") {
+        await adminUnblockAdmin(u.id, blockReason.trim() || null);
+        setToast(`${displayName} unblocked.`);
+      } else {
+        await adminBlockAdmin(u.id, blockReason.trim() || null);
+        setToast(`${displayName} blocked.`);
+      }
+      setBlockReason("");
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not update this admin's access.");
+    }
+    setBlockingAdmin(false);
+  }
+
+  // Territory scoping only restricts visibility on top of what full admins/super_admin already
+  // see — so this is informational, never a hard block. Surfaced before the confirm step.
+  async function checkOpenItemsThenConfirmDelete() {
+    setCheckingOpenItems(true);
+    try {
+      setOpenItems(await loadTerritoryAdminOpenItems(u.id));
+    } catch {
+      setOpenItems([]);
+    }
+    setCheckingOpenItems(false);
+    setConfirmingDeleteAdmin(true);
+  }
+
+  async function doDeleteAdmin() {
+    setDeletingAdmin(true);
+    try {
+      await adminDeleteAdminAccount(u.id);
+      setToast(`${displayName} deleted.`);
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not delete this admin account.");
+    }
+    setDeletingAdmin(false);
+    setConfirmingDeleteAdmin(false);
+  }
+
+  async function doAssignTerritory(territoryId) {
+    setAssigningTerritory(true);
+    try {
+      await adminAssignAdminToTerritory(u.id, territoryId || null);
+      setToast(territoryId ? "Territory assigned." : "Territory assignment cleared.");
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not update this admin's territory.");
+    }
+    setAssigningTerritory(false);
+  }
+
   const displayName = userDisplayName(u);
+  // super_admin's own account is fully off-limits to every other admin (enforced server-side
+  // too) — the acting super_admin also can't target their own row.
+  const canManageThisAdmin = session.superAdmin && u.role === "admin" && !u.super_admin && u.id !== session.id;
 
   return (
     <div style={{ border: `1px solid ${u.active ? C.line : C.red + "55"}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, background: u.active ? C.sand : C.redLight }}>
@@ -167,6 +236,12 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, sessio
           {u.admin_read_only ? "view-only" : "full admin"}
         </Badge>
       )}
+      {u.role === "admin" && !u.super_admin && u.territory_id && (
+        <Badge color={C.pineDeep} bg={C.sandWarm}>
+          🗺️ {territories.find(t => t.id === u.territory_id)?.name || "territory"}
+        </Badge>
+      )}
+      {u.role === "admin" && u.status === "suspended" && <Badge color={C.red} bg={C.redLight}>blocked</Badge>}
       <span style={{ fontSize: 13, color: C.gray, flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>▸</span>
     </div>
     {expanded && (
@@ -185,6 +260,46 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, sessio
           </Btn>
         )
       )}
+
+      {canManageThisAdmin && (
+        <select
+          value={u.territory_id || ""}
+          disabled={assigningTerritory}
+          onChange={e => doAssignTerritory(e.target.value || null)}
+          style={{ border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "6px 8px", fontSize: 12, fontFamily: "inherit", color: C.ink, background: C.paper }}
+        >
+          <option value="">No territory (unrestricted)</option>
+          {territories.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      )}
+
+      {canManageThisAdmin && (
+        <Btn size="sm" full={false} variant={u.status === "suspended" ? "teal" : "danger"} disabled={blockingAdmin}
+          onClick={() => setStepUpAction("blockAdmin")}>
+          {u.status === "suspended" ? "Unblock" : "Block"}
+        </Btn>
+      )}
+
+      {canManageThisAdmin && (
+        confirmingDeleteAdmin ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            {openItems && openItems.length > 0 && (
+              <div style={{ fontSize: 11, color: C.amber, width: "100%" }}>
+                Their territory has {openItems.map(i => `${i.item_count} ${i.item_type.replace(/_/g, " ")}`).join(", ")} —
+                full admins will still see these, nothing gets orphaned.
+              </div>
+            )}
+            <span style={{ fontSize: 11.5, color: C.gray }}>Delete this admin permanently?</span>
+            <Btn size="sm" full={false} variant="danger" disabled={deletingAdmin} onClick={() => setStepUpAction("deleteAdmin")}>Yes</Btn>
+            <Btn size="sm" full={false} variant="ghost" onClick={() => { setConfirmingDeleteAdmin(false); setOpenItems(null); }}>No</Btn>
+          </div>
+        ) : (
+          <Btn size="sm" full={false} variant="danger" disabled={checkingOpenItems} onClick={checkOpenItemsThenConfirmDelete}>
+            {checkingOpenItems ? "Checking…" : "Delete"}
+          </Btn>
+        )
+      )}
+
       {u.role !== "admin" && (
         <Btn size="sm" full={false} variant="ghost" onClick={() => setShowReview(true)}>Review</Btn>
       )}
@@ -267,6 +382,8 @@ export function UserRow({ user: u, onEdit, onChanged, setToast, readOnly, sessio
             else if (action === "delete") handleDelete();
             else if (action === "suspend") doSuspendOrRestore();
             else if (action === "restrict") doToggleRestrict();
+            else if (action === "blockAdmin") doBlockAdmin();
+            else if (action === "deleteAdmin") doDeleteAdmin();
           }}
           onCancel={() => setStepUpAction(null)}
         />

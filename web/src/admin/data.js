@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import { parseRpcError } from "../lib/rpcError";
+import { VERTICAL } from "../config/vertical";
 
 function rpcError(error) {
   const { code, message } = parseRpcError(error);
@@ -131,6 +132,78 @@ export async function adminSetHaulerVerificationFlag(userId, field, value, reaso
 export async function processDueAccountDeletions() {
   const { error } = await supabase.rpc("process_due_account_deletions");
   if (error) throw rpcError(error);
+}
+
+// ─── Admin account management + territories (20260901000000/20260902000000) ────────────────────
+
+export async function loadTerritories() {
+  const { data, error } = await supabase.from("territories").select("*").order("name");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function loadTerritoryStates(territoryId) {
+  const { data, error } = await supabase.from("territory_states").select("state").eq("territory_id", territoryId).order("state");
+  if (error) throw error;
+  return (data || []).map(r => r.state);
+}
+
+export async function loadTerritoryZips(territoryId) {
+  const { data, error } = await supabase.from("zip_geo").select("zip").eq("territory_id", territoryId).order("zip");
+  if (error) throw error;
+  return (data || []).map(r => r.zip);
+}
+
+export async function adminCreateTerritory(name, scopeType) {
+  const { data, error } = await supabase.rpc("admin_create_territory", { p_name: name, p_scope_type: scopeType });
+  if (error) throw rpcError(error);
+  return data;
+}
+
+export async function adminRenameTerritory(territoryId, name) {
+  const { error } = await supabase.rpc("admin_rename_territory", { p_territory_id: territoryId, p_name: name });
+  if (error) throw rpcError(error);
+}
+
+export async function adminSetTerritoryStates(territoryId, states) {
+  const { error } = await supabase.rpc("admin_set_territory_states", { p_territory_id: territoryId, p_states: states });
+  if (error) throw rpcError(error);
+}
+
+export async function adminAssignZipsToTerritory(territoryId, zips) {
+  const { error } = await supabase.rpc("admin_assign_zips_to_territory", { p_territory_id: territoryId, p_zips: zips });
+  if (error) throw rpcError(error);
+}
+
+export async function adminAssignAdminToTerritory(adminId, territoryId) {
+  const { error } = await supabase.rpc("admin_assign_admin_to_territory", { p_admin_id: adminId, p_territory_id: territoryId });
+  if (error) throw rpcError(error);
+}
+
+export async function adminDeleteTerritory(territoryId) {
+  const { error } = await supabase.rpc("admin_delete_territory", { p_territory_id: territoryId });
+  if (error) throw rpcError(error);
+}
+
+export async function adminBlockAdmin(adminId, reason) {
+  const { error } = await supabase.rpc("admin_block_admin", { p_admin_id: adminId, p_reason: reason || null, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+export async function adminUnblockAdmin(adminId, reason) {
+  const { error } = await supabase.rpc("admin_unblock_admin", { p_admin_id: adminId, p_reason: reason || null, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+export async function adminDeleteAdminAccount(adminId) {
+  const { error } = await supabase.rpc("admin_delete_admin_account", { p_admin_id: adminId, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+export async function loadTerritoryAdminOpenItems(adminId) {
+  const { data, error } = await supabase.rpc("check_territory_admin_open_items", { p_admin_id: adminId });
+  if (error) throw rpcError(error);
+  return (data || []).filter(r => r.item_count > 0);
 }
 
 export async function loadAccountDeletionQueue() {
@@ -552,8 +625,10 @@ export async function loadAdminInvites() {
   return invites.map(i => ({ ...i, invitedByName: nameById[i.invited_by] }));
 }
 
-export async function createAdminInvite(email, adminReadOnly) {
-  const { error } = await supabase.rpc("create_admin_invite", { p_email: email, p_admin_read_only: adminReadOnly });
+export async function createAdminInvite(email, adminReadOnly, territoryId = null) {
+  const { error } = await supabase.rpc("create_admin_invite", {
+    p_email: email, p_admin_read_only: adminReadOnly, p_territory_id: territoryId,
+  });
   if (error) throw error;
 }
 
@@ -602,8 +677,8 @@ export async function loadCompletedJobs() {
     ...c,
     jobTitle: jobById[c.job_id]?.title,
     zip: jobById[c.job_id]?.zip,
-    customerName: pById[c.customer_id]?.name || "Customer",
-    haulerName: pById[c.hauler_id]?.business_name || pById[c.hauler_id]?.name || "Hauler",
+    customerName: pById[c.customer_id]?.name || VERTICAL.roles.customer.label,
+    haulerName: pById[c.hauler_id]?.business_name || pById[c.hauler_id]?.name || VERTICAL.roles.hauler.label,
   }));
 }
 

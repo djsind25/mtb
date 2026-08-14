@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, RADIUS, SHADOW_MD } from "../theme";
+import { VERTICAL } from "../config/vertical";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog, loadCustomerStalls, loadRecruitingLeads } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog, loadCustomerStalls, loadRecruitingLeads, loadTerritories } from "./data";
+import { TerritoriesPanel } from "./TerritoriesPanel";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
 import { MEMBERSHIP_TIERS, tierName } from "../membership";
 import { loadSupportChats } from "../support/data";
@@ -76,6 +78,7 @@ export function AdminDashboard({ session, setToast }) {
   const [recruitingLeads, setRecruitingLeads] = useState([]);
   const [leadsSubTab, setLeadsSubTab] = useState("stalls");
   const [profileChangeRequests, setProfileChangeRequests] = useState([]);
+  const [territories, setTerritories] = useState([]);
   const [fullPaymentSummary, setFullPaymentSummary] = useState(null);
   const [changeOrdersEnabled, setChangeOrdersEnabledState] = useState(false);
   const [togglingChangeOrders, setTogglingChangeOrders] = useState(false);
@@ -94,18 +97,18 @@ export function AdminDashboard({ session, setToast }) {
     setLoading(true);
     try {
       await processDueAccountDeletions();
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, cr, fps, pcr, coe, sj, csq, adq, alog, cst, rl] = await Promise.all([
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, cr, fps, pcr, coe, sj, csq, adq, alog, cst, rl, terr] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
         loadAdminInvites(), loadCompletedJobs(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
         loadStalledJobs(), loadChatSupportQueue(true), loadAccountDeletionQueue(), loadAccountLifecycleAuditLog(),
-        loadCustomerStalls(), loadRecruitingLeads(),
+        loadCustomerStalls(), loadRecruitingLeads(), loadTerritories(),
       ]);
       // One merged, chronologically-sorted Trust & Safety queue — chat flags plus flagged Q&A
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj);
       setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe); setStalledJobs(sj); setChatSupportQueue(csq);
-      setAccountDeletionQueue(adq); setAccountLifecycleAuditLog(alog); setCustomerStalls(cst); setRecruitingLeads(rl);
+      setAccountDeletionQueue(adq); setAccountLifecycleAuditLog(alog); setCustomerStalls(cst); setRecruitingLeads(rl); setTerritories(terr);
     } catch (e) {
       console.error("AdminDashboard: loadAll failed:", e);
       setToast?.(e.message || "Could not load the admin dashboard. Try refreshing.");
@@ -201,8 +204,8 @@ export function AdminDashboard({ session, setToast }) {
     },
     {
       id: "people", label: "People & growth", tabs: [
-        { id: "customers", label: "Customers", count: customers.length },
-        { id: "haulers", label: "Haulers", count: haulers.length },
+        { id: "customers", label: VERTICAL.roles.customer.pluralLabel, count: customers.length },
+        { id: "haulers", label: VERTICAL.roles.hauler.pluralLabel, count: haulers.length },
         { id: "admins", label: "Admins", count: admins.length },
         { id: "leads", label: "Leads", count: customerStalls.items.length + recruitingLeads.length },
         { id: "profileChanges", label: "Profile changes", count: pendingProfileChangeCount },
@@ -361,8 +364,8 @@ export function AdminDashboard({ session, setToast }) {
 
             <Panel title="Platform snapshot" subtitle="Accounts and activity at a glance.">
               <div className="admin-snapshot-list">
-                <SnapshotRow label="Customers" value={customers.length} onClick={() => goToTab("customers")} />
-                <SnapshotRow label="Haulers" value={haulers.length} onClick={() => goToTab("haulers")} />
+                <SnapshotRow label={VERTICAL.roles.customer.pluralLabel} value={customers.length} onClick={() => goToTab("customers")} />
+                <SnapshotRow label={VERTICAL.roles.hauler.pluralLabel} value={haulers.length} onClick={() => goToTab("haulers")} />
                 <SnapshotRow label="Jobs (last 60 days)" value={recentJobCount} onClick={() => goToTab("jobs")} />
                 <SnapshotRow label="Active leads" value={customerStalls.items.length + recruitingLeads.length} onClick={() => goToTab("leads")} />
               </div>
@@ -378,7 +381,7 @@ export function AdminDashboard({ session, setToast }) {
       )}
 
       {tab === "customers" && (
-        <Panel title="Customers">
+        <Panel title={VERTICAL.roles.customer.pluralLabel}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
             <div style={{ flex: 1 }}><Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" /></div>
             <select value={userSort} onChange={e => setUserSort(e.target.value)} style={{
@@ -394,14 +397,14 @@ export function AdminDashboard({ session, setToast }) {
             {customers.length === 0 && <CenteredNote>No customer accounts yet.</CenteredNote>}
             {customers.length > 0 && filteredCustomers.length === 0 && <CenteredNote>No customers match "{userSearch}".</CenteredNote>}
             {filteredCustomers.map(u => (
-              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} />
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} territories={territories} />
             ))}
           </div>
         </Panel>
       )}
 
       {tab === "haulers" && (
-        <Panel title="Haulers">
+        <Panel title={VERTICAL.roles.hauler.pluralLabel}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
             <div style={{ flex: 1 }}><Field value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or ZIP…" /></div>
             <select value={userSort} onChange={e => setUserSort(e.target.value)} style={{
@@ -417,7 +420,7 @@ export function AdminDashboard({ session, setToast }) {
             {haulers.length === 0 && <CenteredNote>No hauler accounts yet.</CenteredNote>}
             {haulers.length > 0 && filteredHaulers.length === 0 && <CenteredNote>No haulers match "{userSearch}".</CenteredNote>}
             {filteredHaulers.map(u => (
-              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} />
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} territories={territories} />
             ))}
           </div>
         </Panel>
@@ -430,7 +433,7 @@ export function AdminDashboard({ session, setToast }) {
             edit profiles, or reply to support tickets.
           </p>
 
-          {session.superAdmin && <InviteAdminForm onChanged={loadAll} setToast={setToast} />}
+          {session.superAdmin && <InviteAdminForm onChanged={loadAll} setToast={setToast} territories={territories} />}
 
           {adminInvites.length > 0 && (
             <div style={{ marginBottom: 16 }}>
@@ -446,9 +449,11 @@ export function AdminDashboard({ session, setToast }) {
           <div style={{ display: "grid", gap: 8 }}>
             {admins.length === 0 && <CenteredNote>No admin accounts.</CenteredNote>}
             {admins.map(u => (
-              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} />
+              <UserRow key={u.id} user={u} onEdit={setEditingUser} onChanged={loadAll} setToast={setToast} readOnly={readOnly} session={session} territories={territories} />
             ))}
           </div>
+
+          {session.superAdmin && <TerritoriesPanel territories={territories} onChanged={loadAll} setToast={setToast} />}
         </Panel>
       )}
 

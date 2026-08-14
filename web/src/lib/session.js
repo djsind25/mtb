@@ -19,6 +19,7 @@ export function mapProfileToSession(profile) {
     active: profile.active,
     adminReadOnly: !!profile.admin_read_only,
     superAdmin: !!profile.super_admin,
+    territoryId: profile.territory_id || null,
     status: profile.status || "active",
     suspendedAt: profile.suspended_at,
     suspensionReason: profile.suspension_reason,

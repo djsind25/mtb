@@ -3,19 +3,21 @@ import { C, RADIUS, SHADOW_SM, fullDateLabel } from "../theme";
 import { Btn, Field, Badge } from "../ui/Primitives";
 import { createAdminInvite, cancelAdminInvite } from "./data";
 
-export function InviteAdminForm({ onChanged, setToast }) {
+export function InviteAdminForm({ onChanged, setToast, territories = [] }) {
   const [email, setEmail] = useState("");
   const [adminReadOnly, setAdminReadOnly] = useState(false);
+  const [territoryId, setTerritoryId] = useState("");
   const [sending, setSending] = useState(false);
 
   async function send() {
     if (!email.trim()) { setToast("Enter an email address."); return; }
     setSending(true);
     try {
-      await createAdminInvite(email.trim(), adminReadOnly);
+      await createAdminInvite(email.trim(), adminReadOnly, territoryId || null);
       setToast(`Invite sent to ${email.trim()}.`);
       setEmail("");
       setAdminReadOnly(false);
+      setTerritoryId("");
       onChanged();
     } catch (e) {
       setToast(e.message || "Could not send invite.");
@@ -37,6 +39,18 @@ export function InviteAdminForm({ onChanged, setToast }) {
           View-only admin
         </label>
       </div>
+      {territories.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>Territory (optional)</label>
+          <select value={territoryId} onChange={e => setTerritoryId(e.target.value)} style={{
+            width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm,
+            padding: "8px 10px", fontSize: 13, fontFamily: "inherit", color: C.ink, background: C.paper,
+          }}>
+            <option value="">No territory (unrestricted)</option>
+            {territories.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+      )}
       <Btn size="sm" full={false} onClick={send} disabled={sending}>{sending ? "Sending…" : "Send invite"}</Btn>
     </div>
   );
