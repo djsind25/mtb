@@ -50,14 +50,22 @@ function toE164(raw: string): string | null {
 
 const STOP_FOOTER = " Reply STOP to unsubscribe.";
 
+// Two title/body conventions coexist in the `notifications` table (see each RPC's own insert):
+// (a) title already has the job name baked in via string concat (e.g. jobQuestionAsked,
+//     scheduleProposed) — those templates below correctly interpolate `title`.
+// (b) title is a generic label and `body` holds the actual job name (e.g. bidAccepted,
+//     jobMarkedDone, jobCancelled) — templates MUST interpolate `body` for the job name, not
+//     `title`, or the SMS reads as nonsense (e.g. "You won a job! \"You won a job!\" is booked.").
+// bidAccepted/jobBooked/jobMarkedDone/cancellationRequested/jobCancelled were previously all
+// wired to convention (a) despite being convention (b) — fixed here.
 const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link: string) => string> = {
-  bidAccepted: (title, _body, link) => `You won a job! "${title}" is booked. ${link}`,
-  jobBooked: (title, _body, link) => `Your job "${title}" is booked! ${link}`,
+  bidAccepted: (_title, body, link) => `You won a job! "${body ?? ""}" is booked. ${link}`,
+  jobBooked: (_title, body, link) => `Your job "${body ?? ""}" is booked! ${link}`,
   newMessage: (_title, body, link) => `New MyTrashBid message: ${body ?? ""} ${link}`,
   adminMessage: (_title, body, link) => `MyTrashBid support: ${body ?? ""} ${link}`,
-  jobMarkedDone: (title, _body, link) => `Your hauler marked "${title}" complete — review the photos & acknowledge. ${link}`,
-  cancellationRequested: (title, _body, link) => `A cancellation was requested for "${title}" — it's under review by MyTrashBid. ${link}`,
-  jobCancelled: (title, _body, link) => `"${title}" was cancelled by MyTrashBid. ${link}`,
+  jobMarkedDone: (_title, body, link) => `Your hauler marked "${body ?? ""}" complete — review the photos & acknowledge. ${link}`,
+  cancellationRequested: (_title, body, link) => `A cancellation was requested for "${body ?? ""}" — it's under review by MyTrashBid. ${link}`,
+  jobCancelled: (_title, body, link) => `"${body ?? ""}" was cancelled by MyTrashBid. ${link}`,
   bidSwitchedOut: (title, body, link) => `${title}${body ? `: "${body}"` : ""}. ${link}`,
   jobQuestionAsked: (title, _body, link) => `${title} ${link}`,
   questionAnswered: (title, _body, link) => `${title} ${link}`,
@@ -65,7 +73,7 @@ const EVENT_TEMPLATES: Record<string, (title: string, body: string | null, link:
   bidRevisionResolved: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
   scheduleProposed: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
   scheduleConfirmed: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
-  coordinationNudge: (title, _body, link) => `${title} — pick a date to keep this job moving. ${link}`,
+  coordinationNudge: (title, body, link) => `${title}${body ? ` for "${body}"` : ""} — pick a date to keep this job moving. ${link}`,
   paymentAuthorized: (title, body, link) => `${title}${body ? `: ${body}` : ""}. ${link}`,
   // adminJoined/supportResolved/chatLocked/chatUnlocked are deliberately absent — email + in-app
   // only, same graceful no-op as any other unmapped event type. supportRequested is the one
