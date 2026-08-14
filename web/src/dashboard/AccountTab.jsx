@@ -59,9 +59,31 @@ const RECOMMENDED_EVENTS = new Set([
   "bidRevisionProposed", "bidRevisionResolved", "jobCompleted", "documentExpired",
 ]);
 
+// Which role(s) can actually ever receive each event, verified against the RPC dispatch code
+// (every `insert into notifications` call site for each event_type) rather than assumed — e.g.
+// bidReceived only ever fires for the customer whose job got a bid, bidAccepted only for the
+// hauler whose bid won. Events omitted here (scheduleProposed/scheduleConfirmed/coordinationNudge)
+// go to both roles and need no filtering. Keeps a customer or hauler from seeing (and being able
+// to toggle) a checkbox for a notification that can never actually fire for their account.
+const EVENT_RECIPIENT_ROLES = {
+  bidReceived: ["customer"],
+  bidAccepted: ["hauler"],
+  jobCompleted: ["hauler"],
+  reminderOverdue: ["hauler"],
+  jobBooked: ["customer"],
+  jobQuestionAsked: ["customer"],
+  questionAnswered: ["hauler"],
+  bidRevisionProposed: ["customer"],
+  bidRevisionResolved: ["hauler"],
+  paymentAuthorized: ["customer"],
+  documentExpiring: ["hauler"],
+  documentExpired: ["hauler"],
+};
+
 function visibleCategoryEvents(events, session, changeOrdersEnabled) {
   return events.filter(key => {
-    if ((key === "documentExpiring" || key === "documentExpired") && session.role !== "hauler") return false;
+    const roles = EVENT_RECIPIENT_ROLES[key];
+    if (roles && !roles.includes(session.role)) return false;
     if ((key === "bidRevisionProposed" || key === "bidRevisionResolved") && !changeOrdersEnabled) return false;
     return true;
   });
@@ -550,7 +572,9 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
                 {togglingPush ? "…" : pushSubscribed ? "Turn off" : "Enable"}
               </Btn>
             </div>
-            {pushSubscribed && Object.entries(PUSH_EVENT_LABELS).map(([key, label]) => (
+            {pushSubscribed && Object.entries(PUSH_EVENT_LABELS)
+              .filter(([key]) => (EVENT_RECIPIENT_ROLES[key] || ["customer", "hauler"]).includes(session.role))
+              .map(([key, label]) => (
               <label key={key} style={{ ...checkboxRow, marginLeft: 20, marginTop: 8 }}>
                 <input type="checkbox" checked={prefs.pushEvents?.[key] ?? true}
                   onChange={e => setPrefs({ ...prefs, pushEvents: { ...prefs.pushEvents, [key]: e.target.checked } })} />
