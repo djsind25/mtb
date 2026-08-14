@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.mytrashbid.app",
+        "sha256_cert_fingerprints": ["2B:AB:9F:BF:5D:2C:10:FE:0C:C4:3F:7B:A6:2B:9F:12:7B:42:66:D9:FC:EF:DF:E4:80:A6:CC:4D:31:6A:FA:87"]
+      }
+    }]
