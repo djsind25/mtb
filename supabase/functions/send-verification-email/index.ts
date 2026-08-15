@@ -38,7 +38,7 @@ export default {
 
     const { data: profile } = await ctx.supabaseAdmin
       .from("profiles")
-      .select("email, name, email_verify_token, email_verified_at")
+      .select("email, name, role, email_verify_token, email_verified_at")
       .eq("id", profileId)
       .single();
     if (!profile?.email || !profile.email_verify_token) {
@@ -54,18 +54,34 @@ export default {
     }
 
     const link = `${siteUrl}/?verify=${profile.email_verify_token}`;
+    const name = profile.name ? `, ${escapeHtml(profile.name)}` : "";
+
+    // Haulers have no job-post-visibility gate tied to email verification (that's a customer-only
+    // concept — see verify_email()'s pending_verification job flip), so the customer copy below
+    // ("your job post won't be visible...") is actively confusing for them and never mentions the
+    // one thing that actually blocks their first bid: getting license + insurance approved. Same
+    // single signup email, role-aware content, rather than a second email to a brand-new inbox.
+    const { subject, html } = profile.role === "hauler"
+      ? {
+          subject: "Welcome to MyTrashBid — verify your email & get vetted to bid",
+          html: `<h2>Welcome to MyTrashBid${name}!</h2>` +
+            `<p>You're already logged in. First, verify your email:</p>` +
+            `<p><a href="${link}">Verify my email</a></p>` +
+            `<p><strong>Next: get vetted to start bidding.</strong> Head to Account → Verification documents ` +
+            `and upload your business license and proof of insurance. Once an admin approves both, you're clear ` +
+            `to submit bids on open jobs — usually a quick review, but budget a day or two.</p>`,
+        }
+      : {
+          subject: "Verify your email to activate your MyTrashBid post",
+          html: `<h2>Thanks for signing up${name}.</h2>` +
+            `<p>You're already logged in — but any job you post won't be visible to haulers until you verify your email.</p>` +
+            `<p><a href="${link}">Verify my email</a></p>` +
+            `<p>If you have a post pending, it'll go live automatically the moment you verify.</p>`,
+        };
 
     try {
       const resend = new Resend(resendApiKey);
-      await resend.emails.send({
-        from: fromAddress,
-        to: profile.email,
-        subject: "Verify your email to activate your MyTrashBid post",
-        html: `<h2>Thanks for signing up${profile.name ? `, ${escapeHtml(profile.name)}` : ""}.</h2>` +
-          `<p>You're already logged in — but any job you post won't be visible to haulers until you verify your email.</p>` +
-          `<p><a href="${link}">Verify my email</a></p>` +
-          `<p>If you have a post pending, it'll go live automatically the moment you verify.</p>`,
-      });
+      await resend.emails.send({ from: fromAddress, to: profile.email, subject, html });
       return Response.json({ sent: true });
     } catch (err) {
       console.error("send-verification-email: Resend call failed:", err);
