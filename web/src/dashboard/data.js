@@ -241,25 +241,20 @@ export async function cancelOwnPendingDeletion(password) {
   if (error) throw Object.assign(new Error(parseRpcError(error).message), { code: parseRpcError(error).code });
 }
 
+// A hauler can now hold more than one document per type (renewing before an old one expires,
+// carrying two insurance policies, etc.) and nothing is ever deleted, so this groups into arrays
+// per type rather than the single-row-per-type shape it used to return.
 export async function loadHaulerDocuments(haulerId) {
-  const { data, error } = await supabase.from("hauler_documents").select("*").eq("hauler_id", haulerId);
+  const { data, error } = await supabase.from("hauler_documents").select("*")
+    .eq("hauler_id", haulerId).order("uploaded_at", { ascending: false });
   if (error) throw error;
-  const byType = Object.fromEntries(data.map(d => [d.doc_type, d]));
   for (const doc of data) {
     const { data: signed } = await supabase.storage.from("hauler-documents").createSignedUrl(doc.storage_path, 3600);
     doc.url = signed?.signedUrl;
   }
+  const byType = { license: [], insurance: [] };
+  for (const doc of data) (byType[doc.doc_type] ??= []).push(doc);
   return byType;
-}
-
-// Storage object first, then the row — if the row delete failed after removing the file we'd
-// orphan a hauler_documents row pointing at nothing, which is a confusing dead end to debug;
-// leaving an unreferenced file in storage if the row delete succeeds is harmless by comparison.
-export async function deleteHaulerDocument(documentId, storagePath) {
-  const { error: storageError } = await supabase.storage.from("hauler-documents").remove([storagePath]);
-  if (storageError) throw storageError;
-  const { error } = await supabase.from("hauler_documents").delete().eq("id", documentId);
-  if (error) throw error;
 }
 
 // business_name/license_number/insurance_info/business_registration_number don't take effect
@@ -283,9 +278,8 @@ export async function loadMyProfileChangeRequests(haulerId) {
   return byField;
 }
 
-// A fresh upload always replaces whatever was there before (one current document per type —
-// see the hauler_documents unique(hauler_id, doc_type) constraint), which is why this needs
-// the hauler's own id up front rather than a doc id.
+// Each call adds a new document rather than replacing an existing one — a hauler can carry
+// several license/insurance documents at once, and none of them are ever deleted.
 export async function submitHaulerDocument({ haulerId, docType, file, expiresAt }) {
   const path = `${haulerId}/${crypto.randomUUID()}-${file.name}`;
   const { error: uploadError } = await supabase.storage.from("hauler-documents").upload(path, file);

@@ -61,7 +61,7 @@ export const VERTICAL = {
 
   vetting: {
     docLabels: { license: "Business license", insurance: "Insurance" },
-    intro: "Both a current license and insurance must be approved before you can bid on jobs. Submitting a new document resets its status to pending until an admin reviews it.",
+    intro: "Both a current license and insurance must be approved before you can bid on jobs. You can add more than one of each — for example when renewing ahead of an expiration — and every document stays on file, even after it expires. Documents can't be deleted once submitted.",
     fields: [
       { key: "verified", label: "Verified hauler", docType: null },
       { key: "license_active", label: "Verified business license", docType: "license" },

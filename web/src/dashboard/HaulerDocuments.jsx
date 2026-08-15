@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { C, sans, fullDateLabel } from "../theme";
 import { Btn, Badge } from "../ui/Primitives";
-import { submitHaulerDocument, deleteHaulerDocument } from "./data";
+import { submitHaulerDocument } from "./data";
 import { VERTICAL } from "../config/vertical";
 
 const DOC_LABELS = VERTICAL.vetting.docLabels;
@@ -22,15 +22,31 @@ const STATUS_STYLE = {
   expired: { color: C.red, bg: C.redLight, label: "Expired" },
 };
 
-function DocCard({ docType, doc, haulerId, onSubmitted, setToast }) {
+// Read-only — a document can never be deleted once submitted, so this only ever displays it.
+function DocEntry({ doc }) {
+  const status = STATUS_STYLE[doc.status];
+  return (
+    <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", display: "grid", gap: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 11.5, color: C.gray }}>
+          {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" style={{ color: C.teal, fontWeight: 600 }}>{doc.original_name || "View file"}</a>}
+          {doc.original_name && doc.url ? " · " : ""}
+          Expires {fullDateLabel(doc.expires_at + "T00:00:00")}
+        </span>
+        <Badge color={status.color} bg={status.bg}>{status.label}</Badge>
+      </div>
+      {doc.status === "rejected" && doc.reviewer_note && (
+        <div style={{ fontSize: 11.5, color: C.red }}>Reviewer note: {doc.reviewer_note}</div>
+      )}
+    </div>
+  );
+}
+
+function UploadForm({ docType, haulerId, onSubmitted, setToast }) {
   const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [expiresAt, setExpiresAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const status = doc && STATUS_STYLE[doc.status];
 
   async function submit() {
     if (!file) { setToast("Choose a file first."); return; }
@@ -42,6 +58,7 @@ function DocCard({ docType, doc, haulerId, onSubmitted, setToast }) {
       await submitHaulerDocument({ haulerId, docType, file, expiresAt });
       setFile(null);
       setExpiresAt("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setToast(`${DOC_LABELS[docType]} submitted for review.`);
       onSubmitted();
     } catch (e) {
@@ -50,72 +67,36 @@ function DocCard({ docType, doc, haulerId, onSubmitted, setToast }) {
     setSubmitting(false);
   }
 
-  // Deleting an approved document also clears the matching license_active/insurance_active flag
-  // server-side (see hauler_documents_reset_on_delete) — there'd be no evidence left to back it.
-  async function remove() {
-    setDeleting(true);
-    try {
-      await deleteHaulerDocument(doc.id, doc.storage_path);
-      setToast(`${DOC_LABELS[docType]} removed.`);
-      onSubmitted();
-    } catch (e) {
-      setToast(e.message || "Could not remove document.");
-    }
-    setDeleting(false);
-    setConfirmingDelete(false);
-  }
-
   return (
-    <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 14px", display: "grid", gap: 8 }}>
+    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: "none" }}
+        onChange={e => setFile(e.target.files[0] || null)} />
+      <button onClick={() => fileInputRef.current?.click()} style={{
+        background: "none", border: `1.5px dashed ${C.line}`, borderRadius: 8, padding: "8px 12px",
+        fontSize: 12, color: C.gray, cursor: "pointer", fontFamily: sans,
+      }}>{file ? file.name : "Choose file…"}</button>
+      <input type="date" value={expiresAt} onChange={e => setExpiresAt(e.target.value)}
+        style={{ border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, fontFamily: sans, color: C.ink }} />
+      <Btn size="sm" full={false} onClick={submit} disabled={submitting}>
+        {submitting ? "Submitting…" : "Add document"}
+      </Btn>
+    </div>
+  );
+}
+
+function DocTypeSection({ docType, docs, haulerId, onSubmitted, setToast }) {
+  return (
+    <div style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 14px", display: "grid", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 13.5, fontWeight: 700, color: C.pineDeep }}>{DOC_LABELS[docType]}</span>
-        {status ? <Badge color={status.color} bg={status.bg}>{status.label}</Badge> : <Badge color={C.gray} bg={C.grayLight}>Not submitted</Badge>}
+        {docs.length === 0 && <Badge color={C.gray} bg={C.grayLight}>Not submitted</Badge>}
       </div>
-
-      {doc && (
-        <div style={{ fontSize: 11.5, color: C.gray }}>
-          {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" style={{ color: C.teal }}>{doc.original_name || "View file"}</a>}
-          {doc.original_name && doc.url ? " · " : ""}
-          Expires {fullDateLabel(doc.expires_at + "T00:00:00")}
+      {docs.length > 0 && (
+        <div style={{ display: "grid", gap: 8 }}>
+          {docs.map(doc => <DocEntry key={doc.id} doc={doc} />)}
         </div>
       )}
-      {doc?.status === "rejected" && doc.reviewer_note && (
-        <div style={{ fontSize: 11.5, color: C.red }}>Reviewer note: {doc.reviewer_note}</div>
-      )}
-
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: "none" }}
-          onChange={e => setFile(e.target.files[0] || null)} />
-        <button onClick={() => fileInputRef.current?.click()} style={{
-          background: "none", border: `1.5px dashed ${C.line}`, borderRadius: 8, padding: "8px 12px",
-          fontSize: 12, color: C.gray, cursor: "pointer", fontFamily: sans,
-        }}>{file ? file.name : "Choose file…"}</button>
-        <input type="date" value={expiresAt} onChange={e => setExpiresAt(e.target.value)}
-          style={{ border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 12.5, fontFamily: sans, color: C.ink }} />
-        <Btn size="sm" full={false} onClick={submit} disabled={submitting}>
-          {submitting ? "Submitting…" : doc ? "Replace" : "Submit"}
-        </Btn>
-      </div>
-
-      {doc && (
-        confirmingDelete ? (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 11.5, color: C.gray }}>Delete this document?</span>
-            <Btn size="sm" full={false} variant="danger" disabled={deleting} onClick={remove}>
-              {deleting ? "Deleting…" : "Yes, delete"}
-            </Btn>
-            <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingDelete(false)}>Cancel</Btn>
-          </div>
-        ) : (
-          <div>
-            <button onClick={() => setConfirmingDelete(true)} style={{
-              background: "none", border: "none", color: C.red, fontSize: 11.5, fontWeight: 600, cursor: "pointer", padding: 0,
-            }}>
-              Delete document
-            </button>
-          </div>
-        )
-      )}
+      <UploadForm docType={docType} haulerId={haulerId} onSubmitted={onSubmitted} setToast={setToast} />
     </div>
   );
 }
@@ -128,8 +109,8 @@ export function HaulerDocuments({ haulerId, documents, onChanged, setToast }) {
         {VERTICAL.vetting.intro}
       </p>
       <div style={{ display: "grid", gap: 10 }}>
-        <DocCard docType="license" doc={documents.license} haulerId={haulerId} onSubmitted={onChanged} setToast={setToast} />
-        <DocCard docType="insurance" doc={documents.insurance} haulerId={haulerId} onSubmitted={onChanged} setToast={setToast} />
+        <DocTypeSection docType="license" docs={documents.license || []} haulerId={haulerId} onSubmitted={onChanged} setToast={setToast} />
+        <DocTypeSection docType="insurance" docs={documents.insurance || []} haulerId={haulerId} onSubmitted={onChanged} setToast={setToast} />
       </div>
     </section>
   );
