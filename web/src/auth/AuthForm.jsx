@@ -2,7 +2,7 @@ import { useState } from "react";
 import { C, sans } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { mapProfileToSession } from "../lib/session";
-import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
+import { passcodeError, normalizePasscode, PASSCODE_HINT } from "../lib/passcode";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
@@ -185,7 +185,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       <AuthShell title="Admin login" subtitle="Restricted access" onBack={onBack}>
         <SocialAuthButtons supabase={supabase} role="admin" disabled={loading} setToast={setToast} />
         <Field label="Admin email" value={email} onChange={setEmail} placeholder="admin@mytrashbid.com" />
-        <Field label="Passcode" value={adminPass} onChange={setAdminPass} type="password" placeholder="••••••" />
+        <Field label="Passcode" value={adminPass} onChange={v => setAdminPass(normalizePasscode(v))} type="password" placeholder="••••••" />
         {error && <ErrorMsg>{error}</ErrorMsg>}
         <Btn onClick={handleAdminLogin} disabled={loading} size="lg" variant="dark">{loading ? "Checking…" : "Enter dashboard"}</Btn>
         <button onClick={() => { setMode("reset"); setError(""); }} style={{
@@ -249,7 +249,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
       {mode === "login" && (
         <>
           <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" required />
-          <Field label="Passcode" value={passcode} onChange={setPasscode} type="password" placeholder="••••••" required />
+          <Field label="Passcode" value={passcode} onChange={v => setPasscode(normalizePasscode(v))} type="password" placeholder="••••••" required />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleLogin} disabled={loading} size="lg">{loading ? "Checking…" : "Log in"}</Btn>
           <button onClick={() => { setMode("reset"); setError(""); }} style={{
@@ -265,7 +265,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" required />
           <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />
           <Field label="Phone" value={phone} onChange={setPhone} type="tel" placeholder="(optional)" />
-          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
+          <Field label="Create a passcode" value={passcode} onChange={v => setPasscode(normalizePasscode(v))} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Create account"}</Btn>
@@ -279,7 +279,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Business email" value={email} onChange={setEmail} type="email" placeholder="jake@capitalcityhaul.com" required />
           <Field label="Primary service ZIP" value={serviceZip} onChange={setServiceZip} placeholder="60491" required />
           <Field label="Phone" value={haulerPhone} onChange={setHaulerPhone} type="tel" placeholder="(555) 867-5309" required />
-          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
+          <Field label="Create a passcode" value={passcode} onChange={v => setPasscode(normalizePasscode(v))} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Apply as a hauler"}</Btn>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { C } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { mapProfileToSession } from "../lib/session";
-import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
+import { passcodeError, normalizePasscode, PASSCODE_HINT } from "../lib/passcode";
 import { Field, Btn, ErrorMsg, CenteredNote } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 import { StepUpChallenge } from "./StepUpChallenge";
@@ -86,7 +86,7 @@ export function AuthRecovery({ onAuthed, onBack }) {
         <StepUpChallenge supabase={supabase} onVerified={() => setStepUpVerified(true)} onCancel={onBack} />
       ) : (
         <>
-          <Field label="New passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
+          <Field label="New passcode" value={passcode} onChange={v => setPasscode(normalizePasscode(v))} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSubmit} disabled={loading} size="lg">{loading ? "Saving…" : "Set passcode & continue"}</Btn>
         </>
