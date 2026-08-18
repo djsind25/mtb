@@ -5,7 +5,6 @@ import {
   getAAL, listVerifiedTotpFactors, listVerifiedWebauthnFactors, challengeAndVerify, authenticatePasskey,
   startEmailStepupCode, verifyEmailStepupCode,
 } from "../lib/mfa";
-import { normalizePasscode } from "../lib/passcode";
 
 // Re-verification gate in front of a sensitive already-authenticated action. Modes depending on
 // what the account actually has to step up with:
@@ -160,7 +159,7 @@ export function StepUpChallenge({ supabase, onVerified, onCancel, allowEmailFall
           {mode === "none" && "Confirm you'd like to continue with this action."}
         </div>
         {mode === "totp" && <Field label="6-digit code" value={code} onChange={setCode} placeholder="123456" required />}
-        {mode === "password" && <Field label="Passcode" value={password} onChange={v => setPassword(normalizePasscode(v))} type="password" placeholder="••••••" required />}
+        {mode === "password" && <Field label="Passcode" value={password} onChange={setPassword} type="password" placeholder="••••••" required />}
         {mode === "email" && emailCodeSent && <Field label="6-digit code" value={code} onChange={setCode} placeholder="123456" required />}
         {error && <ErrorMsg>{error}</ErrorMsg>}
         <div style={{ display: "flex", gap: 8, fontFamily: sans }}>

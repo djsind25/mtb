@@ -9,13 +9,3 @@ export function passcodeError(value) {
   if (!/[0-9]/.test(v)) return "Passcode must include at least one number.";
   return null;
 }
-
-// Mobile keyboards frequently auto-capitalize the first character of any text field — including
-// password-type ones on some Android keyboards — which would otherwise silently turn a correctly
-// entered passcode into a mismatch. Forcing the first character lowercase on every keystroke, at
-// every entry point (create/reset/change/re-enter), keeps them all consistent with each other so
-// this can't cause a login failure. Only the first character is touched; the rest stays fully
-// case sensitive.
-export function normalizePasscode(value) {
-  return value.length > 0 ? value[0].toLowerCase() + value.slice(1) : value;
-}

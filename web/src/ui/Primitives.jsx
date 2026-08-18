@@ -33,6 +33,7 @@ export function Field({ label, value, onChange, type = "text", placeholder, requ
         <input
           type={isPassword && revealed ? "text" : type} value={value} placeholder={placeholder}
           onChange={e => onChange(e.target.value)}
+          {...(isPassword ? { autoCapitalize: "none", autoCorrect: "off", spellCheck: false } : {})}
           style={{
             width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8,
             padding: isPassword ? "10px 40px 10px 13px" : "10px 13px", fontSize: 14, fontFamily: sans, outline: "none", color: C.ink, background: C.paper,

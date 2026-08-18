@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { mapProfileToSession } from "../lib/session";
-import { passcodeError, normalizePasscode, PASSCODE_HINT } from "../lib/passcode";
+import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 
@@ -81,7 +81,7 @@ export function AdminInviteAccept({ token, onAuthed, onBack }) {
     >
       <Field label="Email" value={invite.email} onChange={() => {}} type="email" />
       <Field label="Full name" value={name} onChange={setName} placeholder="Jane Doe" required />
-      <Field label="Create a passcode" value={passcode} onChange={v => setPasscode(normalizePasscode(v))} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
+      <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
       {error && <ErrorMsg>{error}</ErrorMsg>}
       <Btn onClick={handleSubmit} disabled={status === "submitting"} size="lg">
         {status === "submitting" ? "Setting up…" : "Create admin account"}
