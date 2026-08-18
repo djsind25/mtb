@@ -96,10 +96,12 @@ export async function loadReviews(chatId) {
   return data;
 }
 
+// One-shot — reviews can't be edited once submitted (see the dropped reviews_update_own RLS
+// policy). A plain insert rather than an upsert makes that permanence explicit: a second attempt
+// for the same chat/role fails on the unique constraint instead of silently overwriting.
 export async function submitReview({ chatId, reviewerRole, rating, text }) {
-  const { error } = await supabase.from("reviews").upsert(
+  const { error } = await supabase.from("reviews").insert(
     { chat_id: chatId, reviewer_role: reviewerRole, rating, text },
-    { onConflict: "chat_id,reviewer_role" },
   );
   if (error) throw error;
 }

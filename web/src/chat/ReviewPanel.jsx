@@ -7,14 +7,12 @@ export function ReviewPanel({ chat, chatId, viewer, setToast }) {
   const [reviews, setReviews] = useState(null);
   const [rating, setRating] = useState(0);
   const [text, setText] = useState("");
-  const [editing, setEditing] = useState(false);
 
   const refresh = () => loadReviews(chatId).then(rows => {
     setReviews(rows);
     const mine = rows.find(r => r.reviewer_role === viewer);
     setRating(mine?.rating || 0);
     setText(mine?.text || "");
-    setEditing(!mine);
   });
 
   useEffect(() => { refresh(); }, [chatId, viewer]);
@@ -27,6 +25,7 @@ export function ReviewPanel({ chat, chatId, viewer, setToast }) {
 
   async function handleSubmit() {
     if (!rating) return;
+    if (!window.confirm("Submit this review? Reviews can't be edited once submitted.")) return;
     try {
       await submitReview({ chatId, reviewerRole: viewer, rating, text });
       await refresh();
@@ -40,11 +39,10 @@ export function ReviewPanel({ chat, chatId, viewer, setToast }) {
     <div style={{ background: C.tealLight, borderBottom: `1px solid ${C.teal}33`, padding: "14px 16px" }}>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: C.teal, marginBottom: 10 }}>⭐ Job complete — leave your review</div>
 
-      {!editing && myReview ? (
+      {myReview ? (
         <div style={{ background: C.paper, borderRadius: 10, padding: "10px 12px", marginBottom: otherReview ? 10 : 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div style={{ marginBottom: 4 }}>
             <span style={{ color: "#E8A23D", fontSize: 13 }}>{"★".repeat(myReview.rating)}{"☆".repeat(5 - myReview.rating)}</span>
-            <button onClick={() => setEditing(true)} style={{ background: "none", border: "none", color: C.teal, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>Edit</button>
           </div>
           {myReview.text && <div style={{ fontSize: 12.5, color: C.ink }}>{myReview.text}</div>}
         </div>
@@ -57,7 +55,7 @@ export function ReviewPanel({ chat, chatId, viewer, setToast }) {
           </div>
           <textarea value={text} onChange={e => setText(e.target.value)} placeholder={`How was working with ${otherLabel}?`}
             style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "8px 11px", fontSize: 12.5, fontFamily: "inherit", outline: "none", minHeight: 56, resize: "vertical", marginBottom: 8 }} />
-          <Btn size="sm" disabled={!rating} onClick={handleSubmit}>Submit review</Btn>
+          <Btn size="sm" disabled={!rating} onClick={handleSubmit}>Confirm &amp; submit review</Btn>
         </div>
       )}
 

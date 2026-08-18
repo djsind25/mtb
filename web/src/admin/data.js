@@ -682,6 +682,45 @@ export async function loadCompletedJobs() {
   }));
 }
 
+// All submitted reviews, with enough attached (job, customer, hauler) to sort/filter and jump
+// to either party or the job itself — reviews themselves carry no names, only chat_id + role.
+export async function loadAllReviews() {
+  const { data: reviews, error } = await supabase.from("reviews").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  if (reviews.length === 0) return [];
+
+  const chatIds = [...new Set(reviews.map(r => r.chat_id))];
+  const { data: chats, error: chatsError } = await supabase.from("chats").select("id, job_id, customer_id, hauler_id").in("id", chatIds);
+  if (chatsError) throw chatsError;
+  const chatById = Object.fromEntries(chats.map(c => [c.id, c]));
+
+  const jobIds = [...new Set(chats.map(c => c.job_id))];
+  const partyIds = [...new Set(chats.flatMap(c => [c.customer_id, c.hauler_id]))];
+  const [{ data: jobs, error: jobsError }, { data: profiles, error: profilesError }] = await Promise.all([
+    supabase.from("jobs").select("id, title, zip").in("id", jobIds),
+    supabase.from("profiles").select("id, name, business_name").in("id", partyIds),
+  ]);
+  if (jobsError) throw jobsError;
+  if (profilesError) throw profilesError;
+  const jobById = Object.fromEntries(jobs.map(j => [j.id, j]));
+  const pById = Object.fromEntries(profiles.map(p => [p.id, p]));
+
+  return reviews.map(r => {
+    const chat = chatById[r.chat_id];
+    const job = chat ? jobById[chat.job_id] : undefined;
+    return {
+      ...r,
+      jobId: chat?.job_id,
+      jobTitle: job?.title,
+      zip: job?.zip,
+      customerId: chat?.customer_id,
+      customerName: chat ? (pById[chat.customer_id]?.name || VERTICAL.roles.customer.label) : undefined,
+      haulerId: chat?.hauler_id,
+      haulerName: chat ? (pById[chat.hauler_id]?.business_name || pById[chat.hauler_id]?.name || VERTICAL.roles.hauler.label) : undefined,
+    };
+  });
+}
+
 export async function reviewCompletion(jobId) {
   const { error } = await supabase.rpc("admin_review_completion", { p_job_id: jobId });
   if (error) throw error;
