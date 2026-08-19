@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { formatShortName } from "../lib/displayName";
 
 export async function loadMyChats(userId) {
   const { data: chats, error } = await supabase
@@ -38,7 +39,7 @@ export async function loadMyChats(userId) {
     return {
       ...c,
       jobTitle: jobById[c.job_id],
-      customerName: profileById[c.customer_id]?.name,
+      customerName: formatShortName(profileById[c.customer_id]?.name),
       businessName: profileById[c.hauler_id]?.business_name,
       lastMessagePreview: lastMsg?.text,
       lastMessageAt: lastMsg?.created_at,
@@ -64,7 +65,7 @@ export async function loadChat(chatId) {
   return {
     ...chat,
     jobTitle: job?.title,
-    customerName: profileById[chat.customer_id]?.name,
+    customerName: formatShortName(profileById[chat.customer_id]?.name),
     businessName: profileById[chat.hauler_id]?.business_name,
   };
 }
@@ -95,10 +96,12 @@ export async function loadReviews(chatId) {
   return data;
 }
 
+// One-shot — reviews can't be edited once submitted (see the dropped reviews_update_own RLS
+// policy). A plain insert rather than an upsert makes that permanence explicit: a second attempt
+// for the same chat/role fails on the unique constraint instead of silently overwriting.
 export async function submitReview({ chatId, reviewerRole, rating, text }) {
-  const { error } = await supabase.from("reviews").upsert(
+  const { error } = await supabase.from("reviews").insert(
     { chat_id: chatId, reviewer_role: reviewerRole, rating, text },
-    { onConflict: "chat_id,reviewer_role" },
   );
   if (error) throw error;
 }

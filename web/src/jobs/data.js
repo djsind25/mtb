@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
 import { parseRpcError } from "../lib/rpcError";
 import { resizeImage } from "../lib/imageResize";
+import { formatShortName } from "../lib/displayName";
 import { VERTICAL } from "../config/vertical";
 
 // Silent bids: attaches { businessName, rating, ratingCount, revealed, ... } to each bid via
@@ -194,7 +195,7 @@ export async function loadMyBidJobs(haulerId) {
   const { data: rows, error: jobsError } = await supabase.rpc("list_my_bid_jobs_for_hauler");
   if (jobsError) throw jobsError;
   const withBids = rows.map(r => ({
-    ...r.job, city: r.city, state: r.state, bid_count: r.bid_count, customerName: r.customer_name,
+    ...r.job, city: r.city, state: r.state, bid_count: r.bid_count, customerName: formatShortName(r.customer_name),
     myBid: myBids.find(b => b.job_id === r.job.id),
   }));
   return attachPendingSchedule(await attachPendingBidRevision(await attachPendingCancellation(await attachSwitchedOutFlag(await attachChatIds(withBids), haulerId))));
