@@ -16,6 +16,40 @@ applications:
       cache:
         paths:
           - node_modules/**/*
+    # Fixes audit finding H-4: no security headers at all on either Amplify app previously.
+    #
+    # Content-Security-Policy below is deliberately split into two headers rather than one:
+    #   - An *enforced* CSP containing only frame-ancestors 'none' — narrow enough to be zero-risk
+    #     (it can't break anything script/style/image loading depends on) while still closing the
+    #     clickjacking gap the audit flagged, alongside the classic X-Frame-Options for older
+    #     browsers that don't understand frame-ancestors.
+    #   - A *report-only* CSP with the fuller policy (script/style/img/connect/frame-src). This
+    #     app renders styling almost entirely via inline `style={{...}}` (React's style prop,
+    #     which becomes an inline `style=""` attribute — restricted by style-src same as any other
+    #     inline style), so an *enforcing* style-src without 'unsafe-inline' would break the
+    #     entire UI immediately. Report-only collects real violation data with zero breakage risk;
+    #     tightening this to enforced (and re-architecting away from inline styles, or adding
+    #     nonces) is tracked as a follow-up, not done in this pass.
+    # https://*.supabase.co covers both the REST/Realtime API and the deposit PaymentIntent flow's
+    # data calls; https://js.stripe.com and https://api.stripe.com are Stripe's own documented CSP
+    # requirements for Stripe.js/Elements.
+    customHeaders:
+      - pattern: '**/*'
+        headers:
+          - key: 'Strict-Transport-Security'
+            value: 'max-age=63072000; includeSubDomains; preload'
+          - key: 'X-Frame-Options'
+            value: 'DENY'
+          - key: 'X-Content-Type-Options'
+            value: 'nosniff'
+          - key: 'Referrer-Policy'
+            value: 'strict-origin-when-cross-origin'
+          - key: 'Permissions-Policy'
+            value: 'camera=(), microphone=(), geolocation=()'
+          - key: 'Content-Security-Policy'
+            value: "frame-ancestors 'none'"
+          - key: 'Content-Security-Policy-Report-Only'
+            value: "default-src 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
   - appRoot: site
     frontend:
       phases:
@@ -28,3 +62,26 @@ applications:
           - '**/*'
       cache:
         paths: []
+    # Same rationale as the web app above, with a policy shaped for this app's actual dependencies
+    # instead: it loads supabase-js from a CDN (script-src) and Inter/JetBrains Mono from Google
+    # Fonts (style-src for the stylesheet link, font-src for the served font files) — see
+    # site/index.html's <script src="https://cdn.jsdelivr.net/...supabase.js"> and
+    # <link href="https://fonts.googleapis.com/...">. No Stripe here — this is the static
+    # marketing/landing site, not the app that takes payment.
+    customHeaders:
+      - pattern: '**/*'
+        headers:
+          - key: 'Strict-Transport-Security'
+            value: 'max-age=63072000; includeSubDomains; preload'
+          - key: 'X-Frame-Options'
+            value: 'DENY'
+          - key: 'X-Content-Type-Options'
+            value: 'nosniff'
+          - key: 'Referrer-Policy'
+            value: 'strict-origin-when-cross-origin'
+          - key: 'Permissions-Policy'
+            value: 'camera=(), microphone=(), geolocation=()'
+          - key: 'Content-Security-Policy'
+            value: "frame-ancestors 'none'"
+          - key: 'Content-Security-Policy-Report-Only'
+            value: "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"

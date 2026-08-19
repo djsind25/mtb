@@ -80,16 +80,21 @@ export default {
     } catch (err) {
       // Stripe (or the follow-up DB write) failed after the job was already booked —
       // undo the booking so the customer isn't left stuck mid-flow and can retry.
-      // Order matters: notifications and payments both reference chats.id without cascade,
-      // so they have to go first or the chat delete fails on a FK violation and silently
-      // leaves the chat behind.
-      await ctx.supabaseAdmin.from("notifications").delete().eq("chat_id", chatId);
-      await ctx.supabaseAdmin.from("payments").delete().eq("job_id", jobId).is("stripe_payment_intent_id", null);
-      await ctx.supabaseAdmin.from("chats").delete().eq("id", chatId);
-      await ctx.supabaseAdmin
-        .from("jobs")
-        .update({ status: "open", accepted_bid_id: null, accepted_at: null, complete_by: null })
-        .eq("id", jobId);
+      // rollback_bid_acceptance() runs the whole unwind (notifications, payments, chat, job
+      // status) as one PL/pgSQL function body, so it's atomic — either the booking is fully
+      // reverted or none of it is, with no code-level ordering to get wrong (the previous four
+      // separate, unchecked supabaseAdmin calls could leave a job stuck 'booked' with no
+      // PaymentIntent if the process died partway through the unwind — audit finding M-3).
+      const { error: rollbackError } = await ctx.supabaseAdmin.rpc("rollback_bid_acceptance", {
+        p_job_id: jobId,
+        p_chat_id: chatId,
+      });
+      if (rollbackError) {
+        // The booking is now in an inconsistent state that automatic rollback couldn't fix —
+        // surface loudly rather than returning a generic message that hides it.
+        console.error("create-deposit-intent: rollback_bid_acceptance failed after Stripe error:", rollbackError, "original error:", err);
+        return Response.json({ message: "Payment setup failed and automatic cleanup also failed. Contact support." }, { status: 500 });
+      }
 
       console.error("create-deposit-intent failed:", err);
       return Response.json({ message: "Payment setup failed. Please try accepting the bid again." }, { status: 502 });

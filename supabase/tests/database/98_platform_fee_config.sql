@@ -41,7 +41,9 @@ select throws_ok(
 
 -- ── promote 44444444 to super_admin for this transaction only ───────────────────────────────────
 reset role;
+select set_config('app.bypass_profile_guard', 'true', true);
 update profiles set super_admin = true where id = '44444444-4444-4444-4444-444444444444';
+select set_config('app.bypass_profile_guard', 'false', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 
@@ -85,7 +87,9 @@ select isnt_empty(
 
 -- ── regular admin, toggle now ON — can edit fees, but still can never touch the toggle itself ───
 reset role;
+select set_config('app.bypass_profile_guard', 'true', true);
 update profiles set super_admin = false where id = '44444444-4444-4444-4444-444444444444';
+select set_config('app.bypass_profile_guard', 'false', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 
@@ -109,7 +113,9 @@ select is(membership_commission_rate('pro'), 0.12, 'pro now falls back to the gl
 -- ── accept_bid() freezes the resolved rate onto chats.commission_rate — a later config change
 -- never reaches back into an already-booked job ─────────────────────────────────────────────────
 reset role;
+select set_config('app.bypass_profile_guard', 'true', true);
 update profiles set super_admin = true where id = '44444444-4444-4444-4444-444444444444';
+select set_config('app.bypass_profile_guard', 'false', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 select lives_ok($$ select set_tier_platform_fee_rate('free', 0.20) $$, 'set the free tier rate to 0.20 ahead of acceptance');
@@ -137,7 +143,9 @@ select is(
   'the accepted chat stamped the free-tier rate that was in effect at acceptance'
 );
 
+select set_config('app.bypass_profile_guard', 'true', true);
 update profiles set super_admin = true where id = '44444444-4444-4444-4444-444444444444';
+select set_config('app.bypass_profile_guard', 'false', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 select lives_ok($$ select set_tier_platform_fee_rate('free', 0.35) $$, 'change the free tier rate again, after acceptance');
