@@ -327,9 +327,17 @@ template = "Your code is {{ `{{ .Code }}` }}"
 max_frequency = "5s"
 
 # Configure MFA via WebAuthn (passkey — Face ID / fingerprint / security key)
+#
+# Held false: local config.toml claimed this was enabled, but `config push` against this
+# project's actual production consistently rejects it with 422 "Enabling of MFA with WebAuthn
+# not currently supported" (confirmed twice — the remote auth config never changed and no
+# billing was incurred either time, since Supabase applies the whole auth section atomically and
+# rolls back on any single field's rejection). That pre-existing local/remote drift meant this
+# section was silently blocking every other auth config change from ever landing. Same
+# unsupported-on-this-plan gap already documented on MyPartyBid's config.toml.
 [auth.mfa.web_authn]
-enroll_enabled = true
-verify_enabled = true
+enroll_enabled = false
+verify_enabled = false
 
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
