@@ -18,7 +18,7 @@ insert into auth.users (id, email) values
 on conflict (id) do nothing;
 
 -- role/admin_read_only are guarded by guard_profile_self_update() the same as every other
--- privileged column (verified, territory_id, ...) as of 20260905000000_medium_findings_backend.sql
+-- privileged column (verified, territory_id, ...) as of 20260905020000_medium_findings_backend.sql
 -- (ported audit finding M-6) — a raw UPDATE with no bypass flag now correctly fails even from
 -- this fixture's own superuser session, exactly as it would for a real admin trying to
 -- self-promote.
