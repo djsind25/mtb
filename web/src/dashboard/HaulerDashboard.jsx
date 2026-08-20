@@ -3,6 +3,7 @@ import { sans, C, jobCategoryOf, timelineSortIndex } from "../theme";
 import { entitlementsFor } from "../membership";
 import { CenteredNote } from "../ui/Primitives";
 import { HaulerJobCard } from "../jobs/HaulerJobCard";
+import { HaulerConnectOnboarding } from "./HaulerConnectOnboarding";
 import { HaulerBidStatusCard } from "../jobs/HaulerBidStatusCard";
 import { FindJobsFilters } from "../jobs/FindJobsFilters";
 import { loadOpenJobsForHauler, loadMyBidJobs, submitBid, updateBid, renewBid, haulerMarkDone, loadChangeOrdersEnabled, saveJobSearchPrefs, dismissJob, undismissJob } from "../jobs/data";
@@ -254,6 +255,8 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "20px 16px 60px" }}>
       {stats && <SummaryStrip stats={summary} />}
 
+      <HaulerConnectOnboarding session={session} setToast={setToast} />
+
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
@@ -303,7 +306,7 @@ export function HaulerDashboard({ session, setToast, initialChatId, onConsumedIn
               )}
               {filteredOpenJobs.map(job => (
                 <HaulerJobCard key={job.id} job={job} myBid={myBidByJobId[job.id]} haulerId={session.id}
-                  eligible={session.licenseActive && session.insuranceActive}
+                  eligible={session.licenseActive && session.insuranceActive} connectOnboarded={session.connectOnboarded}
                   density={density} dismissed={job.is_dismissed} onDismiss={handleDismiss} onUndismiss={handleUndismiss}
                   onBid={handleBid} onUpdateBid={handleUpdateBid} setToast={setToast} />
               ))}

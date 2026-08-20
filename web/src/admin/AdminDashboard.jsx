@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { C, RADIUS, SHADOW_MD } from "../theme";
 import { VERTICAL } from "../config/vertical";
 import { CenteredNote, Field, Btn } from "../ui/Primitives";
-import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog, loadCustomerStalls, loadRecruitingLeads, loadTerritories, loadAllReviews } from "./data";
+import { loadUsers, loadJobsWithBids, loadFlaggedMessages, loadFlaggedJobQuestions, loadFlaggedJobUpdates, loadOverdueJobs, loadHaulerDocuments, loadAdminInvites, loadCompletedJobs, loadCancellationRequests, loadDisputes, loadFullPaymentSummary, loadProfileChangeRequests, loadChangeOrdersEnabled, setChangeOrdersEnabled, loadStalledJobs, loadChatSupportQueue, loadAccountDeletionQueue, loadAccountLifecycleAuditLog, loadCustomerStalls, loadRecruitingLeads, loadTerritories, loadAllReviews } from "./data";
 import { ReviewsTab } from "./ReviewsTab";
 import { TerritoriesPanel } from "./TerritoriesPanel";
 import { ProfileChangeRequestRow } from "./ProfileChangeRequestRow";
@@ -27,6 +27,7 @@ import { MoneyPolicyTab } from "./MoneyPolicyTab";
 import { SecurityPolicyTab } from "./SecurityPolicyTab";
 import { CompletionReview } from "./CompletionReview";
 import { CancellationRequestsTab } from "./CancellationRequestsTab";
+import { DisputesTab } from "./DisputesTab";
 import { StalledJobsTab } from "./StalledJobsTab";
 import { JobChatSupportQueueTab } from "./JobChatSupportQueueTab";
 import { AccountDeletionsTab } from "./AccountDeletionsTab";
@@ -71,6 +72,7 @@ export function AdminDashboard({ session, setToast }) {
   const [adminInvites, setAdminInvites] = useState([]);
   const [completedJobs, setCompletedJobs] = useState([]);
   const [cancellationRequests, setCancellationRequests] = useState([]);
+  const [disputes, setDisputes] = useState([]);
   const [stalledJobs, setStalledJobs] = useState([]);
   const [chatSupportQueue, setChatSupportQueue] = useState([]);
   const [accountDeletionQueue, setAccountDeletionQueue] = useState([]);
@@ -99,9 +101,9 @@ export function AdminDashboard({ session, setToast }) {
     setLoading(true);
     try {
       await processDueAccountDeletions();
-      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, cr, fps, pcr, coe, sj, csq, adq, alog, cst, rl, terr, rev] = await Promise.all([
+      const [u, j, fm, fq, fu, o, sc, hd, ai, cj, cr, disp, fps, pcr, coe, sj, csq, adq, alog, cst, rl, terr, rev] = await Promise.all([
         loadUsers(), loadJobsWithBids(), loadFlaggedMessages(), loadFlaggedJobQuestions(), loadFlaggedJobUpdates(), loadOverdueJobs(), loadSupportChats(), loadHaulerDocuments(),
-        loadAdminInvites(), loadCompletedJobs(), loadCancellationRequests(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
+        loadAdminInvites(), loadCompletedJobs(), loadCancellationRequests(), loadDisputes(), loadFullPaymentSummary(), loadProfileChangeRequests(), loadChangeOrdersEnabled(),
         loadStalledJobs(), loadChatSupportQueue(true), loadAccountDeletionQueue(), loadAccountLifecycleAuditLog(),
         loadCustomerStalls(), loadRecruitingLeads(), loadTerritories(), loadAllReviews(),
       ]);
@@ -109,7 +111,7 @@ export function AdminDashboard({ session, setToast }) {
       // and job updates, each tagged so FlagRow knows which "view more" action applies.
       const f = [...fm.map(x => ({ ...x, kind: "chat" })), ...fq, ...fu].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setUsers(u); setJobs(j); setFlags(f); setOverdue(o); setSupportChats(sc); setHaulerDocs(hd); setAdminInvites(ai); setCompletedJobs(cj);
-      setCancellationRequests(cr); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe); setStalledJobs(sj); setChatSupportQueue(csq);
+      setCancellationRequests(cr); setDisputes(disp); setFullPaymentSummary(fps); setProfileChangeRequests(pcr); setChangeOrdersEnabledState(coe); setStalledJobs(sj); setChatSupportQueue(csq);
       setAccountDeletionQueue(adq); setAccountLifecycleAuditLog(alog); setCustomerStalls(cst); setRecruitingLeads(rl); setTerritories(terr); setReviews(rev);
     } catch (e) {
       console.error("AdminDashboard: loadAll failed:", e);
@@ -178,6 +180,7 @@ export function AdminDashboard({ session, setToast }) {
 
   const completionsNeedingReview = completedJobs.filter(c => !c.admin_reviewed_at).length;
   const pendingCancellationCount = cancellationRequests.filter(r => r.status === "pending").length;
+  const openDisputeCount = disputes.filter(d => d.status === "open" || d.status === "reviewing").length;
   const pendingProfileChangeCount = profileChangeRequests.filter(r => r.status === "pending").length;
   const tierCounts = Object.fromEntries(Object.keys(MEMBERSHIP_TIERS).map(t => [t, haulers.filter(h => (h.membership_tier || "free") === t).length]));
   const openChatSupportCount = chatSupportQueue.filter(c => c.support_status !== "resolved").length;
@@ -205,6 +208,7 @@ export function AdminDashboard({ session, setToast }) {
         { id: "completed", label: "Completion review", count: completionsNeedingReview },
         { id: "overdue", label: "Overdue", count: unreviewedOverdueCount },
         { id: "cancellations", label: "Cancellations", count: pendingCancellationCount },
+        { id: "disputes", label: "Disputes", count: openDisputeCount },
         { id: "stalled", label: "Stalled jobs", count: stalledJobs.length },
         { id: "docs", label: "Hauler docs", count: pendingDocCount },
         { id: "reviews", label: "Reviews", count: reviews.length },
@@ -242,6 +246,7 @@ export function AdminDashboard({ session, setToast }) {
     { id: "flags", label: "Flagged messages", description: "Trust & Safety items waiting for review", count: unreviewedFlagCount, priority: "urgent" },
     { id: "overdue", label: "Overdue completions", description: "Jobs past the completion window", count: unreviewedOverdueCount, priority: "urgent" },
     { id: "cancellations", label: "Cancellation requests", description: "Pending customer or hauler requests", count: pendingCancellationCount, priority: "warning" },
+    { id: "disputes", label: "Disputes", description: "Reported problems awaiting resolution", count: openDisputeCount, priority: "urgent" },
     { id: "stalled", label: "Stalled jobs", description: "Service dates still need coordination", count: stalledJobs.length, priority: "warning" },
     { id: "docs", label: "Hauler documents", description: "License or insurance submissions to check", count: pendingDocCount },
     { id: "completed", label: "Completion reviews", description: "Completed jobs awaiting admin review", count: completionsNeedingReview },
@@ -550,6 +555,12 @@ export function AdminDashboard({ session, setToast }) {
       {tab === "cancellations" && (
         <Panel title="Cancellation requests">
           <CancellationRequestsTab requests={cancellationRequests} onChanged={loadAll} setToast={setToast} readOnly={readOnly} onViewUser={viewUser} />
+        </Panel>
+      )}
+
+      {tab === "disputes" && (
+        <Panel title="Disputes">
+          <DisputesTab disputes={disputes} onChanged={loadAll} setToast={setToast} readOnly={readOnly} onViewUser={viewUser} />
         </Panel>
       )}
 

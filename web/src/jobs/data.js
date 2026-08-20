@@ -205,9 +205,9 @@ export async function loadMyBidJobs(haulerId) {
 // it inserts a new schedule_proposals row (superseding any prior pending one) plus a system chat
 // message. confirm_schedule() is the only thing that locks it in, and only the *other* party can
 // do that (enforced server-side, not just hidden client-side).
-export async function proposeSchedule({ jobId, serviceDate, finalPrice }) {
+export async function proposeSchedule({ jobId, serviceDate }) {
   const { error } = await supabase.rpc("propose_schedule", {
-    p_job_id: jobId, p_service_date: serviceDate, p_final_price: Number(finalPrice),
+    p_job_id: jobId, p_service_date: serviceDate,
   });
   if (error) throw error;
 }
@@ -391,7 +391,7 @@ export async function renewBid(bidId) {
 }
 
 export async function acceptBid({ jobId, bidId }) {
-  const { data, error } = await supabase.functions.invoke("create-deposit-intent", { body: { jobId, bidId } });
+  const { data, error } = await supabase.functions.invoke("create-booking-charge", { body: { jobId, bidId } });
   if (error) {
     // supabase-js only exposes the parsed body on FunctionsHttpError via .context
     const message = error.context?.body ? (await error.context.json?.().catch(() => null))?.message : null;
@@ -517,6 +517,11 @@ export async function haulerMarkDone(jobId) {
 
 export async function customerAcknowledgeCompletion(jobId) {
   const { error } = await supabase.rpc("customer_acknowledge_completion", { p_job_id: jobId });
+  if (error) throw error;
+}
+
+export async function openDispute({ jobId, reason }) {
+  const { error } = await supabase.rpc("open_dispute", { p_job_id: jobId, p_reason: reason });
   if (error) throw error;
 }
 

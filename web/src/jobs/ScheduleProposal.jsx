@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { C } from "../theme";
-import { Badge, Btn, Field } from "../ui/Primitives";
+import { Btn, Field } from "../ui/Primitives";
 import { proposeSchedule, confirmSchedule } from "./data";
 
 function formatDate(iso) {
@@ -8,19 +8,17 @@ function formatDate(iso) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Full-payment-mode only: the coordinate-a-date-then-hold-then-capture flow from the scheduling
-// rework. Self-gates on payment_mode and on having scheduling data at all, so callers can render
-// it unconditionally on every booked job without an extra check — a deposit-mode job or a full-mode
-// job that predates this feature (accepted before the migration shipped, so coordination_deadline
-// was never set) renders nothing here, exactly as it did before this feature existed.
-export function ScheduleProposal({ job, viewerRole, viewerId, defaultPrice, onChanged, setToast }) {
+// Payment already happens in full at bid acceptance now — this is a pure post-booking logistics
+// step (pick and confirm a service date), with no price attached and no payment gated on it.
+// Self-gates on having scheduling data at all, so callers can render it unconditionally on every
+// booked job without an extra check — a job that predates this feature (accepted before the
+// migration shipped, so coordination_deadline was never set) renders nothing here.
+export function ScheduleProposal({ job, viewerRole, viewerId, onChanged, setToast }) {
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState("");
-  const [price, setPrice] = useState(defaultPrice != null ? String(defaultPrice) : "");
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  if (job.payment_mode !== "full") return null;
   if (!job.coordinationDeadline && !job.coordinationExtendedAt && !job.stalledAt && !job.lockedServiceDate) return null;
 
   const otherRole = viewerRole === "customer" ? "hauler" : "customer";
@@ -28,7 +26,7 @@ export function ScheduleProposal({ job, viewerRole, viewerId, defaultPrice, onCh
   async function submitPropose() {
     setSubmitting(true);
     try {
-      await proposeSchedule({ jobId: job.id, serviceDate: date, finalPrice: price });
+      await proposeSchedule({ jobId: job.id, serviceDate: date });
       setToast("Proposed! This isn't locked in until the other side confirms.");
       setShowForm(false);
       onChanged();
@@ -52,50 +50,24 @@ export function ScheduleProposal({ job, viewerRole, viewerId, defaultPrice, onCh
 
   const proposeForm = (
     <div style={{ background: C.sand, borderRadius: 8, padding: "10px 12px", marginTop: 8 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <Field label="Service date" value={date} onChange={setDate} type="date" required />
-        <Field label="Final price ($)" value={price} onChange={setPrice} type="number" required />
-      </div>
+      <Field label="Service date" value={date} onChange={setDate} type="date" required />
       <div style={{ fontSize: 11, color: C.gray, marginBottom: 10 }}>
-        This isn't binding until the {otherRole} confirms — nothing is charged until 48 hours before the service date.
+        This isn't locked in until the {otherRole} confirms. Payment was already secured when the job was booked.
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <Btn size="sm" full={false} variant="ghost" onClick={() => setShowForm(false)}>Cancel</Btn>
-        <Btn size="sm" full={false} disabled={!date || !price || submitting} onClick={submitPropose}>
+        <Btn size="sm" full={false} disabled={!date || submitting} onClick={submitPropose}>
           {submitting ? "Proposing…" : "Propose to " + otherRole}
         </Btn>
       </div>
     </div>
   );
 
-  // Already captured — job's done, nothing left to coordinate.
-  if (job.capturedAt) {
-    return (
-      <div style={{ marginTop: 8 }}>
-        <Badge color={C.teal} bg={C.tealLight}>✓ ${Number(job.lockedFinalPrice).toFixed(2)} captured — released per the 90/10 split</Badge>
-      </div>
-    );
-  }
-
-  // Authorized (held) but not yet captured.
-  if (job.authorizedAt) {
-    return (
-      <div style={{ marginTop: 8 }}>
-        <Badge color={C.teal} bg={C.tealLight}>💳 ${Number(job.lockedFinalPrice).toFixed(2)} authorized and held for {formatDate(job.lockedServiceDate)}</Badge>
-      </div>
-    );
-  }
-
-  // Locked, waiting for the authorization window.
+  // Locked in — payment was already secured at booking, this is purely a logistics confirmation.
   if (job.lockedServiceDate) {
     return (
       <div style={{ marginTop: 8, background: C.tealLight, borderRadius: 8, padding: "9px 12px", fontSize: 12, color: C.pineDeep }}>
-        <div style={{ fontWeight: 700, marginBottom: 3 }}>📅 Service date: {formatDate(job.lockedServiceDate)} · Final price: ${Number(job.lockedFinalPrice).toFixed(2)}</div>
-        <div style={{ color: C.gray }}>
-          {viewerRole === "customer"
-            ? `Your card will be authorized for $${Number(job.lockedFinalPrice).toFixed(2)} 48 hours before your ${formatDate(job.lockedServiceDate)} service. You're only charged once the job is confirmed complete.`
-            : `The customer's card will be authorized 48 hours before the ${formatDate(job.lockedServiceDate)} service date, and captured once you both confirm the job complete.`}
-        </div>
+        <div style={{ fontWeight: 700 }}>📅 Service date confirmed: {formatDate(job.lockedServiceDate)}</div>
       </div>
     );
   }
@@ -118,18 +90,18 @@ export function ScheduleProposal({ job, viewerRole, viewerId, defaultPrice, onCh
         {stallBanner}
         <div style={{ marginTop: 8, background: C.sand, borderRadius: 8, padding: "9px 12px", fontSize: 12 }}>
           {isMine ? (
-            <div style={{ color: C.gray }}>⏳ You proposed {formatDate(pending.service_date)} · ${Number(pending.final_price).toFixed(2)} — waiting for the {otherRole} to confirm.</div>
+            <div style={{ color: C.gray }}>⏳ You proposed {formatDate(pending.service_date)} — waiting for the {otherRole} to confirm.</div>
           ) : (
             <>
               <div style={{ fontWeight: 700, color: C.pineDeep, marginBottom: 6 }}>
-                📅 The {pending.proposed_role} proposed {formatDate(pending.service_date)} · ${Number(pending.final_price).toFixed(2)}
+                📅 The {pending.proposed_role} proposed {formatDate(pending.service_date)}
               </div>
               <Btn size="sm" full={false} disabled={confirming} onClick={doConfirm}>{confirming ? "Confirming…" : "Confirm"}</Btn>
             </>
           )}
           {!showForm ? (
             <button onClick={() => setShowForm(true)} style={{ display: "block", background: "none", border: "none", color: C.teal, fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0, marginTop: 8 }}>
-              Propose a different date/price
+              Propose a different date
             </button>
           ) : proposeForm}
         </div>

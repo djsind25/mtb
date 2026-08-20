@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { C, sans, RADIUS, SHADOW_SM } from "../theme";
 import { Badge, Btn, Field } from "../ui/Primitives";
-import { proposeSchedule, confirmSchedule, customerAcknowledgeCompletion, loadJobPhotos, loadCompletionPhotos } from "../jobs/data";
+import { proposeSchedule, confirmSchedule, customerAcknowledgeCompletion, openDispute, loadJobPhotos, loadCompletionPhotos } from "../jobs/data";
 import { JobProgressGauge, stageForJob } from "../jobs/JobProgressGauge";
 
 const navBtnStyle = {
@@ -45,12 +45,14 @@ function Row({ label, value }) {
 export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer, viewerId, effectiveAmount, haulerCut, moneyState, isFull, deposit, balanceDue, onScheduleChanged, setToast }) {
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState("");
-  const [price, setPrice] = useState(String(effectiveAmount));
   const [submitting, setSubmitting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
   const [photos, setPhotos] = useState(null);
   const [openPhotoIndex, setOpenPhotoIndex] = useState(null);
+  const [reportingProblem, setReportingProblem] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [submittingDispute, setSubmittingDispute] = useState(false);
 
   const otherRole = viewer === "customer" ? "hauler" : "customer";
   const isMineProposal = pendingSchedule && pendingSchedule.proposed_by === viewerId;
@@ -65,6 +67,20 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
       setToast(e.message || "Could not acknowledge completion.");
     }
     setAcknowledging(false);
+  }
+
+  async function doOpenDispute() {
+    setSubmittingDispute(true);
+    try {
+      await openDispute({ jobId: chat.job_id, reason: disputeReason });
+      setToast("Reported — MyTrashBid support is reviewing this job. Release is on hold until it's resolved.");
+      setReportingProblem(false);
+      setDisputeReason("");
+      onScheduleChanged();
+    } catch (e) {
+      setToast(e.message || "Could not report this problem.");
+    }
+    setSubmittingDispute(false);
   }
 
   // Loaded once, lazily, the first time the viewer opens the gallery — combines the job's original
@@ -100,7 +116,7 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
   async function submitPropose() {
     setSubmitting(true);
     try {
-      await proposeSchedule({ jobId: chat.job_id, serviceDate: date, finalPrice: price });
+      await proposeSchedule({ jobId: chat.job_id, serviceDate: date });
       setToast("Proposed! This isn't locked in until the other side confirms.");
       setShowForm(false);
       onScheduleChanged();
@@ -123,10 +139,11 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
   }
 
   const scheduledDate = pendingSchedule ? pendingSchedule.service_date : chat.locked_service_date;
-  const latestPrice = pendingSchedule ? pendingSchedule.final_price : (chat.locked_final_price ?? chat.bid_amount);
+  // moneyState "authorized"/"captured" only ever apply to chats booked before this rework
+  // shipped — every job now charges in full at acceptance, so "held" covers every current booking.
   const paymentLabel = moneyState === "captured" ? "Captured"
     : moneyState === "authorized" ? "Authorized & held"
-    : isFull ? "No charge yet"
+    : isFull ? "Held by MyTrashBid"
     : "Deposit paid — balance due at completion";
 
   const cardStyle = { background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.lg, boxShadow: SHADOW_SM, padding: 16 };
@@ -140,11 +157,28 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
       <div style={cardStyle}>
         <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep, marginBottom: 10 }}>Job Progress</div>
         <JobProgressGauge stage={progressStage} />
-        {awaitingAcknowledgment && (
-          <div style={{ marginTop: 12 }}>
+        {awaitingAcknowledgment && !reportingProblem && (
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <Btn disabled={acknowledging} onClick={doAcknowledge}>
               {acknowledging ? "Confirming…" : "✓ Acknowledge job complete"}
             </Btn>
+            <Btn variant="ghost" disabled={acknowledging} onClick={() => setReportingProblem(true)}>
+              ⚠ Report a problem
+            </Btn>
+          </div>
+        )}
+        {awaitingAcknowledgment && reportingProblem && (
+          <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "10px 12px", marginTop: 12 }}>
+            <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 5 }}>What went wrong?</label>
+            <textarea value={disputeReason} onChange={e => setDisputeReason(e.target.value)} rows={3}
+              placeholder="Describe the problem — MyTrashBid support will review it before any release happens."
+              style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "8px 10px", fontSize: 12.5, fontFamily: "inherit", outline: "none", resize: "vertical", marginBottom: 10 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn variant="ghost" onClick={() => { setReportingProblem(false); setDisputeReason(""); }}>Cancel</Btn>
+              <Btn disabled={!disputeReason.trim() || submittingDispute} onClick={doOpenDispute}>
+                {submittingDispute ? "Reporting…" : "Report problem"}
+              </Btn>
+            </div>
           </div>
         )}
       </div>
@@ -153,7 +187,6 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
         <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep, marginBottom: 8 }}>Job details</div>
         <Row label="Status" value={STATUS_LABEL[moneyState]} />
         {isFull && <Row label="Scheduled date" value={formatDate(scheduledDate)} />}
-        {isFull && <Row label={pendingSchedule ? "Latest price (pending)" : "Final price"} value={`$${Number(latestPrice).toFixed(2)}`} />}
         <div style={{ padding: "7px 0", fontSize: 12.5, display: "flex", justifyContent: "space-between" }}>
           <span style={{ color: C.gray }}>Payment</span>
           <span style={{ fontWeight: 600, color: C.pineDeep }}>{paymentLabel}</span>
@@ -167,8 +200,8 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <span style={{ fontSize: 19, fontWeight: 700, color: C.pineDeep, fontVariantNumeric: "tabular-nums" }}>${Number(effectiveAmount).toFixed(2)} total</span>
           {moneyState === "legacyHeld" && <Badge color={C.teal} bg={C.tealLight}>Held by MyTrashBid</Badge>}
-          {moneyState === "coordinating" && <Badge color={C.gray} bg={C.grayLight}>No charge yet</Badge>}
-          {moneyState === "scheduled" && <Badge color={C.gray} bg={C.grayLight}>Scheduled</Badge>}
+          {moneyState === "coordinating" && <Badge color={C.teal} bg={C.tealLight}>Held by MyTrashBid</Badge>}
+          {moneyState === "scheduled" && <Badge color={C.teal} bg={C.tealLight}>Held by MyTrashBid</Badge>}
           {moneyState === "authorized" && <Badge color={C.teal} bg={C.tealLight}>Authorized</Badge>}
           {moneyState === "captured" && <Badge color={C.teal} bg={C.tealLight}>Captured</Badge>}
           {!isFull && <Badge color={C.teal} bg={C.tealLight}>Deposit paid</Badge>}
@@ -185,12 +218,14 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
               <span style={{ fontWeight: 700, color: C.pineDeep, fontVariantNumeric: "tabular-nums" }}>${balanceDue.toFixed(2)}</span>
             </div>
           </div>
-        ) : moneyState !== "coordinating" ? (
+        ) : (
           <div style={{ fontSize: 12, color: C.gray, marginTop: 8, display: "flex", justifyContent: "space-between" }}>
-            <span>{viewer === "hauler" ? "You receive at completion (90%)" : "Released to hauler at completion (90%)"}</span>
+            <span>{viewer === "hauler" ? "You receive at completion" : "Released to hauler at completion"}</span>
             <span style={{ fontWeight: 700, color: C.pineDeep, fontVariantNumeric: "tabular-nums" }}>${haulerCut.toFixed(2)}</span>
           </div>
-        ) : (
+        )}
+
+        {isFull && !chat.locked_service_date && (
           <>
             {chat.stalled_at ? (
               <div style={{ marginTop: 8, background: C.redLight, border: `1px solid ${C.red}55`, borderRadius: RADIUS.sm, padding: "8px 10px", fontSize: 11.5, color: C.red, fontWeight: 600 }}>
@@ -204,12 +239,12 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
 
             {pendingSchedule && !isMineProposal && (
               <div style={{ marginTop: 8, fontSize: 12, color: C.gray }}>
-                The {pendingSchedule.proposed_role} proposed {formatDate(pendingSchedule.service_date)} · ${Number(pendingSchedule.final_price).toFixed(2)} — waiting for you to confirm.
+                The {pendingSchedule.proposed_role} proposed {formatDate(pendingSchedule.service_date)} — waiting for you to confirm.
               </div>
             )}
             {pendingSchedule && isMineProposal && (
               <div style={{ marginTop: 8, fontSize: 12, color: C.gray }}>
-                You proposed {formatDate(pendingSchedule.service_date)} · ${Number(pendingSchedule.final_price).toFixed(2)} — waiting for the {otherRole} to confirm.
+                You proposed {formatDate(pendingSchedule.service_date)} — waiting for the {otherRole} to confirm.
               </div>
             )}
 
@@ -219,21 +254,18 @@ export function JobStatusPanel({ chat, pendingSchedule, scheduleHistory, viewer,
                   <Btn disabled={confirming} onClick={doConfirm}>{confirming ? "Confirming…" : "Confirm proposal"}</Btn>
                 )}
                 <Btn variant="ghost" onClick={() => setShowForm(true)}>
-                  {pendingSchedule ? "Propose a different date/price" : "Propose a service date"}
+                  {pendingSchedule ? "Propose a different date" : "Propose a service date"}
                 </Btn>
               </div>
             ) : (
               <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "10px 12px", marginTop: 10 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Field label="Service date" value={date} onChange={setDate} type="date" required />
-                  <Field label="Final price ($)" value={price} onChange={setPrice} type="number" required />
-                </div>
+                <Field label="Service date" value={date} onChange={setDate} type="date" required />
                 <div style={{ fontSize: 11, color: C.gray, marginBottom: 10 }}>
-                  This isn't binding until the {otherRole} confirms — nothing is charged until 48 hours before the service date.
+                  This isn't locked in until the {otherRole} confirms. Payment was already secured when the job was booked.
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn variant="ghost" onClick={() => setShowForm(false)}>Cancel</Btn>
-                  <Btn disabled={!date || !price || submitting} onClick={submitPropose}>{submitting ? "Proposing…" : "Propose to " + otherRole}</Btn>
+                  <Btn disabled={!date || submitting} onClick={submitPropose}>{submitting ? "Proposing…" : "Propose to " + otherRole}</Btn>
                 </div>
               </div>
             )}

@@ -49,6 +49,8 @@ const EVENT_SUBJECTS: Record<string, string> = {
   supportResolved: "Support request resolved",
   chatLocked: "Your conversation was locked",
   chatUnlocked: "Your conversation was unlocked",
+  disputeOpened: "A problem was reported on your job",
+  disputeResolved: "Your dispute was resolved",
 };
 
 export default {

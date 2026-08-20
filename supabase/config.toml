@@ -448,16 +448,16 @@ enabled = true
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 
-[functions.create-deposit-intent]
+[functions.create-booking-charge]
 enabled = true
 verify_jwt = false
-import_map = "./functions/create-deposit-intent/deno.json"
+import_map = "./functions/create-booking-charge/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/create-deposit-intent/index.ts"
+entrypoint = "./functions/create-booking-charge/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/create-deposit-intent/*.html" ]
+# static_files = [ "./functions/create-booking-charge/*.html" ]
 
 [functions.stripe-webhook]
 enabled = true
@@ -532,3 +532,9 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/send-mfa-email-code/deno.json"
 entrypoint = "./functions/send-mfa-email-code/index.ts"
+
+[functions.process-payout-release]
+enabled = true
+verify_jwt = false
+import_map = "./functions/process-payout-release/deno.json"
+entrypoint = "./functions/process-payout-release/index.ts"

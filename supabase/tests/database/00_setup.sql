@@ -30,6 +30,15 @@ select set_config('app.bypass_profile_guard', 'true', false);
 update profiles set role = 'hauler' where id = '22222222-2222-2222-2222-222222222222';
 update profiles set role = 'admin', admin_read_only = false where id = '44444444-4444-4444-4444-444444444444';
 update profiles set role = 'admin', admin_read_only = true where id = '55555555-5555-5555-5555-555555555555';
+-- bids_enforce_connect_onboarded (20260906000000_connect_onboarding.sql) blocks any bid insert
+-- for a hauler without a fully onboarded Stripe Connect account — pre-mark the fixture hauler as
+-- onboarded so existing test files that insert bids don't need their own workaround.
+update profiles set
+  stripe_connect_account_id = 'acct_pgtap_test',
+  stripe_connect_charges_enabled = true,
+  stripe_connect_payouts_enabled = true,
+  stripe_connect_onboarded_at = now()
+where id = '22222222-2222-2222-2222-222222222222';
 select set_config('app.bypass_profile_guard', 'false', false);
 
 insert into jobs (id, customer_id, title, zip, status, payment_mode)

@@ -774,6 +774,13 @@ export async function setAllowAdminFeeEdits(enabled) {
   if (error) throw rpcError(error);
 }
 
+// Same permission chain as setGlobalPlatformFeeRate (is_full_admin() + allow_admin_fee_edits) —
+// see set_service_fee_rate() in 20260906000000_connect_onboarding.sql.
+export async function setServiceFeeRate(rate) {
+  const { error } = await supabase.rpc("set_service_fee_rate", { p_rate: rate });
+  if (error) throw rpcError(error);
+}
+
 // Job/bid money limits — same platform_fee_config row, but super-admin-only with no
 // allow_admin_fee_edits delegation: these caps shape fraud/chargeback exposure directly, see
 // 20260819000000_money_policy_limits.sql.
@@ -986,6 +993,69 @@ export async function processCancellationRefund({ requestId, jobId, refundAmount
   if (error) {
     const message = error.context?.body ? (await error.context.json?.().catch(() => null))?.message : null;
     throw new Error(message || error.message || "Could not process refund.");
+  }
+  return data;
+}
+
+// Same shape as loadCancellationRequests — refundable/alreadyPaid are only meaningful (and only
+// fetched) for a still-open dispute; a resolved one already has its own recorded amounts.
+export async function loadDisputes() {
+  const { data: disputes, error } = await supabase.from("disputes").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  if (disputes.length === 0) return [];
+
+  const jobIds = [...new Set(disputes.map(d => d.job_id))];
+  const chatIds = [...new Set(disputes.map(d => d.chat_id))];
+  const [{ data: jobs, error: jobsError }, { data: chats, error: chatsError }] = await Promise.all([
+    supabase.from("jobs").select("id, title, zip").in("id", jobIds),
+    supabase.from("chats").select("id, customer_id, hauler_id, bid_amount, commission").in("id", chatIds),
+  ]);
+  if (jobsError) throw jobsError;
+  if (chatsError) throw chatsError;
+  const jobById = Object.fromEntries((jobs || []).map(j => [j.id, j]));
+  const chatById = Object.fromEntries((chats || []).map(c => [c.id, c]));
+
+  const peopleIds = [...new Set([...(chats || []).flatMap(c => [c.customer_id, c.hauler_id]), ...disputes.map(d => d.opened_by)])];
+  const { data: people, error: peopleError } = await supabase.from("public_profiles").select("id, name, business_name").in("id", peopleIds);
+  if (peopleError) throw peopleError;
+  const nameById = Object.fromEntries((people || []).map(p => [p.id, p.business_name || p.name]));
+
+  return Promise.all(disputes.map(async d => {
+    const chat = chatById[d.chat_id];
+    let refundable = null;
+    let alreadyPaid = 0;
+    if (d.status === "open" || d.status === "reviewing") {
+      const [{ data: charges, error: chargesError }, { data: payouts, error: payoutsError }] = await Promise.all([
+        supabase.rpc("job_refundable_charges", { p_job_id: d.job_id }),
+        supabase.rpc("job_reversible_payouts", { p_job_id: d.job_id }),
+      ]);
+      if (!chargesError) refundable = (charges || []).reduce((sum, c) => sum + Number(c.refundable), 0);
+      if (!payoutsError) alreadyPaid = (payouts || []).reduce((sum, p) => sum + Number(p.paid), 0);
+    }
+    return {
+      ...d,
+      jobTitle: jobById[d.job_id]?.title,
+      zip: jobById[d.job_id]?.zip,
+      customerId: chat?.customer_id,
+      haulerId: chat?.hauler_id,
+      customerName: chat ? nameById[chat.customer_id] : undefined,
+      haulerName: chat ? nameById[chat.hauler_id] : undefined,
+      openedByName: nameById[d.opened_by],
+      bidAmount: chat?.bid_amount,
+      haulerCut: chat ? chat.bid_amount - chat.commission : null,
+      refundable,
+      alreadyPaid,
+    };
+  }));
+}
+
+export async function processDisputeResolution({ disputeId, jobId, resolution, refundAmount, providerPayoutAmount, note }) {
+  const { data, error } = await supabase.functions.invoke("process-dispute-resolution", {
+    body: { disputeId, jobId, resolution, refundAmount, providerPayoutAmount, note },
+  });
+  if (error) {
+    const message = error.context?.body ? (await error.context.json?.().catch(() => null))?.message : null;
+    throw new Error(message || error.message || "Could not resolve this dispute.");
   }
   return data;
 }

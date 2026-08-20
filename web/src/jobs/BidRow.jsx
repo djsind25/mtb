@@ -3,39 +3,22 @@ import { C, sans, expiryLabel, isExpired, memberSinceLabel, RADIUS, SHADOW_SM } 
 import { Badge, Btn } from "../ui/Primitives";
 import { acceptBid } from "./data";
 import { AcceptBidPayment } from "./AcceptBidPayment";
-import { entitlementsFor } from "../membership";
 import { VERTICAL } from "../config/vertical";
 
 const { howWeVerify } = VERTICAL.vetting;
 
 const SHOW_MEMBER_SINCE = true;
 
-export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
+export function BidRow({ bid, jobId, onAccepted, setToast }) {
   const [starting, setStarting] = useState(false);
-  const [payment, setPayment] = useState(null); // { clientSecret, chatId, deposit, balanceDue }
+  const [payment, setPayment] = useState(null); // { clientSecret, chatId, bidAmount, serviceFee, totalCharge }
   const [showVerifyInfo, setShowVerifyInfo] = useState(false);
   const bidExpired = isExpired(bid.expires_at);
-  const isFull = paymentMode === "full";
-  // Display-only mirror of price_breakdown() — the server always recomputes this authoritatively
-  // in accept_bid(), this is purely so the customer sees the right numbers before they commit.
-  // Uses this specific hauler's tier entitlement rather than the flat global rate (wiring point
-  // 2/2 for membership tiers — currently every tier resolves to the same 0.10, see membership.js).
-  const commissionRate = entitlementsFor(bid.membershipTier).commissionRate;
-  const depositNow = isFull ? bid.amount : +(bid.amount * commissionRate).toFixed(2);
-  const balanceDue = isFull ? 0 : +(bid.amount - depositNow).toFixed(2);
 
   async function startAccept() {
     setStarting(true);
     try {
       const result = await acceptBid({ jobId, bidId: bid.id });
-      if (result.requiresPayment === false) {
-        // Full mode: nothing to pay yet — the job books immediately and opens into the
-        // coordination window (see ScheduleProposal). No Stripe step at all.
-        setToast("Job locked in! No money has moved yet — coordinate a service date and final price in chat.");
-        onAccepted(result.chatId);
-        setStarting(false);
-        return;
-      }
       setPayment(result);
     } catch (e) {
       setToast(e.message || "Could not start payment for this bid.");
@@ -45,9 +28,7 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
 
   function handlePaid() {
     setPayment(null);
-    setToast(isFull
-      ? `Job locked in! $${payment.deposit.toFixed(2)} is held securely by MyTrashBid and released to your hauler once the job is confirmed complete.`
-      : `Job locked in for $${payment.deposit.toFixed(2)} deposit! Chat unlocked. $${payment.balanceDue.toFixed(2)} due to your hauler at completion.`);
+    setToast(`Job locked in! $${payment.totalCharge.toFixed(2)} is held securely by MyTrashBid and released to your hauler once the job is confirmed complete.`);
     onAccepted(payment.chatId);
   }
 
@@ -86,32 +67,17 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
         <div style={{ fontSize: 12, color: C.red }}>This bid expired and can no longer be accepted. The hauler can renew it to reopen it.</div>
       ) : (
         <>
-          {isFull ? (
-            <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: C.gray }}>Full price — nothing charged until 48h before your scheduled date</span>
-                <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
-              </div>
+          <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: C.gray }}>Bid amount — charged in full to lock in</span>
+              <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${Number(bid.amount).toFixed(2)}</span>
             </div>
-          ) : (
-            <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "9px 11px", marginBottom: 10, fontSize: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ color: C.gray }}>Pay now to lock in (10% deposit)</span>
-                <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${depositNow.toFixed(2)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: C.gray }}>Pay hauler at completion</span>
-                <span style={{ fontFamily: sans, fontVariantNumeric: "tabular-nums", fontWeight: 700, color: C.pineDeep }}>${balanceDue.toFixed(2)}</span>
-              </div>
-            </div>
-          )}
+          </div>
           <Btn size="sm" disabled={starting} onClick={startAccept}>
-            {starting ? "Locking in…" : isFull ? "Accept — no payment yet" : `Lock in job for $${depositNow.toFixed(2)} deposit`}
+            {starting ? "Locking in…" : `Lock in job for $${Number(bid.amount).toFixed(2)}`}
           </Btn>
           <div style={{ fontSize: 10.5, color: C.gray, marginTop: 6, textAlign: "center" }}>
-            {isFull
-              ? "You'll coordinate a service date and final price in chat next — nothing is charged until 48 hours before that date."
-              : `The $${balanceDue.toFixed(2)} balance is paid directly to your hauler — cash, check, or their preferred method. This bid is the agreed price; haulers may not demand extra on-site for the same scope.`}
+            A service fee is added at checkout. Your payment is held securely by MyTrashBid and released to your hauler once the job is confirmed complete.
           </div>
         </>
       )}
@@ -119,8 +85,9 @@ export function BidRow({ bid, jobId, paymentMode, onAccepted, setToast }) {
       {payment && (
         <AcceptBidPayment
           clientSecret={payment.clientSecret}
-          depositLabel={`$${payment.deposit.toFixed(2)}`}
-          isFull={isFull}
+          bidAmount={payment.bidAmount}
+          serviceFee={payment.serviceFee}
+          totalCharge={payment.totalCharge}
           onSuccess={handlePaid}
           onCancel={() => setPayment(null)}
         />

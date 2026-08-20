@@ -159,6 +159,29 @@ export async function updateOwnProfile(id, fields) {
   if (error) throw error;
 }
 
+async function invokeConnectFunction(name) {
+  const { data, error } = await supabase.functions.invoke(name, { body: {} });
+  if (error) {
+    const message = error.context?.body ? (await error.context.json?.().catch(() => null))?.message : null;
+    throw new Error(message || error.message || "Could not reach Stripe onboarding.");
+  }
+  return data;
+}
+
+// Idempotent — safe to call again on a page refresh mid-onboarding; the Edge Function no-ops and
+// returns the existing accountId if one is already on file for this hauler.
+export async function createConnectAccount() {
+  const data = await invokeConnectFunction("create-connect-account");
+  return data; // { accountId }
+}
+
+// Returns a fresh Stripe-hosted onboarding URL. Reused for both the first onboarding attempt and
+// any later refresh (account-link URLs expire after a few minutes).
+export async function createConnectAccountLink() {
+  const data = await invokeConnectFunction("create-connect-account-link");
+  return data; // { url }
+}
+
 // smsConsent is only passed when the caller wants to change it — omitting it (undefined) leaves
 // the column untouched, so this can be called for a plain email-prefs save too. Turning consent
 // ON stamps sms_consent_at as the compliance record of when they last agreed; turning it OFF

@@ -28,5 +28,11 @@ export function mapProfileToSession(profile) {
     deletionReason: profile.deletion_reason,
     biddingRestricted: !!profile.bidding_restricted,
     postingRestricted: !!profile.posting_restricted,
+    stripeConnectAccountId: profile.stripe_connect_account_id || null,
+    // "Onboarded" is always re-derived from the two enabled flags, never from
+    // stripeConnectOnboardedAt alone — Stripe can flip a restricted account's flags back off
+    // after the fact, and the timestamp is only a first-onboarded audit marker.
+    connectOnboarded: !!profile.stripe_connect_charges_enabled && !!profile.stripe_connect_payouts_enabled,
+    stripeConnectDetailsSubmitted: !!profile.stripe_connect_details_submitted,
   };
 }

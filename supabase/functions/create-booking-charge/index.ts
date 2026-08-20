@@ -1,19 +1,21 @@
-// create-deposit-intent
+// create-booking-charge
 //
-// Called by a signed-in customer when they tap "Accept bid". Recomputes the price
-// server-side (via the accept_bid RPC — never trusts a client-supplied amount), books the
-// job, opens the chat, then creates a plain Stripe PaymentIntent for the 10% deposit.
+// Called by a signed-in customer when they tap "Accept bid". Recomputes the price server-side
+// (via the accept_bid RPC — never trusts a client-supplied amount), books the job, opens the
+// chat, then creates a plain Stripe PaymentIntent for the full bid amount plus the platform's
+// service fee.
 //
-// Per the Scope of Work, deposit mode is deposit-only: standard PaymentIntents, NOT Stripe
-// Connect. The full bid amount is never charged or held — only the deposit.
-//
-// Full-payment mode is different since the scheduling/authorization rework
-// (20260803000000_full_payment_scheduling.sql): accepting a bid no longer charges anything at
-// all — the job just opens into a coordination window. accept_bid() already skips inserting a
-// pending payments row for full mode, so there's nothing for this function to attach a
-// PaymentIntent to; it returns immediately with requiresPayment: false and the frontend skips
-// the Stripe step entirely (see AcceptBidPayment.jsx / BidRow.jsx). Money only moves later, via
-// perform_authorization()/finalize_completion() once a service date is locked.
+// Stripe Connect Express payment rework: this replaces the old deposit-only model (10% now, 90%
+// paid to the hauler off-platform) and the old "full payment" mode (nothing charged until a
+// simulated, non-Stripe authorize/capture near the service date — see the git history for
+// perform_authorization()/finalize_completion(), removed once nothing called them anymore). Now
+// every job is charged in full, for real, and captured immediately at acceptance —
+// `capture_method` is left at Stripe's default `automatic`. This is deliberate, not an oversight:
+// a job can have up to a 30-day window between booking and completion, and Stripe card
+// authorization holds don't reliably survive anywhere near that long. The money sits captured in
+// the platform's own Stripe balance (a plain PaymentIntent, not a destination charge) until a
+// later release step transfers the hauler's share to their Connect account once the customer
+// approves completion.
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
@@ -30,9 +32,9 @@ export default {
       return Response.json({ message: "jobId and bidId are required" }, { status: 400 });
     }
 
-    // Recomputes deposit/balance/commission from the DB and atomically books the job,
-    // opens the chat, and records a pending payment row. Runs as the caller (their JWT is
-    // forwarded), so accept_bid's internal auth.uid() check confirms they own the job.
+    // Recomputes bid/commission/service-fee from the DB and atomically books the job, opens the
+    // chat, and records a pending payment row. Runs as the caller (their JWT is forwarded), so
+    // accept_bid's internal auth.uid() check confirms they own the job.
     const { data: accepted, error: acceptError } = await ctx.supabase
       .rpc("accept_bid", { p_job_id: jobId, p_bid_id: bidId })
       .single();
@@ -41,24 +43,21 @@ export default {
       return Response.json({ message: acceptError?.message ?? "Could not accept bid" }, { status: 400 });
     }
 
-    const { chat_id: chatId, deposit, balance_due: balanceDue, commission, bid_amount: bidAmount, payment_mode: paymentMode } = accepted as {
-      chat_id: string; deposit: number; balance_due: number; commission: number; bid_amount: number; payment_mode: string;
+    const { chat_id: chatId, deposit: bidAmount, commission, service_fee: serviceFee } = accepted as {
+      chat_id: string; deposit: number; balance_due: number; commission: number; bid_amount: number; payment_mode: string; service_fee: number;
     };
-
-    if (paymentMode === "full") {
-      return Response.json({ requiresPayment: false, chatId, deposit, balanceDue, commission, bidAmount });
-    }
+    const totalCharge = bidAmount + serviceFee;
 
     try {
       const intent = await stripe.paymentIntents.create({
-        amount: Math.round(deposit * 100),
+        amount: Math.round(totalCharge * 100),
         currency: "usd",
         // allow_redirects: "never" — the frontend confirms with redirect: "if_required" and no
         // return_url; without this, Stripe would offer redirect-based methods (Klarna, Affirm,
-        // Amazon Pay) that require one, and confirmation fails. Those don't fit an escrow-hold
-        // model well anyway (refunding/holding works differently than a card); card, Cash App,
-        // and Link all still work fine with no redirect.
+        // Amazon Pay) that require one, and confirmation fails. Card, Cash App, and Link all
+        // still work fine with no redirect.
         automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+        transfer_group: `job_${jobId}`,
         metadata: { jobId, bidId, chatId, customerId: ctx.userClaims!.id },
       });
 
@@ -72,19 +71,17 @@ export default {
       return Response.json({
         clientSecret: intent.client_secret,
         chatId,
-        deposit,
-        balanceDue,
-        commission,
         bidAmount,
+        serviceFee,
+        totalCharge,
+        commission,
       });
     } catch (err) {
       // Stripe (or the follow-up DB write) failed after the job was already booked —
       // undo the booking so the customer isn't left stuck mid-flow and can retry.
       // rollback_bid_acceptance() runs the whole unwind (notifications, payments, chat, job
       // status) as one PL/pgSQL function body, so it's atomic — either the booking is fully
-      // reverted or none of it is, with no code-level ordering to get wrong (the previous four
-      // separate, unchecked supabaseAdmin calls could leave a job stuck 'booked' with no
-      // PaymentIntent if the process died partway through the unwind — audit finding M-3).
+      // reverted or none of it is.
       const { error: rollbackError } = await ctx.supabaseAdmin.rpc("rollback_bid_acceptance", {
         p_job_id: jobId,
         p_chat_id: chatId,
@@ -92,11 +89,11 @@ export default {
       if (rollbackError) {
         // The booking is now in an inconsistent state that automatic rollback couldn't fix —
         // surface loudly rather than returning a generic message that hides it.
-        console.error("create-deposit-intent: rollback_bid_acceptance failed after Stripe error:", rollbackError, "original error:", err);
+        console.error("create-booking-charge: rollback_bid_acceptance failed after Stripe error:", rollbackError, "original error:", err);
         return Response.json({ message: "Payment setup failed and automatic cleanup also failed. Contact support." }, { status: 500 });
       }
 
-      console.error("create-deposit-intent failed:", err);
+      console.error("create-booking-charge failed:", err);
       return Response.json({ message: "Payment setup failed. Please try accepting the bid again." }, { status: 502 });
     }
   }),

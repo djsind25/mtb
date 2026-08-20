@@ -159,6 +159,25 @@ export default {
         }
         break;
       }
+      case "account.updated": {
+        // Fired whenever a connected account's status changes — during onboarding as the hauler
+        // completes each step, and potentially later if Stripe restricts a previously-enabled
+        // account. Must go through apply_connect_account_status(), not a raw
+        // supabaseAdmin.from('profiles').update(...): guard_profile_self_update() has no
+        // service_role bypass, so a direct table write here would hit that trigger and fail.
+        const account = event.data.object as Stripe.Account;
+        const { error } = await ctx.supabaseAdmin.rpc("apply_connect_account_status", {
+          p_account_id: account.id,
+          p_charges_enabled: account.charges_enabled,
+          p_payouts_enabled: account.payouts_enabled,
+          p_details_submitted: account.details_submitted,
+        });
+        if (error) {
+          console.error(`stripe-webhook: apply_connect_account_status failed for ${account.id}:`, error);
+        }
+        ok = !error;
+        break;
+      }
       default:
         break; // unhandled event types are acknowledged and ignored
     }

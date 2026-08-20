@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { C, sans, RADIUS, SHADOW_SM } from "../theme";
 import { Btn, CenteredNote, Badge } from "../ui/Primitives";
 import { tierName } from "../membership";
-import { loadPlatformFeeConfig, setGlobalPlatformFeeRate, setTierPlatformFeeRate, setAllowAdminFeeEdits, setMinBidAmount, setMaxJobAmount } from "./data";
+import { loadPlatformFeeConfig, setGlobalPlatformFeeRate, setTierPlatformFeeRate, setAllowAdminFeeEdits, setServiceFeeRate, setMinBidAmount, setMaxJobAmount } from "./data";
 
 const TIERS = ["free", "pro", "premium"];
 
@@ -19,10 +19,12 @@ export function MoneyPolicyTab({ session, readOnly, setToast }) {
   const [config, setConfig] = useState(null);
   const [globalInput, setGlobalInput] = useState("");
   const [tierInputs, setTierInputs] = useState({ free: "", pro: "", premium: "" });
+  const [serviceFeeInput, setServiceFeeInput] = useState("");
   const [minBidInput, setMinBidInput] = useState("");
   const [maxJobInput, setMaxJobInput] = useState("");
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [savingTier, setSavingTier] = useState(null);
+  const [savingServiceFee, setSavingServiceFee] = useState(false);
   const [togglingEdits, setTogglingEdits] = useState(false);
   const [savingMinBid, setSavingMinBid] = useState(false);
   const [savingMaxJob, setSavingMaxJob] = useState(false);
@@ -31,6 +33,7 @@ export function MoneyPolicyTab({ session, readOnly, setToast }) {
     setConfig(cfg);
     setGlobalInput(pctInput(cfg.global_rate));
     setTierInputs({ free: pctInput(cfg.free_tier_rate), pro: pctInput(cfg.pro_tier_rate), premium: pctInput(cfg.premium_tier_rate) });
+    setServiceFeeInput(pctInput(cfg.service_fee_rate));
     setMinBidInput(String(cfg.min_bid_amount));
     setMaxJobInput(String(cfg.max_job_amount));
   }
@@ -84,6 +87,20 @@ export function MoneyPolicyTab({ session, readOnly, setToast }) {
       setToast(e.message || "Could not update this tier's fee.");
     }
     setSavingTier(null);
+  }
+
+  async function saveServiceFee() {
+    const rate = pctToRate(serviceFeeInput);
+    if (rate == null || rate < 0 || rate >= 1) { setToast("Enter a percentage between 0 and 100."); return; }
+    setSavingServiceFee(true);
+    try {
+      await setServiceFeeRate(rate);
+      await load();
+      setToast("Service fee updated.");
+    } catch (e) {
+      setToast(e.message || "Could not update the service fee.");
+    }
+    setSavingServiceFee(false);
   }
 
   async function toggleAdminEdits() {
@@ -173,6 +190,28 @@ export function MoneyPolicyTab({ session, readOnly, setToast }) {
           </div>
           {canEditFees && (
             <Btn size="sm" full={false} onClick={saveGlobal} disabled={savingGlobal}>{savingGlobal ? "Saving…" : "Save"}</Btn>
+          )}
+        </div>
+      </div>
+
+      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: RADIUS.md, boxShadow: SHADOW_SM, padding: "14px 16px", marginBottom: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.pineDeep, marginBottom: 4 }}>Service fee</div>
+        <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 10 }}>
+          Charged to the customer separately from the hauler's bid and the platform commission — covers
+          Stripe's processing cost so commission nets in full. Shown at checkout alongside the bid amount.
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ position: "relative" }}>
+            <input
+              type="number" step="0.01" min="0" max="99.99" value={serviceFeeInput}
+              onChange={e => setServiceFeeInput(e.target.value)}
+              disabled={!canEditFees || savingServiceFee}
+              style={{ width: 90, boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 8, padding: "8px 24px 8px 10px", fontSize: 14, fontFamily: sans, color: C.ink }}
+            />
+            <span style={{ position: "absolute", right: 8, top: 0, bottom: 0, display: "flex", alignItems: "center", color: C.gray, fontSize: 13, pointerEvents: "none" }}>%</span>
+          </div>
+          {canEditFees && (
+            <Btn size="sm" full={false} onClick={saveServiceFee} disabled={savingServiceFee}>{savingServiceFee ? "Saving…" : "Save"}</Btn>
           )}
         </div>
       </div>

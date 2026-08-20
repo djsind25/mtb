@@ -10,7 +10,7 @@ function formatDate(iso) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateBid, setToast, density = "card", dismissed = false, onDismiss, onUndismiss }) {
+export function HaulerJobCard({ job, myBid, haulerId, eligible, connectOnboarded, onBid, onUpdateBid, setToast, density = "card", dismissed = false, onDismiss, onUndismiss }) {
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -160,6 +160,10 @@ export function HaulerJobCard({ job, myBid, haulerId, eligible, onBid, onUpdateB
                 </button>
               </div>
             )
+          ) : !connectOnboarded ? (
+            <div style={{ fontSize: 12.5, color: C.gray, background: C.grayLight, borderRadius: RADIUS.sm, padding: "10px 12px" }}>
+              Complete Stripe payout setup before you can bid — see the banner at the top of your dashboard.
+            </div>
           ) : (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
