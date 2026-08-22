@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { C, sans, expiryLabel, isExpired, fullDateLabel, timelineMeta, RADIUS, SHADOW_SM, SHADOW_MD } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { AdminChatViewer } from "./AdminChatViewer";
@@ -9,6 +9,133 @@ import { CompletionPhotos } from "../jobs/CompletionPhotos";
 import { getOrCreateMySupportChat } from "../support/data";
 import { SupportChatThread } from "../support/SupportChatThread";
 import { VERTICAL } from "../config/vertical";
+import { supabase } from "../lib/supabaseClient";
+import { StepUpChallenge } from "../auth/StepUpChallenge";
+import { adminRemoveJob, adminFlagJobNeedsInfo, loadJobModerationHistory } from "./data";
+
+const MODERATION_LABEL = {
+  removed: { label: "Removed", color: C.red, bg: C.redLight },
+  flagged_needs_info: { label: "Flagged — needs info", color: C.amber, bg: C.amberLight },
+};
+
+// The admin moderation actions block: a badge for the job's current moderation_status, "Remove
+// job" / "Flag — needs more info" buttons (each gated by a required reason + StepUpChallenge,
+// same shape as AccountDeletionsTab's suspend/anonymize actions), and the append-only history
+// from job_moderation_audit_log. Kept as its own component so JobRowExpanded's already-large body
+// doesn't grow further, and so the history fetch only fires once a job has actually been
+// moderated at least once.
+function JobModerationPanel({ job, onChanged, setToast, readOnly }) {
+  const [reason, setReason] = useState("");
+  const [stepUp, setStepUp] = useState(null); // null | "remove" | "flag"
+  const [working, setWorking] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const moderation = MODERATION_LABEL[job.moderation_status];
+
+  useEffect(() => {
+    if (!showHistory || history !== null) return;
+    let cancelled = false;
+    loadJobModerationHistory(job.id).then(h => { if (!cancelled) setHistory(h); }).catch(() => { if (!cancelled) setHistory([]); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHistory]);
+
+  async function doRemove() {
+    setWorking(true);
+    try {
+      await adminRemoveJob(job.id, reason.trim());
+      setToast("Job removed — bidding haulers were notified.");
+      setReason("");
+      setHistory(null);
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not remove this job.");
+    }
+    setWorking(false);
+  }
+
+  async function doFlag() {
+    setWorking(true);
+    try {
+      await adminFlagJobNeedsInfo(job.id, reason.trim());
+      setToast("Job flagged — the customer can add info and resubmit.");
+      setReason("");
+      setHistory(null);
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not flag this job.");
+    }
+    setWorking(false);
+  }
+
+  return (
+    <div style={{ background: C.sand, borderRadius: RADIUS.sm, padding: "10px 12px", marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: moderation ? 6 : 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.pineDeep }}>Moderation</span>
+        {moderation && <Badge color={moderation.color} bg={moderation.bg}>{moderation.label}</Badge>}
+      </div>
+
+      {job.moderation_reason && (
+        <div style={{ fontSize: 12, color: C.ink, marginBottom: 8, fontStyle: "italic" }}>"{job.moderation_reason}"</div>
+      )}
+
+      {!readOnly && !moderation && (
+        <>
+          {job.status === "booked" ? (
+            <div style={{ fontSize: 11.5, color: C.gray }}>
+              This job is booked — use the Cancellation Requests review flow to moderate it, not Remove.
+            </div>
+          ) : (
+            <>
+              <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (required)"
+                style={{ width: "100%", boxSizing: "border-box", border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "6px 8px", fontSize: 12.5, fontFamily: "inherit", marginBottom: 6 }} />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Btn size="sm" full={false} variant="danger" disabled={working || !reason.trim()} onClick={() => setStepUp("remove")}>
+                  Remove job
+                </Btn>
+                {job.status === "open" && (
+                  <Btn size="sm" full={false} variant="ghost" disabled={working || !reason.trim()} onClick={() => setStepUp("flag")}>
+                    Flag — needs more info
+                  </Btn>
+                )}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      <button onClick={() => setShowHistory(s => !s)} style={{ background: "none", border: "none", padding: 0, marginTop: 8, color: C.teal, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: sans }}>
+        {showHistory ? "Hide" : "Show"} moderation history
+      </button>
+      {showHistory && (
+        <div style={{ marginTop: 6 }}>
+          {history === null && <div style={{ fontSize: 11.5, color: C.gray }}>Loading…</div>}
+          {history?.length === 0 && <div style={{ fontSize: 11.5, color: C.gray }}>No moderation events on this job.</div>}
+          {history?.map(h => (
+            <div key={h.id} style={{ fontSize: 11.5, color: C.gray, padding: "4px 0", borderTop: `1px solid ${C.line}` }}>
+              <strong style={{ color: C.pineDeep }}>{h.action}</strong> · {new Date(h.created_at).toLocaleString()}
+              {h.reason && ` — "${h.reason}"`}
+              {h.bidder_count > 0 && ` · ${h.bidder_count} hauler${h.bidder_count === 1 ? "" : "s"} notified`}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {stepUp && (
+        <StepUpChallenge
+          supabase={supabase}
+          onVerified={() => {
+            const action = stepUp;
+            setStepUp(null);
+            if (action === "remove") doRemove();
+            else if (action === "flag") doFlag();
+          }}
+          onCancel={() => setStepUp(null)}
+        />
+      )}
+    </div>
+  );
+}
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -44,6 +171,11 @@ export function JobRow({ job, onClick }) {
     >
       <span style={{ color: C.ink, fontWeight: 600 }}>{job.title}</span>
       <div style={{ display: "flex", gap: 6 }}>
+        {MODERATION_LABEL[job.moderation_status] && (
+          <Badge color={MODERATION_LABEL[job.moderation_status].color} bg={MODERATION_LABEL[job.moderation_status].bg}>
+            {MODERATION_LABEL[job.moderation_status].label}
+          </Badge>
+        )}
         {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge>}
         <Badge color={job.status === "booked" ? C.teal : C.ember} bg={job.status === "booked" ? C.tealLight : C.emberLight}>{job.status}</Badge>
       </div>
@@ -51,7 +183,7 @@ export function JobRow({ job, onClick }) {
   );
 }
 
-export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnly }) {
+export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnly, onChanged }) {
   const [open, setOpen] = useState(false);
   const [viewingChat, setViewingChat] = useState(false);
   const [messagingChatId, setMessagingChatId] = useState(null);
@@ -102,6 +234,11 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
           )}
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {MODERATION_LABEL[job.moderation_status] && (
+            <Badge color={MODERATION_LABEL[job.moderation_status].color} bg={MODERATION_LABEL[job.moderation_status].bg}>
+              {MODERATION_LABEL[job.moderation_status].label}
+            </Badge>
+          )}
           {timeline && <Badge color={timeline.color} bg={timeline.bg}>{timeline.label}</Badge>}
           {job.status === "open" && <Badge color={jobExpired ? C.red : C.gray} bg={jobExpired ? C.redLight : C.grayLight}>{expiryLabel(job.expires_at, { renewable: true })}</Badge>}
           <Badge color={job.status === "booked" ? C.teal : C.ember} bg={job.status === "booked" ? C.tealLight : C.emberLight}>{job.status}</Badge>
@@ -112,6 +249,7 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
           <p style={{ fontSize: 13, color: C.gray, marginTop: 0, marginBottom: 12, lineHeight: 1.5 }}>
             {job.description || "No description provided."}
           </p>
+          <JobModerationPanel job={job} onChanged={onChanged || (() => {})} setToast={setToast} readOnly={readOnly} />
           {session && !readOnly && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
               <Btn size="sm" full={false} variant="ghost" disabled={startingMessage === "customer"}

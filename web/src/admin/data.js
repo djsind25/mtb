@@ -421,6 +421,22 @@ export async function loadUserJobs(userId, role) {
   return attachBidsAndScheduling(jobs);
 }
 
+export async function adminRemoveJob(jobId, reason) {
+  const { error } = await supabase.rpc("admin_remove_job", { p_job_id: jobId, p_reason: reason, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+export async function adminFlagJobNeedsInfo(jobId, reason) {
+  const { error } = await supabase.rpc("admin_flag_job_needs_info", { p_job_id: jobId, p_reason: reason, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
+
+export async function loadJobModerationHistory(jobId) {
+  const { data, error } = await supabase.rpc("job_moderation_history", { p_job_id: jobId });
+  if (error) throw rpcError(error);
+  return data;
+}
+
 export async function loadFlaggedMessages() {
   const { data: msgs, error } = await supabase.from("messages").select("*").not("flag_type", "is", null).order("created_at", { ascending: false });
   if (error) throw error;

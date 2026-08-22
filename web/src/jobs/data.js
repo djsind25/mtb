@@ -385,6 +385,11 @@ export async function renewJob(jobId) {
   if (error) throw error;
 }
 
+export async function resolveJobFlagAndResubmit(jobId) {
+  const { error } = await supabase.rpc("resolve_job_flag_and_resubmit", { p_job_id: jobId });
+  if (error) throw error;
+}
+
 export async function renewBid(bidId) {
   const { error } = await supabase.rpc("renew_bid", { p_bid_id: bidId });
   if (error) throw error;

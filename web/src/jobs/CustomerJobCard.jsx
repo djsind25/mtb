@@ -5,7 +5,7 @@ import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
 import { JobQuestions } from "./JobQuestions";
 import { JobUpdates } from "./JobUpdates";
-import { addJobPhotos } from "./data";
+import { addJobPhotos, resolveJobFlagAndResubmit } from "./data";
 import { CompletionPhotos } from "./CompletionPhotos";
 import { TimelinePicker } from "./TimelinePicker";
 import { SwitchHaulerPicker } from "./SwitchHaulerPicker";
@@ -51,6 +51,7 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
   const [pendingTimelineDate, setPendingTimelineDate] = useState(job.timeline_date);
   const [savingTimeline, setSavingTimeline] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
   const bids = job.bids || [];
   const canSwitchHauler = job.status === "booked" && !job.completed && !job.haulerDoneAt && !job.pendingCancellation
     && job.payment_mode === "full" && bids.some(b => b.id !== job.accepted_bid_id);
@@ -59,6 +60,18 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
   // first_posted_at is stamped once at creation and never touched by renew_job() — created_at
   // keeps meaning "last (re)posted", so it only differs from first_posted_at once renewed.
   const wasRenewed = job.first_posted_at && job.created_at && job.first_posted_at !== job.created_at;
+
+  async function doResubmit() {
+    setResubmitting(true);
+    try {
+      await resolveJobFlagAndResubmit(job.id);
+      setToast("Resubmitted! Your listing is live again for another 14 days.");
+      onScheduleChanged();
+    } catch (e) {
+      setToast(e.message || "Could not resubmit this listing.");
+    }
+    setResubmitting(false);
+  }
 
   async function saveTimeline() {
     setSavingTimeline(true);
@@ -91,10 +104,12 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.pineDeep, marginBottom: 4 }}>{job.title}</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               <Badge
-                color={job.status === "open" ? C.ember : job.status === "pending_verification" ? C.amber : job.status === "cancelled" ? C.gray : job.haulerDoneAt && !job.completed ? C.amber : C.teal}
-                bg={job.status === "open" ? C.emberLight : job.status === "pending_verification" ? C.amber + "22" : job.status === "cancelled" ? C.grayLight : job.haulerDoneAt && !job.completed ? C.amberLight : C.tealLight}
+                color={job.moderation_status === "removed" ? C.red : job.moderation_status === "flagged_needs_info" ? C.amber : job.status === "open" ? C.ember : job.status === "pending_verification" ? C.amber : job.status === "cancelled" ? C.gray : job.haulerDoneAt && !job.completed ? C.amber : C.teal}
+                bg={job.moderation_status === "removed" ? C.redLight : job.moderation_status === "flagged_needs_info" ? C.amberLight : job.status === "open" ? C.emberLight : job.status === "pending_verification" ? C.amber + "22" : job.status === "cancelled" ? C.grayLight : job.haulerDoneAt && !job.completed ? C.amberLight : C.tealLight}
               >
-                {job.status === "open" ? `${bids.length} bid${bids.length !== 1 ? "s" : ""}`
+                {job.moderation_status === "removed" ? "Removed by MyTrashBid"
+                  : job.moderation_status === "flagged_needs_info" ? "Needs more info"
+                  : job.status === "open" ? `${bids.length} bid${bids.length !== 1 ? "s" : ""}`
                   : job.status === "pending_verification" ? "Verify email to activate"
                   : job.status === "cancelled" ? "Cancelled"
                   : job.haulerDoneAt && !job.completed ? "Open to Acknowledge Completion"
@@ -155,7 +170,31 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
             </div>
           )}
 
-          {job.status === "pending_verification" ? (
+          {job.moderation_status === "removed" ? (
+            <div>
+              <div style={{ fontSize: 13, color: C.red, fontWeight: 600, marginBottom: 6 }}>
+                This job was removed by MyTrashBid.
+              </div>
+              {job.moderation_reason && (
+                <div style={{ fontSize: 12.5, color: C.ink, fontStyle: "italic" }}>"{job.moderation_reason}"</div>
+              )}
+            </div>
+          ) : job.moderation_status === "flagged_needs_info" ? (
+            <div>
+              <div style={{ fontSize: 13, color: C.ink, fontWeight: 600, marginBottom: 6 }}>
+                ⚠ This job needs more information before it can go live again.
+              </div>
+              {job.moderation_reason && (
+                <div style={{ fontSize: 12.5, color: C.ink, fontStyle: "italic", marginBottom: 10 }}>"{job.moderation_reason}"</div>
+              )}
+              <div style={{ fontSize: 12, color: C.gray, marginBottom: 10 }}>
+                Add the missing details using "Add job details" above, then resubmit.
+              </div>
+              <Btn variant="dark" full={false} disabled={resubmitting} onClick={doResubmit}>
+                {resubmitting ? "Resubmitting…" : "Edit and resubmit"}
+              </Btn>
+            </div>
+          ) : job.status === "pending_verification" ? (
             <div>
               <div style={{ fontSize: 13, color: C.ink, fontWeight: 600, marginBottom: 10 }}>
                 ⚠ Check your email and click the verification link to make this post visible to haulers.
