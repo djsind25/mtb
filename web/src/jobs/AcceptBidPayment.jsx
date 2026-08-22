@@ -29,6 +29,9 @@ function PayForm({ onSuccess, onCancel, totalLabel }) {
         <Btn variant="ghost" type="button" onClick={onCancel}>Cancel</Btn>
         <Btn type="submit" disabled={!stripe || submitting}>{submitting ? "Processing…" : `Pay ${totalLabel} & lock in`}</Btn>
       </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 12, fontSize: 11, color: C.gray }}>
+        🔒 Payments secured by <span style={{ fontWeight: 700, color: C.ink }}>Stripe</span> — MyTrashBid never sees or stores your card details.
+      </div>
     </form>
   );
 }
@@ -60,7 +63,7 @@ export function AcceptBidPayment({ clientSecret, bidAmount, serviceFee, totalCha
           </div>
         </div>
         <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 16 }}>
-          Held securely by MyTrashBid and released to your hauler once the job is confirmed complete on both ends — hauler and customer.
+          Processed securely by Stripe and held by MyTrashBid until the job is confirmed complete on both ends — hauler and customer.
         </div>
         <Elements stripe={getStripe()} options={{ clientSecret }}>
           <PayForm onSuccess={onSuccess} onCancel={onCancel} totalLabel={totalLabel} />

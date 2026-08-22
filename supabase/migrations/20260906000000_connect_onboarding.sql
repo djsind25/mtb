@@ -119,6 +119,7 @@ begin
 end;
 $$;
 revoke execute on function apply_connect_account_status(text, boolean, boolean, boolean) from public;
+grant execute on function apply_connect_account_status(text, boolean, boolean, boolean) to service_role;
 
 -- One-time-set by the create-connect-account Edge Function right after stripe.accounts.create().
 create function set_own_connect_account_id(p_account_id text) returns void

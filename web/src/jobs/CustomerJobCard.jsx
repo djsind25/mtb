@@ -209,7 +209,7 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
                     <Btn variant="teal" full={false} onClick={() => onOpenChat(job.chatId)}>Open chat</Btn>
                   </div>
                   <div style={{ fontSize: 10.5, color: C.gray, marginTop: 6 }}>
-                    If you don't respond, this auto-confirms after 7 days.
+                    If you don't respond, this auto-confirms after 48 hours.
                   </div>
                 </div>
               ) : (

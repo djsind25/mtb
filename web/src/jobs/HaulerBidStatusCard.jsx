@@ -159,7 +159,7 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
             <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 6, paddingTop: 12, marginBottom: 4 }}>
               <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 8 }}>
                 You marked this complete on {new Date(job.haulerDoneAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.
-                {" "}Waiting on the customer to acknowledge — it auto-confirms after 7 days if they don't respond.
+                {" "}Waiting on the customer to acknowledge — it auto-confirms after 48 hours if they don't respond.
               </div>
               <CompletionPhotos jobId={job.id} />
             </div>
