@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { C, expiryLabel, isExpired, fullDateLabel, timelineMeta, RADIUS, SHADOW_SM } from "../theme";
+import { C, expiryLabel, isExpired, fullDateLabel, timelineMeta, RADIUS, SHADOW_SM, SHADOW_MD } from "../theme";
 import { Badge, Btn, CenteredNote } from "../ui/Primitives";
 import { BidRow } from "./BidRow";
 import { JobPhotos } from "./JobPhotos";
@@ -13,6 +13,8 @@ import { RequestCancellationControl } from "./RequestCancellationControl";
 import { ResolveBidRevisionControl } from "./ResolveBidRevisionControl";
 import { ScheduleProposal } from "./ScheduleProposal";
 import { JobProgressGauge, stageForJob } from "./JobProgressGauge";
+import { getOrCreateMySupportChat } from "../support/data";
+import { SupportChatThread } from "../support/SupportChatThread";
 
 export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancellationChanged, onOpenChat, onRenewJob, onResendVerification, onUpdateTimeline, onAcknowledge, onRevisionResolved, onScheduleChanged, setToast, highlighted = false }) {
   const [expanded, setExpanded] = useState(false);
@@ -52,6 +54,8 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
   const [savingTimeline, setSavingTimeline] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [resubmitting, setResubmitting] = useState(false);
+  const [supportChatId, setSupportChatId] = useState(null);
+  const [openingSupport, setOpeningSupport] = useState(false);
   const bids = job.bids || [];
   const canSwitchHauler = job.status === "booked" && !job.completed && !job.haulerDoneAt && !job.pendingCancellation
     && job.payment_mode === "full" && bids.some(b => b.id !== job.accepted_bid_id);
@@ -71,6 +75,17 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
       setToast(e.message || "Could not resubmit this listing.");
     }
     setResubmitting(false);
+  }
+
+  async function openJobSupport() {
+    setOpeningSupport(true);
+    try {
+      const chat = await getOrCreateMySupportChat(session.id, job.id);
+      setSupportChatId(chat.id);
+    } catch (e) {
+      setToast(e.message || "Could not open support chat.");
+    }
+    setOpeningSupport(false);
   }
 
   async function saveTimeline() {
@@ -313,6 +328,27 @@ export function CustomerJobCard({ job, session, onAccepted, onSwitched, onCancel
               </div>
             </div>
           )}
+
+          <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 14, paddingTop: 12 }}>
+            <Btn size="sm" full={false} variant="ghost" disabled={openingSupport} onClick={openJobSupport}>
+              {openingSupport ? "Opening…" : "🛟 Contact support about this job"}
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {supportChatId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: C.sand, borderRadius: RADIUS.lg, boxShadow: SHADOW_MD, width: "100%", maxWidth: 480, maxHeight: "88vh", padding: 16, boxSizing: "border-box" }}>
+            <SupportChatThread
+              supportChatId={supportChatId}
+              viewerRole="customer"
+              viewerId={session.id}
+              title={`MyTrashBid Support — ${job.title}`}
+              onClose={() => setSupportChatId(null)}
+              setToast={setToast}
+            />
+          </div>
         </div>
       )}
     </div>

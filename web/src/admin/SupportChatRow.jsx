@@ -12,7 +12,11 @@ export function SupportChatRow({ chat, onOpen }) {
           <span style={{ fontWeight: 700, fontSize: 13.5, color: C.pineDeep }}>{chat.requesterName || chat.sender_email || "Unknown"}</span>
           <Badge color={C.gray} bg={C.grayLight}>{chat.requesterRole || "guest"}</Badge>
           {chat.status === "closed" && <Badge color={C.red} bg={C.redLight}>closed</Badge>}
+          {chat.needsReply && <Badge color={C.ember} bg={C.emberLight}>needs reply</Badge>}
         </div>
+        {chat.jobTitle && (
+          <div style={{ fontSize: 11, color: C.teal, fontWeight: 600, marginBottom: 2 }}>📦 {chat.jobTitle}</div>
+        )}
         {chat.lastMessagePreview && (
           <div style={{ fontSize: 12, color: C.gray, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 400 }}>
             {chat.lastMessagePreview}

@@ -11,7 +11,7 @@ import { SupportChatThread } from "../support/SupportChatThread";
 import { VERTICAL } from "../config/vertical";
 import { supabase } from "../lib/supabaseClient";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
-import { adminRemoveJob, adminFlagJobNeedsInfo, loadJobModerationHistory } from "./data";
+import { adminRemoveJob, adminFlagJobNeedsInfo, loadJobModerationHistory, loadJobSupportChats } from "./data";
 
 const MODERATION_LABEL = {
   removed: { label: "Removed", color: C.red, bg: C.redLight },
@@ -189,6 +189,8 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
   const [messagingChatId, setMessagingChatId] = useState(null);
   const [messagingLabel, setMessagingLabel] = useState("");
   const [startingMessage, setStartingMessage] = useState(null); // null | "customer" | "hauler"
+  const [jobSupportChats, setJobSupportChats] = useState(null); // null = not loaded yet
+  const [messagingIsJobThread, setMessagingIsJobThread] = useState(false);
   const jobExpired = job.status === "open" && isExpired(job.expires_at);
   const timeline = timelineMeta(job.timeline, job.timeline_date);
   const acceptedBid = (job.bids || []).find(b => b.id === job.accepted_bid_id);
@@ -196,12 +198,28 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
   // keeps meaning "last (re)posted", so it only differs from first_posted_at once renewed.
   const wasRenewed = job.first_posted_at && job.created_at && job.first_posted_at !== job.created_at;
 
+  // Lazy-loaded on first expand rather than up front for every row in the jobs list.
+  useEffect(() => {
+    if (!open || jobSupportChats !== null) return;
+    let cancelled = false;
+    loadJobSupportChats(job.id).then(chats => { if (!cancelled) setJobSupportChats(chats); });
+    return () => { cancelled = true; };
+  }, [open, job.id, jobSupportChats]);
+
+  function viewJobSupportChat(chat) {
+    const role = chat.participant_role === "hauler" ? VERTICAL.roles.hauler.label : VERTICAL.roles.customer.label;
+    setMessagingChatId(chat.id);
+    setMessagingLabel(`Job support thread — ${role} ${chat.requesterName || "Unknown"}`);
+    setMessagingIsJobThread(true);
+  }
+
   async function startMessage(userId, label, which) {
     setStartingMessage(which);
     try {
       const chat = await getOrCreateMySupportChat(userId);
       setMessagingChatId(chat.id);
       setMessagingLabel(label);
+      setMessagingIsJobThread(false);
     } catch (e) {
       setToast?.(e.message || "Could not start a conversation.");
     }
@@ -264,6 +282,34 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
               )}
             </div>
           )}
+          {/* Threads the customer or hauler opened themselves via "Contact support about this job" —
+              a separate, always-available line from the shared chat above ("Message customer/hauler"
+              is admin proactively reaching out; this is the reverse). Admin reads/replies but never
+              creates one of these, so there's nothing to show until one exists. */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.pineDeep, marginBottom: 6 }}>Support threads for this job</div>
+            {jobSupportChats === null ? (
+              <div style={{ fontSize: 11.5, color: C.gray }}>Loading…</div>
+            ) : jobSupportChats.length === 0 ? (
+              <div style={{ fontSize: 11.5, color: C.gray }}>No customer or hauler has opened a support thread for this job yet.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                {jobSupportChats.map(c => (
+                  <button key={c.id} onClick={() => viewJobSupportChat(c)} style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+                    background: C.sand, border: `1px solid ${C.line}`, borderRadius: RADIUS.sm, padding: "7px 10px",
+                    fontSize: 12, cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                  }}>
+                    <span>
+                      <strong style={{ color: C.pineDeep }}>{c.participant_role === "hauler" ? VERTICAL.roles.hauler.label : VERTICAL.roles.customer.label}</strong>
+                      {" "}— {c.requesterName || "Unknown"}
+                    </span>
+                    {c.status === "closed" ? <Badge color={C.gray} bg={C.grayLight}>closed</Badge> : <Badge color={C.teal} bg={C.tealLight}>open</Badge>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <JobPhotos jobId={job.id} />
           {job.status === "booked" && <CompletionPhotos jobId={job.id} />}
           <JobUpdates jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
@@ -316,8 +362,8 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
               supportChatId={messagingChatId}
               viewerRole="admin"
               viewerId={session?.id}
-              title={`Message to ${messagingLabel}`}
-              onClose={() => setMessagingChatId(null)}
+              title={messagingIsJobThread ? messagingLabel : `Message to ${messagingLabel}`}
+              onClose={() => { setMessagingChatId(null); if (messagingIsJobThread) setJobSupportChats(null); }}
               setToast={setToast}
             />
           </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { C, sans, expiryLabel, isExpired, daysLeft, fullDateLabel, RADIUS, SHADOW_SM } from "../theme";
+import { C, sans, expiryLabel, isExpired, daysLeft, fullDateLabel, RADIUS, SHADOW_SM, SHADOW_MD } from "../theme";
 import { Badge, Btn } from "../ui/Primitives";
 import { CompletionPhotos } from "./CompletionPhotos";
 import { JobPhotos } from "./JobPhotos";
@@ -10,6 +10,8 @@ import { ProposeBidRevisionControl } from "./ProposeBidRevisionControl";
 import { ScheduleProposal } from "./ScheduleProposal";
 import { ReviewPanel } from "../chat/ReviewPanel";
 import { JobProgressGauge, stageForJob } from "./JobProgressGauge";
+import { getOrCreateMySupportChat } from "../support/data";
+import { SupportChatThread } from "../support/SupportChatThread";
 
 export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenChat, onRenewBid, onMarkDone, onCancellationChanged, onRevisionProposed, onScheduleChanged, setToast, highlighted = false }) {
   const myBid = job.myBid;
@@ -38,8 +40,21 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
   const [counts, setCounts] = useState({ before: 0, after: 0 });
   const [marking, setMarking] = useState(false);
   const [showQna, setShowQna] = useState(false);
+  const [supportChatId, setSupportChatId] = useState(null);
+  const [openingSupport, setOpeningSupport] = useState(false);
   const canMarkDone = counts.before > 0 && counts.after > 0;
   const cardRef = useRef(null);
+
+  async function openJobSupport() {
+    setOpeningSupport(true);
+    try {
+      const chat = await getOrCreateMySupportChat(session.id, job.id);
+      setSupportChatId(chat.id);
+    } catch (e) {
+      setToast?.(e.message || "Could not open support chat.");
+    }
+    setOpeningSupport(false);
+  }
 
   // Deep-link target from Total Earned — scroll this card into view once when it's the one
   // being landed on. highlighted itself auto-clears on a timer in HaulerDashboard.
@@ -195,6 +210,27 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
             <RequestCancellationControl job={job} onRequested={onCancellationChanged} setToast={setToast} />
           )}
         </>
+      )}
+
+      <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 10, paddingTop: 10 }}>
+        <Btn size="sm" full={false} variant="ghost" disabled={openingSupport} onClick={openJobSupport}>
+          {openingSupport ? "Opening…" : "🛟 Contact support about this job"}
+        </Btn>
+      </div>
+
+      {supportChatId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(22,35,45,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: C.sand, borderRadius: RADIUS.lg, boxShadow: SHADOW_MD, width: "100%", maxWidth: 480, maxHeight: "88vh", padding: 16, boxSizing: "border-box" }}>
+            <SupportChatThread
+              supportChatId={supportChatId}
+              viewerRole="hauler"
+              viewerId={session.id}
+              title={`MyTrashBid Support — ${job.title}`}
+              onClose={() => setSupportChatId(null)}
+              setToast={setToast}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

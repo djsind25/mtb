@@ -174,9 +174,16 @@ export function AdminDashboard({ session, setToast }) {
   const sortedHaulerDocs = [...haulerDocs].sort((a, b) => (a.status === "pending") === (b.status === "pending") ? 0 : a.status === "pending" ? -1 : 1);
   const pendingDocCount = haulerDocs.filter(d => d.status === "pending").length;
 
-  const openSupportChats = supportChats.filter(c => c.status === "open");
-  const closedSupportChats = supportChats.filter(c => c.status === "closed");
-  const visibleSupportChats = supportSubTab === "open" ? openSupportChats : supportSubTab === "closed" ? closedSupportChats : supportChats;
+  // General ("Contact Administrator") tickets vs. per-job support threads ("Contact support about
+  // this job") are two distinct entry points that happen to share one table — split them here so
+  // neither queue shows the other's tickets.
+  const generalSupportChats = supportChats.filter(c => !c.job_id);
+  const jobSupportChats = supportChats.filter(c => c.job_id);
+  const openSupportChats = generalSupportChats.filter(c => c.status === "open");
+  const closedSupportChats = generalSupportChats.filter(c => c.status === "closed");
+  const visibleSupportChats = supportSubTab === "open" ? openSupportChats : supportSubTab === "closed" ? closedSupportChats : generalSupportChats;
+  const openJobSupportChats = jobSupportChats.filter(c => c.status === "open");
+  const jobSupportNeedsReplyCount = jobSupportChats.filter(c => c.needsReply).length;
 
   const completionsNeedingReview = completedJobs.filter(c => !c.admin_reviewed_at).length;
   const pendingCancellationCount = cancellationRequests.filter(r => r.status === "pending").length;
@@ -236,6 +243,7 @@ export function AdminDashboard({ session, setToast }) {
       id: "support", label: "Safety & support", tabs: [
         { id: "flags", label: "Flagged messages", count: unreviewedFlagCount },
         { id: "chatSupport", label: "Job chat support", count: openChatSupportCount },
+        { id: "jobSupportThreads", label: "Job support threads", count: openJobSupportChats.length },
         { id: "support", label: "Chat tickets", count: openSupportChats.length },
       ],
     },
@@ -251,6 +259,7 @@ export function AdminDashboard({ session, setToast }) {
     { id: "docs", label: "Hauler documents", description: "License or insurance submissions to check", count: pendingDocCount },
     { id: "completed", label: "Completion reviews", description: "Completed jobs awaiting admin review", count: completionsNeedingReview },
     { id: "chatSupport", label: "Job chat support", description: "Active job conversations asking for help", count: openChatSupportCount },
+    { id: "jobSupportThreads", label: "Job support threads", description: "Customer/hauler questions tied to a specific job, waiting on a reply", count: jobSupportNeedsReplyCount },
     { id: "support", label: "Open chat tickets", description: "General support conversations to pick up", count: openSupportChats.length },
     { id: "profileChanges", label: "Profile changes", description: "Vetting details awaiting approval", count: pendingProfileChangeCount },
     { id: "accountDeletions", label: "Account deletions", description: "Accounts in the deletion workflow", count: accountDeletionQueue.length },
@@ -631,6 +640,37 @@ export function AdminDashboard({ session, setToast }) {
             ))}
           </div>
         </Panel>
+      )}
+
+      {tab === "jobSupportThreads" && (
+        activeSupportChatId ? (
+          <SupportChatThread
+            supportChatId={activeSupportChatId}
+            viewerRole="admin"
+            viewerId={session.id}
+            title={(() => {
+              const c = jobSupportChats.find(sc => sc.id === activeSupportChatId);
+              if (!c) return "Support thread";
+              const role = c.participant_role || c.requesterRole || "guest";
+              return `${c.jobTitle || "Job"} — ${c.requesterName || "Unknown"} (${role})`;
+            })()}
+            onClose={() => { setActiveSupportChatId(null); loadAll(); }}
+            setToast={setToast}
+            readOnly={readOnly}
+          />
+        ) : (
+          <Panel title="Job support threads">
+            <p style={{ fontSize: 12, color: C.gray, marginBottom: 12 }}>
+              Threads a customer or hauler opened with "Contact support about this job" — separate
+              from the shared customer↔hauler chat (see "Job chat support") and from general
+              "Contact Administrator" tickets (see "Chat tickets").
+            </p>
+            <div style={{ display: "grid", gap: 8 }}>
+              {jobSupportChats.length === 0 && <CenteredNote>No job support threads yet.</CenteredNote>}
+              {jobSupportChats.map(c => <SupportChatRow key={c.id} chat={c} onOpen={setActiveSupportChatId} />)}
+            </div>
+          </Panel>
+        )
       )}
 
       {tab === "support" && (

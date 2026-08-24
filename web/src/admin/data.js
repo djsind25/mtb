@@ -437,6 +437,26 @@ export async function loadJobModerationHistory(jobId) {
   return data;
 }
 
+// Every support_chats row scoped to this job — the customer's own thread, plus one per hauler who
+// opened one (an open job can have several bidders, each entitled to ask their own question; see
+// get_or_create_job_support_chat()). Admin never creates these, only reads/replies, so this is a
+// plain select, not an RPC — is_admin() already covers it under support_chats_select.
+export async function loadJobSupportChats(jobId) {
+  const { data: chats, error } = await supabase.from("support_chats").select("*").eq("job_id", jobId).order("created_at", { ascending: false });
+  if (error) throw rpcError(error);
+  if (chats.length === 0) return [];
+
+  const profileIds = [...new Set(chats.map(c => c.user_id).filter(Boolean))];
+  const { data: profiles, error: profilesError } = await supabase.from("public_profiles").select("id, name, business_name, role").in("id", profileIds);
+  if (profilesError) throw rpcError(profilesError);
+  const profileById = Object.fromEntries(profiles.map(p => [p.id, p]));
+
+  return chats.map(c => ({
+    ...c,
+    requesterName: profileById[c.user_id]?.business_name || profileById[c.user_id]?.name,
+  }));
+}
+
 export async function loadFlaggedMessages() {
   const { data: msgs, error } = await supabase.from("messages").select("*").not("flag_type", "is", null).order("created_at", { ascending: false });
   if (error) throw error;
