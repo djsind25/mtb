@@ -830,6 +830,39 @@ export async function setMaxJobAmount(amount) {
   if (error) throw rpcError(error);
 }
 
+// ─── Hauler-side platform-fee discount codes ─────────────────────────────────────────────────────
+
+export async function adminCreateDiscountCode(code, discountValue, expiresAt, maxRedemptions) {
+  const { error } = await supabase.rpc("admin_create_discount_code", {
+    p_code: code, p_discount_value: discountValue, p_expires_at: expiresAt || null,
+    p_max_redemptions: maxRedemptions || null, p_client_user_agent: navigator.userAgent,
+  });
+  if (error) throw rpcError(error);
+}
+
+export async function adminSetDiscountCodeActive(codeId, active) {
+  const { error } = await supabase.rpc("admin_set_discount_code_active", { p_code_id: codeId, p_active: active });
+  if (error) throw rpcError(error);
+}
+
+export async function loadAdminDiscountCodes() {
+  const { data, error } = await supabase.rpc("admin_list_discount_codes");
+  if (error) throw rpcError(error);
+  return data || [];
+}
+
+export async function loadAdminDiscountCodeRedemptions(codeId) {
+  const { data, error } = await supabase.rpc("admin_discount_code_redemptions", { p_code_id: codeId });
+  if (error) throw rpcError(error);
+  return data || [];
+}
+
+export async function loadAdminDiscountProgramStats() {
+  const { data, error } = await supabase.rpc("admin_discount_program_stats");
+  if (error) throw rpcError(error);
+  return data?.[0] || { total_codes: 0, total_redemptions: 0, total_saved: 0 };
+}
+
 // Allowed 2FA methods (passkey/totp/email — no SMS) — see 20260829000000_2fa_additional_methods.sql.
 // Read directly off the table (RLS: any admin, view-only included, can select); the mutation is
 // super-admin-only, same posture as the money limits above.

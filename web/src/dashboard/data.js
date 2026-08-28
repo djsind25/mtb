@@ -312,3 +312,39 @@ export async function submitHaulerDocument({ haulerId, docType, file, expiresAt 
   });
   if (error) throw error;
 }
+
+// ─── Hauler-side platform-fee discount codes ─────────────────────────────────────────────────────
+
+export async function redeemHaulerDiscountCode(code) {
+  const { error } = await supabase.rpc("redeem_hauler_discount_code", { p_code: code });
+  if (error) throw Object.assign(new Error(parseRpcError(error).message), { code: parseRpcError(error).code });
+}
+
+// null = no code currently pending. applied_chat_id set = already reserved to an in-flight job,
+// waiting on it to complete (not shown as "used" yet — that only happens once it's truly consumed).
+export async function loadMyPendingDiscount() {
+  const { data, error } = await supabase
+    .from("hauler_discount_pending")
+    .select("created_at, applied_chat_id, discount_codes(code, discount_value)")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    code: data.discount_codes.code,
+    discountValue: data.discount_codes.discount_value,
+    appliedChatId: data.applied_chat_id,
+    createdAt: data.created_at,
+  };
+}
+
+export async function loadMyDiscountHistory() {
+  const { data, error } = await supabase
+    .from("discount_redemptions")
+    .select("id, original_rate, discounted_rate, amount_saved, created_at, jobs(title)")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data.map(r => ({
+    id: r.id, jobTitle: r.jobs?.title, originalRate: r.original_rate,
+    discountedRate: r.discounted_rate, amountSaved: r.amount_saved, createdAt: r.created_at,
+  }));
+}

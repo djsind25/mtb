@@ -10,6 +10,7 @@ import {
 } from "./data";
 import { loadChangeOrdersEnabled } from "../jobs/data";
 import { HaulerDocuments } from "./HaulerDocuments";
+import { HaulerDiscountCode } from "./HaulerDiscountCode";
 import { InstallPrompt } from "./InstallPrompt";
 import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
 import { isPushSupported, pushPermission, getCurrentPushSubscription, subscribeToPush, unsubscribeFromPush } from "../lib/push";
@@ -502,6 +503,8 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
           </div>
         </section>
       )}
+
+      {session.role === "hauler" && <HaulerDiscountCode setToast={setToast} />}
 
       <section>
         <div style={sectionTitle}>Two-factor authentication</div>
