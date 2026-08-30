@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { C, sans, RADIUS, SHADOW_SM, fullDateLabel } from "../theme";
 import { Badge, Btn, Field, CenteredNote } from "../ui/Primitives";
 import {
-  createRecruitingLead, updateRecruitingLead, loadRecruitingLeadActivity, addRecruitingLeadNote,
+  createRecruitingLead, updateRecruitingLead, deleteRecruitingLead, loadRecruitingLeadActivity, addRecruitingLeadNote,
   linkRecruitingLead, unlinkRecruitingLead, searchHaulerAccounts,
 } from "./data";
 
@@ -117,6 +117,8 @@ function LeadDetail({ lead, onChanged, setToast, readOnly }) {
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
   const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadRecruitingLeadActivity(lead.id).then(setActivity).catch(() => setActivity([]));
@@ -159,6 +161,18 @@ function LeadDetail({ lead, onChanged, setToast, readOnly }) {
       onChanged();
     } catch (e) {
       setToast(e.message || "Could not unlink.");
+    }
+  }
+
+  async function doDelete() {
+    setDeleting(true);
+    try {
+      await deleteRecruitingLead(lead.id);
+      setToast("Lead deleted.");
+      onChanged();
+    } catch (e) {
+      setToast(e.message || "Could not delete this lead.");
+      setDeleting(false);
     }
   }
 
@@ -228,6 +242,20 @@ function LeadDetail({ lead, onChanged, setToast, readOnly }) {
           </div>
         )}
       </div>
+
+      {!readOnly && (
+        <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 6, paddingTop: 10 }}>
+          {!confirmingDelete ? (
+            <Btn size="sm" full={false} variant="danger" onClick={() => setConfirmingDelete(true)}>Delete lead</Btn>
+          ) : (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11.5, color: C.gray }}>Permanently delete this lead and its activity log?</span>
+              <Btn size="sm" full={false} variant="ghost" onClick={() => setConfirmingDelete(false)}>Cancel</Btn>
+              <Btn size="sm" full={false} variant="danger" onClick={doDelete} disabled={deleting}>{deleting ? "Deleting…" : "Yes, delete"}</Btn>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

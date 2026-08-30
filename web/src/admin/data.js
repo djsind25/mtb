@@ -1266,6 +1266,11 @@ export async function updateRecruitingLead(id, fields) {
   if (error) throw error;
 }
 
+export async function deleteRecruitingLead(id) {
+  const { error } = await supabase.from("hauler_recruiting_leads").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function loadRecruitingLeadActivity(leadId) {
   const { data, error } = await supabase.from("hauler_lead_activity_log")
     .select("*").eq("lead_id", leadId).order("created_at", { ascending: false });
