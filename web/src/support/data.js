@@ -65,7 +65,14 @@ export async function loadSupportChats() {
     if (!lastMsgByChatId[m.support_chat_id]) lastMsgByChatId[m.support_chat_id] = m;
   }
 
-  return chats.map(c => {
+  // getOrCreateMySupportChat() (and its job-scoped counterpart) insert the row the moment the
+  // "Contact Administrator" / "Contact support about this job" panel is opened, before anyone has
+  // typed anything — someone who opens it and closes it without sending a message leaves behind a
+  // permanent row with zero messages. That's not a real ticket: nothing to review, nothing to
+  // reply to, and it was inflating the admin "open chat tickets" count with chats no customer ever
+  // actually used. Filtered out here, at the source, rather than in AdminDashboard's queue math, so
+  // every screen this feeds (open/closed/all, general and per-job) agrees.
+  return chats.filter(c => !!lastMsgByChatId[c.id]).map(c => {
     const requester = profileById[c.user_id];
     const lastMsg = lastMsgByChatId[c.id];
     return {
