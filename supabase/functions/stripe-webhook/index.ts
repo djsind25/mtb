@@ -31,6 +31,12 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
 });
 const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
+// account.updated arrives from a second, Connect-scoped endpoint (`connect: true` in Stripe) —
+// Stripe only delivers connected-account events to endpoints created with that scope, separate
+// from the platform's own account-events endpoint above, and signs each endpoint's deliveries
+// with that endpoint's own secret. Both endpoints point at this same function, so a valid
+// delivery from either one must be accepted.
+const connectWebhookSecret = Deno.env.get("STRIPE_CONNECT_WEBHOOK_SECRET") ?? "";
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
 // Applies `status` to the payments row identified by `matchColumn`/`matchValue`, but only if its
@@ -87,9 +93,13 @@ export default {
     let event: Stripe.Event;
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature ?? "", webhookSecret, undefined, cryptoProvider);
-    } catch (err) {
-      console.error("stripe-webhook signature verification failed:", err);
-      return Response.json({ message: "Invalid signature" }, { status: 400 });
+    } catch (accountErr) {
+      try {
+        event = await stripe.webhooks.constructEventAsync(body, signature ?? "", connectWebhookSecret, undefined, cryptoProvider);
+      } catch (connectErr) {
+        console.error("stripe-webhook signature verification failed against both secrets:", accountErr, connectErr);
+        return Response.json({ message: "Invalid signature" }, { status: 400 });
+      }
     }
 
     // Idempotency gate — record this event.id before doing anything else. A unique-violation on
