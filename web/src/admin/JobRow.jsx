@@ -310,7 +310,10 @@ export function JobRowExpanded({ job, onViewCustomer, session, setToast, readOnl
               </div>
             )}
           </div>
-          <JobPhotos jobId={job.id} />
+          {/* Once booked, CompletionPhotos below already merges these same customer photos into
+              its own gallery (labeled "Customer photo") alongside before/after — showing this
+              standalone strip too would just duplicate them. */}
+          {job.status !== "booked" && <JobPhotos jobId={job.id} />}
           {job.status === "booked" && <CompletionPhotos jobId={job.id} />}
           <JobUpdates jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />
           <JobQuestions jobId={job.id} viewerRole="admin" jobOpen={job.status === "open" && !jobExpired} />

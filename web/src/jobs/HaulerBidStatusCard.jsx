@@ -101,8 +101,11 @@ export function HaulerBidStatusCard({ job, session, changeOrdersEnabled, onOpenC
       )}
       {job.description && <p style={{ fontSize: 12.5, color: C.gray, marginBottom: 10, lineHeight: 1.5 }}>{job.description}</p>}
       {/* Same album the customer can add to from chat mid-conversation — this card never showed
-          it before, so anything added post-booking was invisible from "My Bids". */}
-      <JobPhotos jobId={job.id} />
+          it before, so anything added post-booking was invisible from "My Bids". Only shown here
+          for non-won jobs (pending/lost/cancelled) — once won, CompletionPhotos below already
+          merges these same photos into its gallery (labeled "Customer photo"), so showing this
+          standalone strip too would just duplicate them. */}
+      {!won && <JobPhotos jobId={job.id} />
       {/* Once a job books it drops out of Browse Jobs entirely, so this is the only place a
           winning hauler can still see the Q&A/updates history — read-only once not open. Uses
           the job's own expiry (matching job_is_open_for_bid, the real server-side gate), not the

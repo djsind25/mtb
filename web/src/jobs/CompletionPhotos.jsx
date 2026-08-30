@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { C, nowStr } from "../theme";
-import { loadCompletionPhotos, uploadCompletionPhotos, deleteCompletionPhoto } from "./data";
+import { loadCompletionPhotos, uploadCompletionPhotos, deleteCompletionPhoto, loadJobPhotos } from "./data";
 
 // Compact "7/31 2:45pm" stamp for the thumbnail/lightbox overlay — nowStr's fuller format ("Jul 31,
 // 2:45 PM") is used for the lightbox caption line instead, where there's room for it.
@@ -13,6 +13,20 @@ function stampTime(iso) {
 // The on-image "stamp" burned onto the bottom of a photo — phase, timestamp, and geotag (or "no
 // loc") — so each photo is self-descriptive on its own, independent of which upload button it
 // came from or which section it's grouped under.
+// Customer photos (the job's own posting photos) have no phase of their own in job_photos — they
+// arrive tagged phase:"customer" by the merge in CompletionPhotos below, purely for this stamp/
+// lightbox's benefit. They also never carry lat/lng (job_photos has no such columns), so the
+// location half of the stamp is skipped for them instead of always reading "no loc".
+function stampLabel(phase) {
+  return phase === "before" ? "BEFORE" : phase === "after" ? "AFTER" : "CUSTOMER PHOTO";
+}
+function captionLabel(phase) {
+  return phase === "before" ? "Before" : phase === "after" ? "After" : "Customer photo";
+}
+function stampColor(phase) {
+  return phase === "before" ? C.amber : phase === "after" ? C.teal : C.slate;
+}
+
 function PhotoStamp({ p }) {
   return (
     <div style={{
@@ -20,11 +34,11 @@ function PhotoStamp({ p }) {
       background: "linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0))",
       display: "flex", flexDirection: "column", gap: 1, pointerEvents: "none",
     }}>
-      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 0.3, color: p.phase === "before" ? C.amber : C.teal }}>
-        {p.phase === "before" ? "BEFORE" : "AFTER"}
+      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 0.3, color: stampColor(p.phase) }}>
+        {stampLabel(p.phase)}
       </span>
       <span style={{ fontSize: 7.5, color: "#fff" }}>
-        {stampTime(p.created_at)} · {p.lat != null ? "📍" : "no loc"}
+        {stampTime(p.created_at)}{p.phase !== "customer" ? ` · ${p.lat != null ? "📍" : "no loc"}` : ""}
       </span>
     </div>
   );
@@ -40,6 +54,12 @@ function PhotoStamp({ p }) {
 // above) so which button it came from is always visible on the photo itself.
 export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
   const [photos, setPhotos] = useState(null);
+  // The job's own posting photos — loaded separately (a different table/bucket) and merged into
+  // the same gallery below, tagged phase:"customer", so this is the one place a hauler sees the
+  // full picture of a job (what the customer posted, plus their own before/after) instead of the
+  // job photos sitting in an unlabeled strip elsewhere on the card. onChange (which gates "can
+  // mark done" on before/after counts) only ever sees the completion-photos half, never these.
+  const [customerPhotos, setCustomerPhotos] = useState(null);
   const [openIndex, setOpenIndex] = useState(null);
   const [uploading, setUploading] = useState(null); // 'before' | 'after' | null
   const beforeInput = useRef(null);
@@ -57,7 +77,16 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
 
   useEffect(() => { reload(); }, [reload]);
 
-  const flat = photos || [];
+  useEffect(() => {
+    let cancelled = false;
+    loadJobPhotos(jobId).then(p => { if (!cancelled) setCustomerPhotos(p); }).catch(() => setCustomerPhotos([]));
+    return () => { cancelled = true; };
+  }, [jobId]);
+
+  const flat = [
+    ...(customerPhotos || []).map(p => ({ ...p, phase: "customer" })),
+    ...(photos || []),
+  ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const close = useCallback(() => setOpenIndex(null), []);
   const prev = useCallback(() => setOpenIndex(i => (i - 1 + flat.length) % flat.length), [flat.length]);
   const next = useCallback(() => setOpenIndex(i => (i + 1) % flat.length), [flat.length]);
@@ -94,7 +123,7 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
     }
   }
 
-  if (photos === null) return null;
+  if (photos === null || customerPhotos === null) return null;
   const editable = !!haulerId;
   if (!editable && flat.length === 0) return null;
 
@@ -128,13 +157,15 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
               <img src={p.url} alt={p.original_name || ""} loading="lazy" style={{ width: 84, height: 84, objectFit: "cover", display: "block" }} />
               <PhotoStamp p={p} />
             </button>
-            {editable && (
+            {/* Customer photos are never hauler-deletable, even in editable mode — this gallery
+                just displays them, deleteCompletionPhoto only ever targets job_completion_photos. */}
+            {editable && p.phase !== "customer" && (
               <button onClick={() => removePhoto(p)} aria-label="Remove" style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: C.red, color: C.paper, border: "none", fontSize: 11, cursor: "pointer" }}>×</button>
             )}
           </div>
         ))}
       </div>
-      {editable && flat.length === 0 && (
+      {editable && (photos || []).length === 0 && (
         <div style={{ fontSize: 11, color: C.gray, marginBottom: 6 }}>No photos yet — add at least one before and one after photo.</div>
       )}
       {editable && (
@@ -147,7 +178,8 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
         <div onClick={close} style={{ position: "fixed", inset: 0, background: "rgba(15,23,20,0.92)", zIndex: 2000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <button onClick={close} aria-label="Close" style={{ position: "absolute", top: 18, right: 20, background: "none", border: "none", color: "#fff", fontSize: 30, cursor: "pointer", lineHeight: 1 }}>×</button>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 10 }}>
-            {flat[openIndex].phase === "before" ? "Before" : "After"} · 🕐 {nowStr(flat[openIndex].created_at)} · {flat[openIndex].lat != null ? `📍 ${flat[openIndex].lat.toFixed(5)}, ${flat[openIndex].lng.toFixed(5)}` : "no location"}
+            {captionLabel(flat[openIndex].phase)} · 🕐 {nowStr(flat[openIndex].created_at)}
+            {flat[openIndex].phase !== "customer" && ` · ${flat[openIndex].lat != null ? `📍 ${flat[openIndex].lat.toFixed(5)}, ${flat[openIndex].lng.toFixed(5)}` : "no location"}`}
           </div>
           <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 12, maxWidth: "100%", maxHeight: "78vh" }}>
             {flat.length > 1 && <button onClick={prev} aria-label="Previous" style={navBtnStyle}>‹</button>}
@@ -157,11 +189,11 @@ export function CompletionPhotos({ jobId, haulerId, onChange, setToast }) {
                 position: "absolute", left: 0, right: 0, bottom: 0, padding: "8px 12px", borderRadius: "0 0 10px 10px",
                 background: "linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0))", display: "flex", flexDirection: "column", gap: 2,
               }}>
-                <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.5, color: flat[openIndex].phase === "before" ? C.amber : C.teal }}>
-                  {flat[openIndex].phase === "before" ? "BEFORE" : "AFTER"}
+                <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.5, color: stampColor(flat[openIndex].phase) }}>
+                  {stampLabel(flat[openIndex].phase)}
                 </span>
                 <span style={{ fontSize: 11, color: "#fff" }}>
-                  {stampTime(flat[openIndex].created_at)} · {flat[openIndex].lat != null ? `📍 ${flat[openIndex].lat.toFixed(5)}, ${flat[openIndex].lng.toFixed(5)}` : "no location"}
+                  {stampTime(flat[openIndex].created_at)}{flat[openIndex].phase !== "customer" ? ` · ${flat[openIndex].lat != null ? `📍 ${flat[openIndex].lat.toFixed(5)}, ${flat[openIndex].lng.toFixed(5)}` : "no location"}` : ""}
                 </span>
               </div>
             </div>

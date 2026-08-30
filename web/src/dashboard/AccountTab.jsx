@@ -145,6 +145,58 @@ const PUSH_EVENT_LABELS = {
 const sectionTitle = { fontSize: 15, fontWeight: 700, color: C.pineDeep, marginBottom: 12 };
 const checkboxRow = { display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.ink, marginBottom: 8, cursor: "pointer" };
 
+// Haulers have a real Stripe Connect Express account to report on (connected/pending/verified);
+// customers don't — they're never issued a Stripe Customer object, since checkout charges a plain
+// PaymentIntent with no saved payment method (see create-booking-charge) — so their side is just a
+// short informational note rather than a status to check.
+function StripeAccountInfo({ session, profile }) {
+  if (session.role !== "hauler") {
+    return (
+      <section>
+        <div style={sectionTitle}>Payments</div>
+        <p style={{ fontSize: 12.5, color: C.gray, lineHeight: 1.6, margin: 0 }}>
+          🔒 Payments are processed securely by Stripe. MyTrashBid never sees or stores your card details — Stripe handles them directly at checkout.
+        </p>
+      </section>
+    );
+  }
+
+  const connected = !!profile.stripe_connect_account_id;
+  const verified = connected && profile.stripe_connect_charges_enabled && profile.stripe_connect_payouts_enabled;
+
+  return (
+    <section>
+      <div style={sectionTitle}>Stripe payout account</div>
+      {!connected ? (
+        <>
+          <Badge color={C.gray} bg={C.grayLight}>Not connected</Badge>
+          <p style={{ fontSize: 12.5, color: C.gray, marginTop: 10, marginBottom: 0 }}>
+            Set up payouts with Stripe from the banner at the top of your dashboard — you'll need this connected before you can bid.
+          </p>
+        </>
+      ) : verified ? (
+        <>
+          <Badge color={C.teal} bg={C.tealLight}>✓ Verified</Badge>
+          <div style={{ fontSize: 12.5, color: C.ink, marginTop: 10, lineHeight: 1.6 }}>
+            Payouts enabled{profile.stripe_connect_onboarded_at ? ` since ${new Date(profile.stripe_connect_onboarded_at).toLocaleDateString()}` : ""}.
+            <br />
+            Account ending •••• {profile.stripe_connect_account_id.slice(-6)}
+          </div>
+        </>
+      ) : (
+        <>
+          <Badge color={C.amber} bg={C.amberLight}>Pending verification</Badge>
+          <p style={{ fontSize: 12.5, color: C.gray, marginTop: 10, marginBottom: 0 }}>
+            {profile.stripe_connect_details_submitted
+              ? "Stripe is reviewing your details — this can take anywhere from a few minutes to a few days."
+              : "You've started but haven't finished — pick up where you left off from the banner at the top of your dashboard."}
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 export function AccountTab({ session, setToast, onOpenEarnings }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -503,6 +555,8 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
           </div>
         </section>
       )}
+
+      <StripeAccountInfo session={session} profile={profile} />
 
       {session.role === "hauler" && <HaulerDiscountCode setToast={setToast} />}
 
