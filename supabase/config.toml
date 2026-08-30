@@ -497,6 +497,12 @@ verify_jwt = false
 import_map = "./functions/send-account-deletion-email/deno.json"
 entrypoint = "./functions/send-account-deletion-email/index.ts"
 
+[functions.send-account-suspension-email]
+enabled = true
+verify_jwt = false
+import_map = "./functions/send-account-suspension-email/deno.json"
+entrypoint = "./functions/send-account-suspension-email/index.ts"
+
 [functions.receive-inbound-email]
 enabled = true
 verify_jwt = false

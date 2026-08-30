@@ -1,15 +1,21 @@
 // send-account-deletion-email
 //
 // Internal endpoint: fired (fire-and-forget, via pg_net) by dispatch_account_deletion_email()
-// from request_own_account_deletion / admin_start_deletion (kind: "requested") and
-// cancel_own_pending_deletion / admin_cancel_pending_deletion (kind: "cancelled"). Not meant to be
-// called by end users — auth is a shared secret header, checked manually below, same shape as
-// send-verification-email.
+// from request_own_account_deletion (kind: "requested"), admin_start_deletion
+// (kind: "requested_admin"), and cancel_own_pending_deletion / admin_cancel_pending_deletion
+// (kind: "cancelled"). Not meant to be called by end users — auth is a shared secret header,
+// checked manually below, same shape as send-verification-email.
 //
 // "requested" covers both the "deletion confirmation" and "deletion scheduled" emails named in
 // the spec in one send, since in this app's actual flow the request and the 30-day scheduling
 // happen atomically in the same RPC call — sending two separate emails for the same instant would
 // just be noise. No email is sent at anonymization time (nothing left to reliably email by then).
+//
+// "requested_admin" is its own kind, not a shared branch with "requested" — a self-service
+// request reads as "we've received your request," which is exactly wrong tone for a moderation
+// action nobody asked for. It also deliberately omits the "log back in to cancel" framing
+// "requested" uses; inviting a moderated account to self-reverse the action doesn't make sense
+// even though cancel_own_pending_deletion technically still works either way.
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
@@ -32,7 +38,7 @@ export default {
     }
 
     const { profileId, kind } = await req.json().catch(() => ({}));
-    if (!profileId || (kind !== "requested" && kind !== "cancelled")) {
+    if (!profileId || (kind !== "requested" && kind !== "requested_admin" && kind !== "cancelled")) {
       return Response.json({ message: "profileId and a valid kind are required" }, { status: 400 });
     }
 
@@ -55,6 +61,8 @@ export default {
 
     const subject = kind === "requested"
       ? "Your MyTrashBid account is scheduled for deletion"
+      : kind === "requested_admin"
+      ? "Your MyTrashBid account has been deleted"
       : "Your account deletion request was cancelled";
 
     const html = kind === "requested"
@@ -63,6 +71,12 @@ export default {
         `<p>Your account is scheduled to be permanently anonymized on ` +
         `<strong>${profile.deletion_scheduled_for ? new Date(profile.deletion_scheduled_for).toLocaleDateString() : "the scheduled date"}</strong>.</p>` +
         `<p>Until then, you can log back in at any time to cancel this request and keep your account active.</p>`
+      : kind === "requested_admin"
+      ? `<h2>Hi${greeting},</h2>` +
+        `<p>Your MyTrashBid account has been deleted because it does not comply with our Community Standards.</p>` +
+        `<p>If you believe this decision was made in error, please contact our support team at ` +
+        `<a href="mailto:support@mytrashbid.com">support@mytrashbid.com</a> for assistance.</p>` +
+        `<p>— The MyTrashBid Team</p>`
       : `<h2>Hi${greeting},</h2>` +
         `<p>Your MyTrashBid account deletion request has been cancelled — your account is back to normal.</p>` +
         `<p>If you didn't request this, please contact support right away.</p>`;
