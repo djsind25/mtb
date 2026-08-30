@@ -2,18 +2,32 @@ import { useEffect, useRef, useState } from "react";
 import { C, nowStr } from "../theme";
 import { CenteredNote, Btn } from "../ui/Primitives";
 import { supabase } from "../lib/supabaseClient";
-import { loadSupportMessages, sendSupportMessage, closeSupportChat } from "./data";
+import { loadSupportMessages, sendSupportMessage, closeSupportChat, loadSupportChatStatus, reopenSupportChat } from "./data";
 
 export function SupportChatThread({ supportChatId, viewerRole, viewerId, title, onClose, setToast, readOnly }) {
   const [messages, setMessages] = useState(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [closing, setClosing] = useState(false);
-  // Only ever reachable by an admin from the open-tickets queue, so 'open' is always the correct
-  // starting point — this local flag then tracks the admin's own close action, and flips back if
-  // the realtime listener below sees the requester reply (which reopens it server-side too).
-  const [status, setStatus] = useState("open");
+  const [reopening, setReopening] = useState(false);
+  // null until loaded — every caller of this component only ever kept the chat's id around, not
+  // its status, and a chat can now arrive here already auto-closed (see
+  // auto_close_stale_support_chats), so this can no longer default to "open".
+  const [status, setStatus] = useState(null);
+  const [closedAt, setClosedAt] = useState(null);
+  const [closedByAdmin, setClosedByAdmin] = useState(false);
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadSupportChatStatus(supportChatId).then(c => {
+      if (cancelled) return;
+      setStatus(c.status);
+      setClosedAt(c.closed_at);
+      setClosedByAdmin(!!c.closed_by);
+    });
+    return () => { cancelled = true; };
+  }, [supportChatId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +66,8 @@ export function SupportChatThread({ supportChatId, viewerRole, viewerId, title, 
     try {
       await closeSupportChat(supportChatId);
       setStatus("closed");
+      setClosedAt(new Date().toISOString());
+      setClosedByAdmin(true);
       setToast("Ticket marked resolved.");
     } catch (e) {
       setToast(e.message || "Could not close this ticket.");
@@ -59,7 +75,20 @@ export function SupportChatThread({ supportChatId, viewerRole, viewerId, title, 
     setClosing(false);
   }
 
-  if (messages === null) return <CenteredNote>Loading…</CenteredNote>;
+  async function handleReopen() {
+    setReopening(true);
+    try {
+      await reopenSupportChat(supportChatId);
+      setStatus("open");
+      setClosedAt(null);
+      setClosedByAdmin(false);
+    } catch (e) {
+      setToast(e.message || "Could not reopen this ticket.");
+    }
+    setReopening(false);
+  }
+
+  if (messages === null || status === null) return <CenteredNote>Loading…</CenteredNote>;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 160px)", minHeight: 360 }}>
@@ -105,13 +134,20 @@ export function SupportChatThread({ supportChatId, viewerRole, viewerId, title, 
           </div>
         )}
 
-        {viewerRole === "admin" && !readOnly && status === "closed" && (
-          <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 16px", fontSize: 12, color: C.gray, textAlign: "center" }}>
-            This ticket is resolved. It'll reopen automatically if the requester replies.
+        {!(viewerRole === "admin" && readOnly) && status === "closed" && (
+          <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 16px", textAlign: "center" }}>
+            <div style={{ fontSize: 12, color: C.gray, marginBottom: 8 }}>
+              {closedByAdmin
+                ? `Marked resolved${closedAt ? ` on ${nowStr(closedAt)}` : ""}.`
+                : `Auto-closed after a week of inactivity${closedAt ? ` (${nowStr(closedAt)})` : ""}.`}
+            </div>
+            <Btn size="sm" full={false} onClick={handleReopen} disabled={reopening}>
+              {reopening ? "Reopening…" : "↺ Reopen chat"}
+            </Btn>
           </div>
         )}
 
-        {(viewerRole !== "admin" || (!readOnly && status === "open")) && (
+        {!(viewerRole === "admin" && readOnly) && status === "open" && (
           <div style={{ borderTop: `1px solid ${C.line}`, padding: "10px 12px" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
               <textarea value={draft} onChange={e => setDraft(e.target.value)}

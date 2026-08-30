@@ -28,6 +28,15 @@ export async function loadSupportMessages(supportChatId) {
   return data;
 }
 
+// Every call site of SupportChatThread only ever kept the chat's id around, not its status — the
+// thread itself now needs the real current status (a chat can arrive here already auto-closed)
+// rather than assuming "open" the way it used to.
+export async function loadSupportChatStatus(supportChatId) {
+  const { data, error } = await supabase.from("support_chats").select("status, closed_at, closed_by").eq("id", supportChatId).single();
+  if (error) throw error;
+  return data;
+}
+
 export async function sendSupportMessage({ supportChatId, senderId, senderRole, text }) {
   const { error } = await supabase.from("support_messages").insert({ support_chat_id: supportChatId, sender_id: senderId, sender_role: senderRole, text });
   if (error) throw error;
@@ -91,5 +100,10 @@ export async function loadSupportChats() {
 
 export async function closeSupportChat(id) {
   const { error } = await supabase.rpc("close_support_chat", { p_support_chat_id: id });
+  if (error) throw error;
+}
+
+export async function reopenSupportChat(id) {
+  const { error } = await supabase.rpc("reopen_support_chat", { p_support_chat_id: id });
   if (error) throw error;
 }
