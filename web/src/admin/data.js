@@ -1302,3 +1302,25 @@ export async function searchHaulerAccounts(query) {
   if (error) throw error;
   return data;
 }
+
+export async function loadPendingPayouts() {
+  const { data, error } = await supabase.rpc("admin_load_pending_payouts");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function loadPayoutReleaseMode() {
+  const { data, error } = await supabase.from("app_config").select("value").eq("key", "payout_release_mode").single();
+  if (error) throw error;
+  return data.value;
+}
+
+export async function setPayoutReleaseMode(mode) {
+  const { error } = await supabase.rpc("set_payout_release_mode", { p_mode: mode });
+  if (error) throw rpcError(error);
+}
+
+export async function releasePayout(payoutId) {
+  const { error } = await supabase.rpc("admin_release_payout", { p_payout_id: payoutId, p_client_user_agent: navigator.userAgent });
+  if (error) throw rpcError(error);
+}
