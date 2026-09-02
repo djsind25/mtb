@@ -354,6 +354,9 @@
           <!-- Required photos — only shown for junk-removal categories -->
           <div class="qc-field" id="qcPhotoField">
             <label class="qc-label">Photos <span style="color:var(--red);">*</span> <span style="font-weight:400; color:var(--gray);">— at least 1 required</span></label>
+            <div id="qcGoogleResumeNotice" style="display:none; font-size:12px; color:var(--green-deep); background:var(--mint); border-radius:8px; padding:9px 11px; margin-bottom:9px; line-height:1.5;">
+              👋 Welcome back — your ZIP and description are saved. Google sign-in can't carry over photos, though, so just add at least one below and you're ready to post.
+            </div>
             <input type="file" id="qcPhotoInput" accept="image/*" multiple style="display:none;">
             <div class="qc-photos" id="qcPhotoPreviews"></div>
             <button type="button" class="qc-photo-add" id="qcPhotoAdd" style="margin-top:8px;">+</button>
@@ -862,7 +865,19 @@
 
     if (resumingFromGoogle) {
       hideAuthModal();
-      submitQuote(); // resume — re-runs with a session now, same as the password flow
+      // Rentals have no photo requirement, so the resumed submit just succeeds outright — same
+      // as the password flow. Junk-removal categories do require a photo, and Google's redirect
+      // is exactly why selectedPhotos is empty right now (File objects can't survive it) — running
+      // submitQuote() as-is would just show its generic "add at least one photo" error, which reads
+      // as "my job info got wiped" rather than "one specific thing needs redoing." Show the
+      // dedicated notice instead of that generic one, and let the person add a photo and submit
+      // when ready rather than re-failing a submit we already know is missing something.
+      if (draft.category !== 'Dumpster rental' && selectedPhotos.length === 0) {
+        document.getElementById('qcGoogleResumeNotice').style.display = 'block';
+        document.getElementById('qcPhotoAdd').scrollIntoView({ block: 'center', behavior: 'smooth' });
+      } else {
+        submitQuote();
+      }
     }
   })();
 
@@ -930,7 +945,10 @@
     const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/'));
     selectedPhotos = selectedPhotos.concat(files);
     renderPhotoPreviews();
-    if (selectedPhotos.length > 0) document.getElementById('qcPhotoError').style.display = 'none';
+    if (selectedPhotos.length > 0) {
+      document.getElementById('qcPhotoError').style.display = 'none';
+      document.getElementById('qcGoogleResumeNotice').style.display = 'none';
+    }
     e.target.value = '';
   });
   document.getElementById('qcDesc').addEventListener('input', (e) => {
