@@ -788,6 +788,11 @@
   // ── Session bootstrap: if the visitor already has a session (e.g. came back after signing
   // up), pick it up so they don't have to log in again to post a second job. ──
   let currentUser = null; // { id, email, name }
+  // Set instead of currentUser when a fresh Google profile (zip==='') has no usable zip to complete
+  // it with yet — e.g. the OAuth redirect didn't preserve the quote draft. complete_oauth_profile is
+  // deferred until submitQuote() has a real, validated zip in hand rather than failing here with a
+  // confusing "ZIP code is required" error and no job ever posted.
+  let pendingOAuthUser = null; // { id, name }
   // Google's OAuth sign-in is a full-page redirect away and back, so anything held only in JS
   // variables (the in-progress quote draft) would otherwise be lost — stashed here right before
   // redirecting and restored in initAuth below. Photos can't be stashed this way (File objects
@@ -850,12 +855,21 @@
     // Google gives no way to pass role/ZIP at signup, so a brand-new Google profile always lands
     // here with zip==='' (see complete_oauth_profile in the app) — finish onboarding using the ZIP
     // already collected in the quote form instead of a separate screen, since this page is
-    // customer-only (posting a job).
-    if (profile.zip === '') {
+    // customer-only (posting a job). complete_oauth_profile hard-requires a real ZIP, so only call
+    // it now if the restored draft actually has one — if the OAuth round-trip didn't preserve the
+    // draft (or it never had a valid zip), leave this pending: submitQuote() completes the profile
+    // itself once it has a real, validated zip from the live form field.
+    const draftZip = draft && /^\d{5}$/.test(draft.zip || '') ? draft.zip : null;
+    if (profile.zip === '' && !draftZip) {
+      pendingOAuthUser = {
+        id: session.user.id,
+        name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+      };
+    } else if (profile.zip === '') {
       const { data: updated, error } = await sb.rpc('complete_oauth_profile', {
         p_role: 'customer',
         p_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
-        p_business_name: '', p_zip: draft ? draft.zip : '', p_phone: null, p_sms_consent: false,
+        p_business_name: '', p_zip: draftZip, p_phone: null, p_sms_consent: false,
       });
       if (error) { showAuthModal(); authErr(error.message); return; }
       currentUser = { id: updated.id, email: updated.email, name: updated.name };
@@ -1157,13 +1171,26 @@
       return;
     }
 
-    if (!currentUser) { showAuthModal(); return; }
+    if (!currentUser && !pendingOAuthUser) { showAuthModal(); return; }
 
     const submitBtn = document.getElementById('qcSubmit');
     submitBtn.disabled = true;
     document.getElementById('qcSubmitLabel').textContent = 'Posting…';
 
     try {
+      // A Google sign-in whose profile never got completed (see pendingOAuthUser above) now has
+      // exactly what it was missing — the zip regex check above guarantees a real one — so finish
+      // onboarding here instead of forcing a second round trip through the auth modal.
+      if (pendingOAuthUser) {
+        const { data: updated, error } = await sb.rpc('complete_oauth_profile', {
+          p_role: 'customer', p_name: pendingOAuthUser.name,
+          p_business_name: '', p_zip: zip, p_phone: null, p_sms_consent: false,
+        });
+        if (error) throw error;
+        currentUser = { id: updated.id, email: updated.email, name: updated.name };
+        pendingOAuthUser = null;
+      }
+
       let job;
       if (isRental) {
         const label = selectedDumpster === 'trailer' ? 'Trailer' : 'Roll-off dumpster';
