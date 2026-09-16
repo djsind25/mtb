@@ -64,7 +64,7 @@ export function PostJobForm({ onCancel, onSubmit, submitting }) {
   const isRental = serviceType === "rental";
   const canSubmit = !submitting && zip && timeline && (timeline !== "specific_date" || timelineDate) && (
     isRental ? (dumpsterType && rentalStartDate && rentalEndDate)
-      : (title && photos.length > 0)
+      : (title && description.trim() && photos.length > 0)
   );
 
   function submit() {
