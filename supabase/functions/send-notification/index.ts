@@ -51,7 +51,12 @@ const EVENT_SUBJECTS: Record<string, string> = {
   chatUnlocked: "Your conversation was unlocked",
   disputeOpened: "A problem was reported on your job",
   disputeResolved: "Your dispute was resolved",
+  identityLinked: "A new sign-in method was added to your account",
 };
+
+// Security-relevant, not a marketing/activity notification — sent regardless of the recipient's
+// per-event-type opt-outs, the same way a password-reset email isn't optional.
+const ALWAYS_SEND_EVENTS = new Set(["identityLinked"]);
 
 export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
@@ -86,7 +91,7 @@ export default {
     }
 
     const prefs = profile.notification_prefs as { email?: boolean; events?: Record<string, boolean> };
-    if (!prefs?.email || prefs.events?.[notification.event_type] === false) {
+    if (!ALWAYS_SEND_EVENTS.has(notification.event_type) && (!prefs?.email || prefs.events?.[notification.event_type] === false)) {
       await ctx.supabaseAdmin.from("notifications").update({ email_dispatched: true }).eq("id", notificationId);
       return Response.json({ skipped: true, reason: "recipient opted out" });
     }
