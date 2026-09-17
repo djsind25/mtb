@@ -983,6 +983,11 @@
   document.getElementById('qcDesc').addEventListener('input', (e) => {
     if (e.target.value.trim()) document.getElementById('qcDescError').style.display = 'none';
   });
+  document.getElementById('qcZip').addEventListener('input', (e) => {
+    const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 5);
+    if (digitsOnly !== e.target.value) e.target.value = digitsOnly;
+    e.target.style.borderColor = '';
+  });
   function renderPhotoPreviews() {
     const wrap = document.getElementById('qcPhotoPreviews');
     wrap.innerHTML = selectedPhotos.map((f, i) => {
