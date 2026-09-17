@@ -54,6 +54,22 @@ export default function App() {
       setStage("recovery");
       return;
     }
+    // A "View my bids in the app" link from the marketing site's post-job success screen carries
+    // the session it just established (#h_at=...&h_rt=...) so this lands already logged in,
+    // instead of asking someone to prove who they are twice in the same minute — localStorage
+    // sessions are strictly per-origin, so nothing here would otherwise know about a session
+    // created on mytrashbid.com. Custom param names (not Supabase's own access_token/
+    // refresh_token/type convention) so this can never collide with — or get silently consumed
+    // by — the client's own detectSessionInUrl handling of a real magic-link/recovery hash.
+    const handoff = window.location.hash.match(/h_at=([^&]+)&h_rt=([^&]+)/);
+    if (handoff) {
+      window.history.replaceState({}, "", window.location.pathname + window.location.search);
+      const { error: handoffError } = await supabase.auth.setSession({
+        access_token: decodeURIComponent(handoff[1]),
+        refresh_token: decodeURIComponent(handoff[2]),
+      });
+      if (handoffError) setToast("Could not restore your session — please log in.");
+    }
     const { data: { session: authSession } } = await supabase.auth.getSession();
     if (!authSession) {
       if (roleParam === "customer" || roleParam === "hauler") {

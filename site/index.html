@@ -1246,7 +1246,7 @@
           await sb.from('job_photos').insert({ job_id: job.id, storage_path: path, original_name: file.name });
         }
       }
-      renderSuccess(job, isRental);
+      await renderSuccess(job, isRental);
     } catch (err) {
       alert(err.message || 'Something went wrong posting your job. Please try again.');
       submitBtn.disabled = false;
@@ -1256,13 +1256,25 @@
 
   function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
 
-  function renderSuccess(job, isRental) {
+  async function renderSuccess(job, isRental) {
     const body = document.getElementById('quoteBody');
     const days = isRental ? 30 : 14;
     const pending = job.status === 'pending_verification';
     const message = pending
       ? 'Check your email to verify your address — your post will go live to haulers automatically the moment you do, with the full '+days+'-day window starting from then.'
       : 'Vetted local haulers in your area will start sending sealed bids — you\'ll see their price and reviews, never each other\'s bids. This listing stays live for '+days+' days. Track bids and accept one from your account.';
+    // The app lives on a different origin (app.mytrashbid.com), and browser session storage is
+    // strictly per-origin — without this, someone who just proved who they are here would land on
+    // the app's own login screen the moment they clicked through, with zero indication why.
+    // Handing the just-established session along in the URL (consumed once, then stripped — see
+    // App.jsx's restoreSession) closes that gap. Custom param names (not access_token/
+    // refresh_token/type, Supabase's own magic-link/recovery convention) so this can never be
+    // mistaken for — or silently intercepted by — the app's detectSessionInUrl handling of a real
+    // recovery link.
+    const { data: { session: authSession } } = await sb.auth.getSession();
+    const appLink = authSession
+      ? APP_URL + '/?role=customer#h_at=' + encodeURIComponent(authSession.access_token) + '&h_rt=' + encodeURIComponent(authSession.refresh_token)
+      : APP_URL + '/?role=customer';
     body.innerHTML =
       '<div class="qc-success">'+
         '<div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg></div>'+
@@ -1270,7 +1282,7 @@
         '<div class="pill">'+escapeHtml(job.title)+'</div>'+
         '<p>'+message+'</p>'+
         (pending ? '<button type="button" id="resendVerifyBtn" class="qc-link-btn">Resend verification email</button>' : '')+
-        '<a class="qc-btn" style="text-decoration:none;" href="'+APP_URL+'/?role=customer" target="_blank" rel="noopener">View my bids in the app</a>'+
+        '<a class="qc-btn" style="text-decoration:none;" href="'+appLink+'" target="_blank" rel="noopener">View my bids in the app</a>'+
       '</div>';
     if (pending) {
       const btn = document.getElementById('resendVerifyBtn');
