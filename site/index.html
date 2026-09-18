@@ -80,6 +80,11 @@
   .qc-field{margin-bottom:15px;}
   .qc-select, .qc-input{width:100%; border:1.5px solid var(--line); border-radius:10px; padding:13px 14px; font-size:15px; font-family:inherit; color:var(--ink); background:var(--paper); outline:none; transition:border-color .15s;}
   .qc-select:focus, .qc-input:focus{border-color:var(--green);}
+  .pc-check{display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--gray);}
+  .pc-check.met{color:var(--green-deep);}
+  .pc-dot{width:15px; height:15px; border-radius:50%; flex-shrink:0; box-sizing:border-box; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center;}
+  .pc-check.met .pc-dot{background:var(--green); border-color:var(--green);}
+  .pc-check.met .pc-dot::after{content:'✓'; color:#fff; font-size:9px; font-weight:900; line-height:1;}
   .qc-cats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:15px;}
   .qc-cat{border:1.5px solid var(--line); border-radius:10px; padding:11px 6px; background:var(--paper); cursor:pointer; text-align:center; transition:all .15s; font-family:inherit;}
   .qc-cat:hover{border-color:var(--green);}
@@ -709,7 +714,15 @@
     </div>
     <div class="qc-field" id="authPasscodeField">
       <label class="qc-label" id="authPasscodeLabel">Passcode</label>
-      <input class="qc-input" id="authPasscode" type="password" placeholder="At least 6 characters">
+      <div style="position:relative;">
+        <input class="qc-input" id="authPasscode" type="password" placeholder="At least 8 characters" style="padding-right:42px;">
+        <button type="button" id="authPasscodeToggle" aria-label="Show passcode" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; padding:4px 6px; font-size:16px; line-height:1;">👁</button>
+      </div>
+      <div id="authPasscodeChecklist" style="display:none; flex-direction:column; gap:4px; margin-top:8px;">
+        <div class="pc-check" data-check="length"><span class="pc-dot"></span>At least 8 characters</div>
+        <div class="pc-check" data-check="letter"><span class="pc-dot"></span>Includes a letter</div>
+        <div class="pc-check" data-check="digit"><span class="pc-dot"></span>Includes a number</div>
+      </div>
     </div>
     <div id="authForgotRow" style="margin:-8px 0 14px; text-align:right;">
       <a href="#" id="authForgotLink" style="font-size:12.5px; color:var(--green); text-decoration:underline;">Forgot passcode?</a>
@@ -1032,6 +1045,9 @@
     document.getElementById('authEmailField').style.display = mode === 'recovery' ? 'none' : 'block';
     document.getElementById('authPasscodeField').style.display = mode === 'reset' ? 'none' : 'block';
     document.getElementById('authPasscodeLabel').textContent = mode === 'recovery' ? 'New passcode' : 'Passcode';
+    const creatingPasscode = mode === 'signup' || mode === 'recovery';
+    document.getElementById('authPasscodeChecklist').style.display = creatingPasscode ? 'flex' : 'none';
+    document.getElementById('authPasscode').placeholder = creatingPasscode ? 'At least 8 characters' : '••••••';
     document.getElementById('authForgotRow').style.display = mode === 'login' ? 'block' : 'none';
     document.getElementById('authResetInfo').style.display = mode === 'reset' ? 'block' : 'none';
     document.getElementById('authSubmit').textContent = AUTH_SUBMIT_LABELS[mode];
@@ -1039,6 +1055,32 @@
   }
   document.querySelectorAll('.auth-tab').forEach(tab => {
     tab.addEventListener('click', () => setAuthMode(tab.dataset.mode));
+  });
+  // Same three rules as web/src/lib/passcode.js's passcodeError() — kept in sync by hand since
+  // this page has no build step to share the module from.
+  function passcodeError(value) {
+    const v = value.trim();
+    if (v.length < 8) return 'Passcode must be at least 8 characters.';
+    if (!/[a-zA-Z]/.test(v)) return 'Passcode must include at least one letter.';
+    if (!/[0-9]/.test(v)) return 'Passcode must include at least one number.';
+    return null;
+  }
+  document.getElementById('authPasscode').addEventListener('input', (e) => {
+    const v = e.target.value;
+    document.querySelectorAll('#authPasscodeChecklist .pc-check').forEach(el => {
+      const met = el.dataset.check === 'length' ? v.length >= 8
+        : el.dataset.check === 'letter' ? /[a-zA-Z]/.test(v)
+        : /[0-9]/.test(v);
+      el.classList.toggle('met', met);
+    });
+  });
+  document.getElementById('authPasscodeToggle').addEventListener('click', () => {
+    const input = document.getElementById('authPasscode');
+    const btn = document.getElementById('authPasscodeToggle');
+    const revealed = input.type === 'text';
+    input.type = revealed ? 'password' : 'text';
+    btn.textContent = revealed ? '👁' : '🙈';
+    btn.setAttribute('aria-label', revealed ? 'Show passcode' : 'Hide passcode');
   });
   document.getElementById('authForgotLink').addEventListener('click', (e) => {
     e.preventDefault();
@@ -1096,7 +1138,8 @@
     }
 
     if (authMode === 'recovery') {
-      if (passcode.length < 6) { authErr('New passcode must be at least 6 characters.'); return; }
+      const pcErr = passcodeError(passcode);
+      if (pcErr) { authErr(pcErr); return; }
       btn.disabled = true;
       const { error } = await sb.auth.updateUser({ password: passcode });
       if (error) { btn.disabled = false; authErr(error.message); return; }
@@ -1114,7 +1157,8 @@
 
     if (authMode === 'signup') {
       if (!name) { authErr('Enter your name.'); btn.disabled = false; return; }
-      if (passcode.length < 6) { authErr('Passcode must be at least 6 characters.'); btn.disabled = false; return; }
+      const pcErr = passcodeError(passcode);
+      if (pcErr) { authErr(pcErr); btn.disabled = false; return; }
       if (!document.getElementById('authTerms').checked) { authErr('You must agree to the Terms of Service to continue.'); btn.disabled = false; return; }
       if (!document.getElementById('authMonitoring').checked) { authErr('You must acknowledge chat monitoring to continue.'); btn.disabled = false; return; }
 

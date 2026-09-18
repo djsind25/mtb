@@ -23,7 +23,7 @@ export function Btn({ children, onClick, disabled, variant = "primary", size = "
   );
 }
 
-export function Field({ label, value, onChange, type = "text", placeholder, required, hint }) {
+export function Field({ label, value, onChange, type = "text", placeholder, required, hint, checklist }) {
   const [revealed, setRevealed] = useState(false);
   const isPassword = type === "password";
   return (
@@ -51,7 +51,23 @@ export function Field({ label, value, onChange, type = "text", placeholder, requ
           >{revealed ? "🙈" : "👁"}</button>
         )}
       </div>
-      {hint && <div style={{ fontSize: 11, color: C.gray, marginTop: 4 }}>{hint}</div>}
+      {/* checklist takes over from the static hint once the caller has something to compute
+          live against (only ever a passcode field so far) — showing both would be redundant. */}
+      {checklist ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+          {checklist.map(item => (
+            <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, color: item.met ? C.teal : C.gray }}>
+              <span style={{
+                width: 15, height: 15, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: item.met ? C.teal : "transparent", border: item.met ? "none" : `1.5px solid ${C.line}`,
+                color: C.paper, fontSize: 9, fontWeight: 900, lineHeight: 1,
+              }}>{item.met ? "✓" : ""}</span>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      ) : hint && <div style={{ fontSize: 11, color: C.gray, marginTop: 4 }}>{hint}</div>}
     </div>
   );
 }

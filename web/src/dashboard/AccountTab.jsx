@@ -12,7 +12,7 @@ import { loadChangeOrdersEnabled } from "../jobs/data";
 import { HaulerDocuments } from "./HaulerDocuments";
 import { HaulerDiscountCode } from "./HaulerDiscountCode";
 import { InstallPrompt } from "./InstallPrompt";
-import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
+import { passcodeError, passcodeChecklist } from "../lib/passcode";
 import { isPushSupported, pushPermission, getCurrentPushSubscription, subscribeToPush, unsubscribeFromPush } from "../lib/push";
 import { LockedField } from "./LockedField";
 import { StepUpChallenge } from "../auth/StepUpChallenge";
@@ -679,7 +679,7 @@ export function AccountTab({ session, setToast, onOpenEarnings }) {
 
       <section>
         <div style={sectionTitle}>Change passcode</div>
-        <Field label="New passcode" value={newPassword} onChange={setNewPassword} type="password" placeholder="At least 8 characters" hint={PASSCODE_HINT} />
+        <Field label="New passcode" value={newPassword} onChange={setNewPassword} type="password" placeholder="At least 8 characters" checklist={passcodeChecklist(newPassword)} />
         <Btn full={false} onClick={submitPasswordChange} disabled={changingPassword}>{changingPassword ? "Updating…" : "Update passcode"}</Btn>
       </section>
 

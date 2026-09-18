@@ -2,7 +2,7 @@ import { useState } from "react";
 import { C, sans } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { mapProfileToSession } from "../lib/session";
-import { passcodeError, PASSCODE_HINT } from "../lib/passcode";
+import { passcodeError, passcodeChecklist } from "../lib/passcode";
 import { Field, Btn, ErrorMsg } from "../ui/Primitives";
 import { AuthShell } from "./AuthShell";
 import { TermsAgreement } from "./TermsAgreement";
@@ -265,7 +265,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="you@email.com" required />
           <Field label="ZIP code" value={zip} onChange={setZip} placeholder="60491" required />
           <Field label="Phone" value={phone} onChange={setPhone} type="tel" placeholder="(optional)" />
-          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
+          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required checklist={passcodeChecklist(passcode)} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Create account"}</Btn>
@@ -279,7 +279,7 @@ export function AuthForm({ role, onBack, onAuthed, setToast }) {
           <Field label="Business email" value={email} onChange={setEmail} type="email" placeholder="jake@capitalcityhaul.com" required />
           <Field label="Primary service ZIP" value={serviceZip} onChange={setServiceZip} placeholder="60491" required />
           <Field label="Phone" value={haulerPhone} onChange={setHaulerPhone} type="tel" placeholder="(555) 867-5309" required />
-          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required hint={PASSCODE_HINT} />
+          <Field label="Create a passcode" value={passcode} onChange={setPasscode} type="password" placeholder="At least 8 characters" required checklist={passcodeChecklist(passcode)} />
           <TermsAgreement checked={agreedToTerms} onChange={setAgreedToTerms} monitoringChecked={agreedToMonitoring} onMonitoringChange={setAgreedToMonitoring} />
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <Btn onClick={handleSignup} disabled={loading} size="lg">{loading ? "Creating account…" : "Apply as a hauler"}</Btn>
