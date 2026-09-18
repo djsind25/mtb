@@ -42,6 +42,10 @@ select throws_ok(
 );
 
 reset role;
+-- is_admin() requires a current aal2 session as of
+-- 20260922000000_admin_aal2_and_unverified_signup_cleanup.sql — see
+-- 91_suspension_enforcement.sql for the identical pattern with require_aal2().
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
 set local role authenticated;
 

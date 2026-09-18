@@ -41,8 +41,10 @@ update profiles set
 where id = '22222222-2222-2222-2222-222222222222';
 select set_config('app.bypass_profile_guard', 'false', false);
 
-insert into jobs (id, customer_id, title, zip, status, payment_mode)
-values ('66666666-6666-6666-6666-666666666666', '11111111-1111-1111-1111-111111111111', 'pgTAP test job', '60629', 'booked', 'full')
+-- `description` is required (non-null, non-empty, rentals exempt) as of
+-- 20260923000000_require_job_description.sql.
+insert into jobs (id, customer_id, title, description, zip, status, payment_mode)
+values ('66666666-6666-6666-6666-666666666666', '11111111-1111-1111-1111-111111111111', 'pgTAP test job', 'pgTAP fixture description for automated tests', '60629', 'booked', 'full')
 on conflict (id) do nothing;
 
 insert into chats (id, job_id, customer_id, hauler_id, bid_amount, deposit, balance_due, commission, payment_mode)

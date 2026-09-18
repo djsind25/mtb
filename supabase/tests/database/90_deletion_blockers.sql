@@ -11,15 +11,15 @@ select plan(9);
 -- ── Fresh fixture data (as the unrestricted setup role, before any impersonation below) ──
 
 -- active_job: an open job for the "other customer" fixture.
-insert into jobs (id, customer_id, title, zip, payment_mode)
-values ('90000000-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'pgTAP active job', '60629', 'deposit');
+insert into jobs (id, customer_id, title, description, zip, payment_mode)
+values ('90000000-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'pgTAP active job', 'pgTAP fixture description', '60629', 'deposit');
 select set_config('app.bypass_job_guard', 'true', true);
 update jobs set status = 'open', completed = false, expires_at = now() + interval '10 days'
   where id = '90000000-0000-0000-0000-000000000001';
 
 -- accepted_bid_incomplete: a booked-not-completed job whose accepted bid belongs to hauler 222.
-insert into jobs (id, customer_id, title, zip, payment_mode)
-values ('90000000-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333', 'pgTAP accepted-bid job', '60629', 'deposit');
+insert into jobs (id, customer_id, title, description, zip, payment_mode)
+values ('90000000-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333', 'pgTAP accepted-bid job', 'pgTAP fixture description', '60629', 'deposit');
 insert into bids (id, job_id, hauler_id, amount)
 values ('90000000-0000-0000-0000-000000000003', '90000000-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222', 75);
 select set_config('app.bypass_job_guard', 'true', true);
@@ -75,6 +75,10 @@ select throws_ok(
 );
 
 reset role;
+-- is_admin() requires a current aal2 session as of
+-- 20260922000000_admin_aal2_and_unverified_signup_cleanup.sql — see
+-- 91_suspension_enforcement.sql for the identical pattern with require_aal2().
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 select lives_ok(

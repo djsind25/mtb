@@ -6,7 +6,15 @@
 begin;
 select plan(23);
 
+-- is_admin()/is_full_admin()/is_super_admin() all require a current aal2 session as of
+-- 20260922000000_admin_aal2_and_unverified_signup_cleanup.sql — every simulated admin action
+-- below needs the same step-up claim a live MFA-verified admin session would carry (see
+-- 91_suspension_enforcement.sql for the identical pattern with require_aal2()). The final
+-- customer accept_bid() call near the bottom is deliberately NOT an admin action and doesn't get
+-- this claim.
+
 -- ── regular admin, toggle OFF (the default) — blocked from every fee mutation ──────────────────
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 
@@ -30,6 +38,7 @@ select throws_ok(
 
 -- ── view-only admin — blocked by is_full_admin() regardless of super_admin/toggle state ─────────
 reset role;
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '55555555-5555-5555-5555-555555555555', true);
 set local role authenticated;
 
@@ -44,6 +53,7 @@ reset role;
 select set_config('app.bypass_profile_guard', 'true', true);
 update profiles set super_admin = true where id = '44444444-4444-4444-4444-444444444444';
 select set_config('app.bypass_profile_guard', 'false', true);
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 
@@ -90,6 +100,7 @@ reset role;
 select set_config('app.bypass_profile_guard', 'true', true);
 update profiles set super_admin = false where id = '44444444-4444-4444-4444-444444444444';
 select set_config('app.bypass_profile_guard', 'false', true);
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 
@@ -116,6 +127,7 @@ reset role;
 select set_config('app.bypass_profile_guard', 'true', true);
 update profiles set super_admin = true where id = '44444444-4444-4444-4444-444444444444';
 select set_config('app.bypass_profile_guard', 'false', true);
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 select lives_ok($$ select set_tier_platform_fee_rate('free', 0.20) $$, 'set the free tier rate to 0.20 ahead of acceptance');
@@ -124,11 +136,13 @@ reset role;
 -- set_job_expiry() forces new jobs to 'pending_verification' unless the customer's email is
 -- verified — the fixture customer has no email_verified_at by default.
 update profiles set email_verified_at = now() where id = '11111111-1111-1111-1111-111111111111';
-insert into jobs (id, customer_id, title, zip, status, payment_mode)
-values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'pgTAP fee-freeze job', '60629', 'open', 'deposit');
+insert into jobs (id, customer_id, title, description, zip, status, payment_mode)
+values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'pgTAP fee-freeze job', 'pgTAP fixture description for automated tests', '60629', 'open', 'deposit');
 insert into bids (id, job_id, hauler_id, amount)
 values ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '22222222-2222-2222-2222-222222222222', 100);
 
+-- Not an admin action — no aal2 claim needed here, only the customer's own identity.
+select set_config('request.jwt.claims', '{}', true);
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
 set local role authenticated;
 select lives_ok(
@@ -146,6 +160,7 @@ select is(
 select set_config('app.bypass_profile_guard', 'true', true);
 update profiles set super_admin = true where id = '44444444-4444-4444-4444-444444444444';
 select set_config('app.bypass_profile_guard', 'false', true);
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 select lives_ok($$ select set_tier_platform_fee_rate('free', 0.35) $$, 'change the free tier rate again, after acceptance');

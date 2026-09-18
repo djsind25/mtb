@@ -5,8 +5,8 @@
 begin;
 select plan(5);
 
-insert into jobs (id, customer_id, title, zip, payment_mode)
-values ('92000000-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'pgTAP search-visibility job', '60629', 'deposit');
+insert into jobs (id, customer_id, title, description, zip, payment_mode)
+values ('92000000-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'pgTAP search-visibility job', 'pgTAP fixture description', '60629', 'deposit');
 select set_config('app.bypass_job_guard', 'true', true);
 update jobs set status = 'open', completed = false, expires_at = now() + interval '10 days'
   where id = '92000000-0000-0000-0000-000000000001';

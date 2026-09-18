@@ -3,8 +3,8 @@
 begin;
 select plan(3);
 
-insert into jobs (id, customer_id, title, zip, payment_mode)
-values ('95000000-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'pgTAP review-label job', '60629', 'deposit');
+insert into jobs (id, customer_id, title, description, zip, payment_mode)
+values ('95000000-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333', 'pgTAP review-label job', 'pgTAP fixture description', '60629', 'deposit');
 select set_config('app.bypass_job_guard', 'true', true);
 update jobs set status = 'booked', completed = true, completed_at = now()
   where id = '95000000-0000-0000-0000-000000000001';

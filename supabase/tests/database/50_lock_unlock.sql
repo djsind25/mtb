@@ -3,6 +3,10 @@
 begin;
 select plan(8);
 
+-- is_admin()/is_full_admin() require a current aal2 session as of
+-- 20260922000000_admin_aal2_and_unverified_signup_cleanup.sql — see
+-- 91_suspension_enforcement.sql for the identical pattern with require_aal2().
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 select admin_join_chat('77777777-7777-7777-7777-777777777777');
@@ -33,6 +37,7 @@ select throws_ok(
 );
 
 reset role;
+select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
 select set_config('request.jwt.claim.sub', '44444444-4444-4444-4444-444444444444', true);
 set local role authenticated;
 

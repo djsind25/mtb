@@ -47,7 +47,7 @@ reset role;
 select set_config('request.jwt.claim.sub', '33333333-3333-3333-3333-333333333333', true);
 set local role authenticated;
 select throws_ok(
-  $$ insert into jobs (customer_id, title, zip, payment_mode) values ('33333333-3333-3333-3333-333333333333', 'should not post', '60629', 'deposit') $$,
+  $$ insert into jobs (customer_id, title, description, zip, payment_mode) values ('33333333-3333-3333-3333-333333333333', 'should not post', 'pgTAP fixture description', '60629', 'deposit') $$,
   '42501', 'new row violates row-level security policy for table "jobs"',
   'a suspended customer cannot post a job'
 );
