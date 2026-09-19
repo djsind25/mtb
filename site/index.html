@@ -85,19 +85,13 @@
   .pc-dot{width:15px; height:15px; border-radius:50%; flex-shrink:0; box-sizing:border-box; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center;}
   .pc-check.met .pc-dot{background:var(--green); border-color:var(--green);}
   .pc-check.met .pc-dot::after{content:'✓'; color:#fff; font-size:9px; font-weight:900; line-height:1;}
-  .qc-cats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:15px;}
-  .qc-cat{border:1.5px solid var(--line); border-radius:10px; padding:11px 6px; background:var(--paper); cursor:pointer; text-align:center; transition:all .15s; font-family:inherit;}
-  .qc-cat:hover{border-color:var(--green);}
-  .qc-cat.active{border-color:var(--green); background:var(--mint);}
-  .qc-cat .ic{font-size:20px; margin-bottom:3px;}
-  .qc-cat .lb{font-size:11px; font-weight:600; color:var(--ink); line-height:1.2; display:block;}
   .qc-btn{width:100%; background:var(--green); color:#fff; border:none; border-radius:10px; padding:15px; font-size:16px; font-weight:800; cursor:pointer; transition:background .15s; font-family:inherit; align-items:center; justify-content:center; gap:8px;}
   .qc-btn{display:flex;}
   .qc-btn:hover{background:var(--green-bright);}
   .qc-btn:disabled{background:var(--gray-light); cursor:not-allowed;}
   .qc-foot{text-align:center; font-size:12px; color:var(--gray); margin-top:12px;}
 
-  /* dumpster-type picker (reuses the qc-cat look, two-up) */
+  /* dumpster-type picker (two-up) */
   .qc-dumpster{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px;}
   .qc-dumpster-opt{border:1.5px solid var(--line); border-radius:10px; padding:12px 10px; background:var(--paper); cursor:pointer; font-size:13px; font-weight:600; color:var(--ink); font-family:inherit; transition:all .15s;}
   .qc-dumpster-opt:hover{border-color:var(--green);}
@@ -347,17 +341,17 @@
             <div style="text-align:center; font-size:11.5px; color:var(--gray); margin-top:9px;">or just fill out your job below — we'll ask you to log in at the end</div>
           </div>
 
-          <label class="qc-label">What needs to go?</label>
-          <div class="qc-cats" id="qcCats">
-            <button class="qc-cat active" data-cat="Furniture"><div class="ic">🛋️</div><span class="lb">Furniture</span></button>
-            <button class="qc-cat" data-cat="Appliances"><div class="ic">🧊</div><span class="lb">Appliances</span></button>
-            <button class="qc-cat" data-cat="Construction debris"><div class="ic">🧱</div><span class="lb">Construction</span></button>
-            <button class="qc-cat" data-cat="Yard waste"><div class="ic">🌿</div><span class="lb">Yard waste</span></button>
-            <button class="qc-cat" data-cat="Dumpster rental"><div class="ic">🗑️</div><span class="lb">Rent a dumpster</span></button>
-            <button class="qc-cat" data-cat="Something else"><div class="ic">❓</div><span class="lb">Something else</span></button>
+          <!-- Leads with the customer's actual job in their own words (it becomes the job title
+               haulers see) instead of making them pick from a fixed category list first. Categories
+               never drove anything on this site — no category column, no hauler matching — only
+               the auto-generated "Furniture removal"-style title and the rental branch. -->
+          <div class="qc-field" id="qcTitleField">
+            <label class="qc-label" for="qcTitle">What do you need removed? <span style="color:var(--red);">*</span></label>
+            <input class="qc-input" id="qcTitle" type="text" maxlength="100" placeholder="e.g. Two couches and an old refrigerator in my garage">
+            <div id="qcTitleError" style="display:none; font-size:11.5px; color:var(--red); margin-top:6px;">Tell haulers what needs to go — one short line is plenty.</div>
           </div>
 
-          <!-- Rental-only fields — shown when "Dumpster rental" is selected above -->
+          <!-- Rental-only fields — shown once "Need a dumpster or trailer rental instead?" is chosen below -->
           <div id="qcRentalFields" style="display:none;">
             <label class="qc-label">Trailer or roll-off?</label>
             <div class="qc-dumpster">
@@ -380,7 +374,7 @@
           <div class="qc-field" id="qcPhotoField">
             <label class="qc-label">Photos <span style="color:var(--red);">*</span> <span style="font-weight:400; color:var(--gray);">— at least 1 required</span></label>
             <div id="qcGoogleResumeNotice" style="display:none; font-size:12px; color:var(--green-deep); background:var(--mint); border-radius:8px; padding:9px 11px; margin-bottom:9px; line-height:1.5;">
-              👋 Welcome back — your ZIP and description are saved. Google sign-in can't carry over photos, though, so just add at least one below and you're ready to post.
+              👋 Welcome back — your job details are saved. Google sign-in can't carry over photos, though, so just add at least one below and you're ready to post.
             </div>
             <input type="file" id="qcPhotoInput" accept="image/*" multiple style="display:none;">
             <div class="qc-photos" id="qcPhotoPreviews"></div>
@@ -392,10 +386,10 @@
             </div>
           </div>
 
-          <!-- Required quick description — only shown for junk-removal categories -->
+          <!-- Required description — only shown for junk removal (rentals have their own fields) -->
           <div class="qc-field" id="qcDescField">
-            <label class="qc-label">Quick description <span style="color:var(--red);">*</span></label>
-            <textarea class="qc-input" id="qcDesc" rows="3" placeholder="What needs to go, roughly how much, any access notes…" style="resize:vertical; font-family:inherit;"></textarea>
+            <label class="qc-label">Describe the job <span style="color:var(--red);">*</span></label>
+            <textarea class="qc-input" id="qcDesc" rows="3" placeholder="How much is there? Stairs, basement or garage access? Anything haulers should know…" style="resize:vertical; font-family:inherit;"></textarea>
             <div id="qcDescError" style="display:none; font-size:11.5px; color:var(--red); margin-top:6px;">Add a quick description so haulers know what they're bidding on.</div>
           </div>
 
@@ -404,10 +398,11 @@
             <input class="qc-input" id="qcZip" type="text" inputmode="numeric" placeholder="e.g. 60491" maxlength="5">
           </div>
           <button class="qc-btn" id="qcSubmit">
-            <span id="qcSubmitLabel">Get my free bids</span>
+            <span id="qcSubmitLabel">Post My Junk — Get Free Bids</span>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
           <div class="qc-foot">No phone calls. No spam. 100% free to post.</div>
+          <div class="qc-foot" style="margin-top:8px;"><a href="#" id="qcModeToggle" style="color:var(--green-deep); font-weight:600; text-decoration:underline;">Need a dumpster or trailer rental instead?</a></div>
         </div>
       </div>
     </div>
@@ -548,7 +543,7 @@
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg> Licensed, insured, reviewed crews</li>
           <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg> Pay securely — funds held until the job's done</li>
         </ul>
-        <button class="dual-btn" onclick="goToQuote('Furniture')">Post a job free <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        <button class="dual-btn" onclick="goToQuote('Junk removal')">Post a job free<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </div>
       <div class="dual-card bin">
         <span class="dual-badge">Book in 60 seconds</span>
@@ -671,7 +666,7 @@
         <p style="font-size:14px; line-height:1.6; max-width:250px; color:rgba(255,255,255,0.5);">The bid marketplace for junk removal and dumpster rental. Vetted local pros, real prices, no phone tag.</p>
       </div>
       <div class="foot-col"><h5>Customers</h5>
-        <button onclick="goToQuote('Furniture')">Post a job</button>
+        <button onclick="goToQuote('Junk removal')">Post a job</button>
         <button onclick="goToQuote('Dumpster rental')">Rent a dumpster</button>
         <a href="#how">How it works</a><a href="#reviews">Reviews</a>
       </div>
@@ -829,6 +824,7 @@
   function saveQuoteDraft() {
     const draft = {
       category: selectedCat,
+      title: document.getElementById('qcTitle').value.trim(),
       zip: document.getElementById('qcZip').value.trim(),
       description: document.getElementById('qcDesc').value.trim(),
     };
@@ -841,6 +837,7 @@
   }
   function restoreQuoteDraft(draft) {
     selectCategory(draft.category);
+    document.getElementById('qcTitle').value = draft.title || '';
     document.getElementById('qcZip').value = draft.zip || '';
     document.getElementById('qcDesc').value = draft.description || '';
     if (draft.category === 'Dumpster rental') {
@@ -952,23 +949,34 @@
     window.history.replaceState({}, '', url);
   })();
 
-  // ── Category selection (toggles the rental-only fields) ──
-  let selectedCat = 'Furniture';
+  // ── Form mode: junk removal (default) vs dumpster rental ──
+  // There are no job categories any more — the customer describes the job in their own words
+  // (the title field). "Category" is now just which of the two service types the form is in;
+  // any other value (including a legacy category name in a stale saved draft) means removal.
+  let selectedCat = 'Junk removal';
+  const REMOVAL_LABEL = 'Post My Junk — Get Free Bids';
   function selectCategory(cat) {
     selectedCat = cat;
-    document.querySelectorAll('.qc-cat').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
     const isRental = cat === 'Dumpster rental';
     document.getElementById('qcRentalFields').style.display = isRental ? 'block' : 'none';
+    document.getElementById('qcTitleField').style.display = isRental ? 'none' : 'block';
     document.getElementById('qcPhotoField').style.display = isRental ? 'none' : 'block';
     document.getElementById('qcDescField').style.display = isRental ? 'none' : 'block';
-    document.getElementById('qcSubmitLabel').textContent = isRental ? 'Get my rental bids' : 'Get my free bids';
+    document.getElementById('qcSubmitLabel').textContent = isRental ? 'Get my rental bids' : REMOVAL_LABEL;
+    document.getElementById('qcModeToggle').textContent = isRental ? '← Post a junk removal job instead' : 'Need a dumpster or trailer rental instead?';
   }
-  document.querySelectorAll('.qc-cat').forEach(btn => btn.addEventListener('click', () => selectCategory(btn.dataset.cat)));
+  document.getElementById('qcModeToggle').addEventListener('click', (e) => {
+    e.preventDefault();
+    selectCategory(selectedCat === 'Dumpster rental' ? 'Junk removal' : 'Dumpster rental');
+  });
   window.goToQuote = function(cat) {
     if (cat) selectCategory(cat);
     document.getElementById('quoteCard').scrollIntoView({ behavior: 'smooth' });
-    setTimeout(() => document.getElementById('qcZip').focus(), 350);
+    setTimeout(() => document.getElementById(selectedCat === 'Dumpster rental' ? 'qcZip' : 'qcTitle').focus(), 350);
   };
+  document.getElementById('qcTitle').addEventListener('input', (e) => {
+    if (e.target.value.trim()) document.getElementById('qcTitleError').style.display = 'none';
+  });
 
   // ── Dumpster type toggle ──
   let selectedDumpster = 'rolloff';
@@ -1208,6 +1216,18 @@
   document.getElementById('qcSubmit').addEventListener('click', submitQuote);
 
   async function submitQuote() {
+    const isRental = selectedCat === 'Dumpster rental';
+
+    // First field on the form, so it's checked first — the job title haulers see is now exactly
+    // what the customer typed here (rentals auto-generate theirs from type + dates below).
+    const title = document.getElementById('qcTitle').value.trim();
+    document.getElementById('qcTitleError').style.display = 'none';
+    if (!isRental && !title) {
+      document.getElementById('qcTitleError').style.display = 'block';
+      document.getElementById('qcTitle').focus();
+      return;
+    }
+
     const zip = document.getElementById('qcZip').value.trim();
     if (!/^\d{5}$/.test(zip)) {
       document.getElementById('qcZip').style.borderColor = '#C0392B';
@@ -1215,7 +1235,6 @@
       return;
     }
 
-    const isRental = selectedCat === 'Dumpster rental';
     let rentalStart, rentalEnd;
     if (isRental) {
       rentalStart = document.getElementById('qcRentalStart').value;
@@ -1275,7 +1294,7 @@
       } else {
         const { data, error } = await sb.from('jobs').insert({
           customer_id: currentUser.id,
-          title: selectedCat + ' removal',
+          title: title,
           description: description,
           zip: zip,
           service_type: 'removal',
@@ -1294,7 +1313,7 @@
     } catch (err) {
       alert(err.message || 'Something went wrong posting your job. Please try again.');
       submitBtn.disabled = false;
-      document.getElementById('qcSubmitLabel').textContent = isRental ? 'Get my rental bids' : 'Get my free bids';
+      document.getElementById('qcSubmitLabel').textContent = isRental ? 'Get my rental bids' : REMOVAL_LABEL;
     }
   }
 
